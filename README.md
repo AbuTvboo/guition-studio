@@ -1,5 +1,7 @@
 # Guition Studio
 
+[![Buy me a coffee via PayPal](https://img.shields.io/badge/Buy%20me%20a%20coffee-PayPal-00457C?logo=paypal&logoColor=white)](https://paypal.me/sebagueven)
+
 **Visueller Display-Designer und Geräteverwaltung für das Guition ESP32-S3-4848S040 – direkt in Home Assistant.**
 
 Firmware einmal installieren → Seiten per Drag-and-Drop gestalten → „Auf Display übertragen“ → das neue Layout erscheint sofort auf dem Display. Ein erneutes Flashen ist nicht nötig, YAML musst du nicht anfassen.
@@ -76,6 +78,12 @@ python scripts/package_firmware.py
 ```
 
 Releases: Ein Tag `vX.Y.Z` startet `.github/workflows/release.yml`. Die Action baut die Firmware und veröffentlicht `firmware.factory.bin`, `firmware.ota.bin`, `SHA256SUMS` und `guition_studio.zip`. Die Versionen in `firmware/guition-studio.yaml` und `manifest.json` müssen zum Tag passen. Für Forks die Firmware-Quelle in `const.py` (`DEFAULT_FIRMWARE_REPO`) anpassen oder in den Integrationsoptionen ändern.
+
+## Unterstützen
+
+Guition Studio ist kostenlos und entsteht in meiner Freizeit. Wenn es dein Zuhause ein bisschen schöner macht, kannst du mir einen Kaffee spendieren ☕ – danke!
+
+[![Buy me a coffee via PayPal](https://img.shields.io/badge/Buy%20me%20a%20coffee-PayPal-00457C?logo=paypal&logoColor=white)](https://paypal.me/sebagueven)
 
 ## Lizenz
 

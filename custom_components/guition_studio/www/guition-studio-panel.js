@@ -4765,6 +4765,7 @@ var xt = class extends N {
         <label class="check"><input type="checkbox" .checked=${this.debug} @change=${(e) => this.setDebug(e.target.checked)} /> Debug-Modus (protokolliert Seitenwechsel und Zustandsübertragungen)</label>
         <p class="small muted">Firmware-Quelle: <code>${this.info.firmware_repo}</code> – änderbar unter Einstellungen → Geräte & Dienste → Guition Studio → Konfigurieren.<br />
         Oberflächensprache: Deutsch (weitere Sprachen geplant).</p>
+        <p class="small support">Gefällt dir Guition Studio? Über <a href="https://paypal.me/sebagueven" target="_blank" rel="noopener">PayPal</a> kannst du mir einen Kaffee spendieren ☕ – danke!</p>
       </section>
     `;
 	}
@@ -4775,6 +4776,10 @@ var xt = class extends N {
         bottom: 0;
         background: var(--gs-bg);
         padding: 10px 0;
+      }
+      .support a {
+        color: var(--gs-primary);
+        font-weight: 600;
       }
       .auto-card {
         margin-top: 16px;

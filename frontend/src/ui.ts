@@ -348,9 +348,30 @@ export function renderTileContent(tile: Tile, theme: Theme, hass: Hass | undefin
         ${tile.show_title ? html`<div style="font-size:16px">${tile.title || now.toLocaleDateString("de-DE")}</div>` : nothing}
       </div>`;
       break;
-    case "sensor":
     case "weather": {
-      const weather = tile.type === "weather";
+      const wide = pw >= 200;
+      const tall = ph >= 200;
+      const fcH = tall ? 74 : 0;
+      let bottom = pad + fcH;
+      const showDetail = wide || ph >= 150;
+      const detailBottom = bottom;
+      if (showDetail) bottom += 18;
+      const subBottom = bottom;
+      bottom += 22;
+      body = html`${title({ position: "absolute", left: `${pad}px`, top: `${pad}px`, right: `${pad + 48}px` })}
+        <div style="position:absolute;right:${pad}px;top:${pad - 4}px;color:${c.icon}">${deviceIcon(ps.icon ?? iconKey, tall ? 40 : 28)}</div>
+        <div class="t-value" style="position:absolute;left:${pad}px;bottom:${bottom}px;font-size:${tall || wide ? 40 : 28}px">${ps.known ? (ps.available ? ps.text || "–" : "Nicht verfügbar") : "–"}</div>
+        <div class="t-state" style="position:absolute;left:${pad}px;right:${pad}px;bottom:${subBottom}px;font-size:16px">${ps.sub}</div>
+        ${showDetail ? html`<div class="t-state" style="position:absolute;left:${pad}px;right:${pad}px;bottom:${detailBottom}px;font-size:12px">${ps.detail}</div>` : nothing}
+        ${tall
+          ? html`<div class="t-buttons" style="left:${pad}px;right:${pad}px;bottom:${pad}px;height:70px;font-size:12px;text-align:center">
+              ${[0, 1, 2].map(() => html`<span style="flex-direction:column;gap:2px">Vorhersage<br />vom Display</span>`)}
+            </div>`
+          : nothing}`;
+      break;
+    }
+    case "sensor": {
+      const weather = false;
       const ic = weather && ps.icon ? ps.icon : iconKey;
       body = html`${title({ position: "absolute", left: `${pad}px`, top: `${pad}px`, right: `${pad + 34}px` })}
         ${tile.show_icon || weather ? html`<div style="position:absolute;right:${pad}px;top:${pad - 4}px;color:${c.icon}">${deviceIcon(ic, weather && big ? 40 : 28)}</div>` : nothing}

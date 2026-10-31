@@ -1,6 +1,7 @@
 import { LitElement, css, html, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { friendlyName } from "../entities";
+import { formatState } from "../preview";
 import { clone, entityDomainProblem, needsEntity, setGrid } from "../model";
 import type { ActionType, Condition, Hass, Layout, Page, StudioInfo, Tile, TileAction, TileStyle } from "../types";
 import { deviceIcon, fireEvent, sharedStyles, toast } from "../ui";
@@ -183,7 +184,16 @@ export class GsTileProps extends LitElement {
               />
               ${t.entity && !entity ? html`<span style="color:var(--gs-error)">Entität existiert nicht oder ist nicht verfügbar</span>` : nothing}
               ${domainProblem ? html`<span style="color:var(--gs-error)">${domainProblem}</span>` : nothing}
-              ${entity ? html`<span>Aktuell: <b>${entity.state}</b> ${entity.attributes.unit_of_measurement ?? ""}</span>` : nothing}
+              ${entity
+                ? html`<span>Aktuell: <b>${formatState(entity.entity_id.split(".", 1)[0], entity.state, entity.attributes)}</b>
+                    ${entity.entity_id.startsWith("weather.")
+                      ? html`<br />${[
+                          entity.attributes.humidity != null ? `Luftfeuchte ${entity.attributes.humidity} %` : "",
+                          entity.attributes.wind_speed != null ? `Wind ${entity.attributes.wind_speed} ${entity.attributes.wind_speed_unit ?? "km/h"}` : "",
+                          entity.attributes.pressure != null ? `Luftdruck ${entity.attributes.pressure} ${entity.attributes.pressure_unit ?? "hPa"}` : "",
+                        ].filter(Boolean).join(" · ")}<br />Ab 2 Spalten zeigt die Kachel Höchst-/Tiefstwert, Feuchte und Wind; ab 2×2 die 3-Tage-Vorhersage.`
+                      : nothing}</span>`
+                : nothing}
             </label>`
           : nothing}
         ${t.type === "graph"

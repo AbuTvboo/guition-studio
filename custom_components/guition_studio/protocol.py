@@ -210,13 +210,58 @@ def _extras(domain: str, state: str, attrs: dict[str, Any]) -> dict[str, Any]:
             out["n"] = round(vol * 100)
     elif domain == "weather":
         text, icon = WEATHER_DE.get(state, (state, "weather-cloudy"))
-        humidity = _fmt_number(attrs.get("humidity"))
-        out["s"] = f"{text} · {humidity} %" if humidity else text
+        out["s"] = text
         out["i"] = icon
+        details = []
+        humidity = _fmt_number(attrs.get("humidity"))
+        if humidity:
+            details.append(f"Feuchte {humidity} %")
+        wind = _fmt_number(attrs.get("wind_speed"))
+        if wind:
+            details.append(f"Wind {wind} {attrs.get('wind_speed_unit') or 'km/h'}")
+        if details:
+            out["w"] = " · ".join(details)
     return out
 
 
-def entity_payload(domain: str, state: str | None, attributes: dict[str, Any] | None) -> dict[str, Any]:
+WEEKDAYS_DE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
+
+
+def weather_forecast_payload(forecast: list[dict[str, Any]] | None, now: datetime | None = None) -> dict[str, Any]:
+    """Today's high/low and a 3-day forecast from weather.get_forecasts (daily)."""
+    if not forecast:
+        return {}
+    now = now or datetime.now().astimezone()
+    out: dict[str, Any] = {}
+    days = []
+    for item in forecast:
+        try:
+            when = datetime.fromisoformat(str(item.get("datetime"))).astimezone(now.tzinfo)
+        except (TypeError, ValueError):
+            continue
+        days.append((when, item))
+    if not days:
+        return {}
+    today = [d for d in days if d[0].date() == now.date()]
+    first = today[0][1] if today else days[0][1]
+    hi, lo = _fmt_number(first.get("temperature")), _fmt_number(first.get("templow"))
+    if hi or lo:
+        out["hl"] = f"↑{hi}° ↓{lo}°" if hi and lo else f"↑{hi or lo}°"
+    upcoming = [d for d in days if d[0].date() > now.date()][:3]
+    out["f"] = [
+        [
+            WEEKDAYS_DE[when.weekday()],
+            WEATHER_DE.get(str(item.get("condition")), ("", "weather-cloudy"))[1],
+            f"{_fmt_number(item.get('temperature')) or '–'}°/{_fmt_number(item.get('templow')) or '–'}°",
+        ]
+        for when, item in upcoming
+    ]
+    return out
+
+
+def entity_payload(
+    domain: str, state: str | None, attributes: dict[str, Any] | None, forecast: list[dict[str, Any]] | None = None
+) -> dict[str, Any]:
     """Compact per-entity state for the device: o=on, a=available, d=display text (+ extras)."""
     if state is None:
         return {"o": 0, "a": 0, "d": STATE_TEXT_DE["unavailable"]}
@@ -229,6 +274,10 @@ def entity_payload(domain: str, state: str | None, attributes: dict[str, Any] | 
     }
     if available:
         payload.update(_extras(domain, state, attrs))
+        if domain == "weather" and forecast:
+            payload.update(weather_forecast_payload(forecast))
+            if payload.get("hl"):
+                payload["w"] = " · ".join(x for x in (payload.pop("hl"), payload.get("w")) if x)
     return payload
 
 

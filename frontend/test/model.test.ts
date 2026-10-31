@@ -203,7 +203,7 @@ describe("entity library", () => {
     expect(previewExtras("light", "on", { brightness: 128 }).num).toBe(50);
     expect(previewExtras("climate", "heat", { current_temperature: 20.5, temperature: 22 })).toMatchObject({ text: "20,5 °C", sub: "Ziel 22 °C" });
     expect(previewExtras("media_player", "playing", { media_title: "Song", media_artist: "Band", volume_level: 0.35 })).toMatchObject({ sub: "Band – Song", num: 35 });
-    expect(previewExtras("weather", "rainy", { humidity: 80 })).toMatchObject({ sub: "Regen · 80 %", icon: "weather-rainy" });
+    expect(previewExtras("weather", "rainy", { humidity: 80, wind_speed: 12 })).toMatchObject({ sub: "Regen", icon: "weather-rainy", detail: "Feuchte 80 % · Wind 12 km/h" });
   });
   it("maps legacy icon names to MDI", () => {
     expect(normalizeIcon("charge")).toBe("flash");

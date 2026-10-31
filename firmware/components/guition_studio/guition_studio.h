@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <map>
 #include <string>
@@ -119,6 +120,8 @@ struct EntityState {
   std::string icon;     // icon override (weather condition)
   std::vector<int8_t> graph;  // history 0..100, -1 = no data (graph tiles)
   std::string graph_range;    // "min – max unit"
+  std::string detail;         // weather: high/low, humidity, wind
+  std::vector<std::array<std::string, 3>> forecast;  // weather: weekday, icon, "hi°/lo°"
 };
 
 // Sub-controls inside a tile (cover, thermostat, media). Sent to HA as names.
@@ -147,6 +150,8 @@ struct TileView {
   lv_obj_t *sub{nullptr};
   lv_obj_t *slider{nullptr};
   lv_obj_t *graph_area{nullptr};
+  lv_obj_t *detail{nullptr};
+  lv_obj_t *fc_day[3]{nullptr, nullptr, nullptr}, *fc_icon[3]{nullptr, nullptr, nullptr}, *fc_temp[3]{nullptr, nullptr, nullptr};
   std::vector<lv_obj_t *> bars;
   bool dragging{false};
   bool visible{true};

@@ -113,6 +113,7 @@ class StudioManager:
         self._trackers: dict[str, CALLBACK_TYPE] = {}
         self._push_pending: dict[str, set[str]] = {}
         self._push_timer: dict[str, CALLBACK_TYPE] = {}
+        self._forecasts: dict[str, tuple[float, list[dict[str, Any]] | None]] = {}
         self._unsubs: list[CALLBACK_TYPE] = []
         self.debug = False
 
@@ -366,8 +367,12 @@ class StudioManager:
 
     @callback
     def _on_graph_interval(self, _now: datetime) -> None:
-        for display_id in list(self.store.displays):
+        for display_id, display in list(self.store.displays.items()):
             self.hass.async_create_task(self.async_refresh_graphs(display_id))
+            if display.get("applied"):
+                weather = {e for e in layout_entities(display["applied"]["layout"]) if e.startswith("weather.")}
+                if weather:  # refresh forecasts even when the current conditions did not change
+                    self.hass.async_create_task(self.async_push_states(display_id, weather))
 
     async def async_refresh_graphs(self, display_id: str) -> int:
         """Push recorder history for graph tiles (step-resampled to 48 points)."""
@@ -503,6 +508,23 @@ class StudioManager:
         # Debounce bursts of state changes (e.g. scenes) into one message.
         self._push_timer[display_id] = async_call_later(self.hass, 0.15, _fire)
 
+    async def _forecast(self, entity_id: str) -> list[dict[str, Any]] | None:
+        """Daily forecast via weather.get_forecasts (forecasts are no longer state attributes), cached 30 min."""
+        cached = self._forecasts.get(entity_id)
+        now = self.hass.loop.time()
+        if cached and now - cached[0] < 1800:
+            return cached[1]
+        forecast: list[dict[str, Any]] | None = None
+        try:
+            response = await self.hass.services.async_call(
+                "weather", "get_forecasts", {"entity_id": entity_id, "type": "daily"}, blocking=True, return_response=True
+            )
+            forecast = ((response or {}).get(entity_id) or {}).get("forecast")
+        except (HomeAssistantError, ValueError, KeyError):
+            forecast = None  # entity without daily forecast support
+        self._forecasts[entity_id] = (now, forecast)
+        return forecast
+
     def _get_state(self, entity_id: str) -> str | None:
         state = self.hass.states.get(entity_id)
         return state.state if state else None
@@ -517,9 +539,9 @@ class StudioManager:
         entities: dict[str, dict[str, Any]] = {}
         for eid in sorted(targets):
             state = self.hass.states.get(eid)
-            entities[eid] = entity_payload(
-                eid.split(".", 1)[0], state.state if state else None, dict(state.attributes) if state else None
-            )
+            domain = eid.split(".", 1)[0]
+            forecast = await self._forecast(eid) if domain == "weather" and state else None
+            entities[eid] = entity_payload(domain, state.state if state else None, dict(state.attributes) if state else None, forecast)
         visibility = None
         if entity_ids is None or tiles_depending_on(layout, targets):
             visibility = visibility_map(layout, self._get_state)

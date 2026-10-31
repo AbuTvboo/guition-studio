@@ -10,7 +10,7 @@
 substitutions:
   name: guition-studio
   friendly_name: Guition Studio
-  fw_version: "0.5.4"
+  fw_version: "0.5.5"
 
 esphome:
   name: ${name}
@@ -26,6 +26,10 @@ esp32:
   flash_size: 16MB
   framework:
     type: esp-idf
+    sdkconfig_options:
+      # Run code/rodata from PSRAM: flash writes (OTA, NVS) then no longer stall the
+      # RGB panel's PSRAM frame buffer access, which otherwise makes the screen flicker.
+      CONFIG_SPIRAM_XIP_FROM_PSRAM: y
 
 psram:
   mode: octal

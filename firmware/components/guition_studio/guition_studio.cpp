@@ -770,6 +770,17 @@ void GuitionStudio::set_states(const std::string &json) {
     st.sub = std::string(v["s"] | "").substr(0, 64);
     st.icon = std::string(v["i"] | "").substr(0, 32);
     st.num = clampi(v["n"] | -1, -1, 100);
+    if (v["w"].is<const char *>())
+      st.detail = std::string(v["w"] | "").substr(0, 80);
+    if (v["f"].is<JsonArrayConst>()) {
+      st.forecast.clear();
+      for (JsonArrayConst day : v["f"].as<JsonArrayConst>()) {
+        if (st.forecast.size() >= 3)
+          break;
+        st.forecast.push_back({std::string(day[0] | "").substr(0, 4), std::string(day[1] | "").substr(0, 32),
+                               std::string(day[2] | "").substr(0, 16)});
+      }
+    }
     if (v["g"].is<JsonArrayConst>()) {  // graph history only arrives with history pushes
       st.graph.clear();
       for (JsonVariantConst p : v["g"].as<JsonArrayConst>()) {
@@ -961,23 +972,57 @@ void GuitionStudio::build_tile_(int page_index, lv_obj_t *parent, const TileCfg 
       view.sub = make_label(o, font_px(16), t.fg, "");
       lv_obj_align(view.sub, LV_ALIGN_CENTER, 0, big ? 32 : 24);
     }
-  } else if (t.kind == "sensor" || t.kind == "weather") {
+  } else if (t.kind == "weather") {
+    bool wide = pw >= 200, tall = ph >= 200;
+    int fc_h = tall ? 74 : 0;
+    int bottom = pad + fc_h;
+    if (t.show_title)
+      title_label(LV_ALIGN_TOP_LEFT, pad, pad, inner_w - 48);
+    view.icon = make_label(o, icon_font(tall ? 40 : 28), t.icon_color, sym ? sym : "");
+    lv_obj_align(view.icon, LV_ALIGN_TOP_RIGHT, -pad, pad - 4);
+    if (wide || ph >= 150) {
+      view.detail = make_label(o, font_px(12), t.fg, "");
+      lv_obj_set_width(view.detail, inner_w);
+      lv_label_set_long_mode(view.detail, LABEL_LONG_DOTS);
+      lv_obj_align(view.detail, LV_ALIGN_BOTTOM_LEFT, pad, -bottom);
+      bottom += 18;
+    }
+    view.sub = make_label(o, font_px(16), t.fg, "");
+    lv_obj_set_width(view.sub, inner_w);
+    lv_label_set_long_mode(view.sub, LABEL_LONG_DOTS);
+    lv_obj_align(view.sub, LV_ALIGN_BOTTOM_LEFT, pad, -bottom);
+    bottom += 22;
+    view.value = make_label(o, font_px(tall || wide ? 40 : 28), t.fg, "–");
+    lv_obj_align(view.value, LV_ALIGN_BOTTOM_LEFT, pad, -bottom);
+    if (tall) {
+      int cw3 = inner_w / 3;
+      for (int i = 0; i < 3; i++) {
+        int cx = pad + i * cw3;
+        view.fc_day[i] = make_label(o, font_px(12), t.fg, "");
+        lv_obj_set_width(view.fc_day[i], cw3);
+        lv_obj_set_style_text_align(view.fc_day[i], LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_set_pos(view.fc_day[i], cx, ph - pad - 70);
+        view.fc_icon[i] = make_label(o, icon_font(28), t.icon_color, "");
+        lv_obj_set_width(view.fc_icon[i], cw3);
+        lv_obj_set_style_text_align(view.fc_icon[i], LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_set_pos(view.fc_icon[i], cx, ph - pad - 54);
+        view.fc_temp[i] = make_label(o, font_px(12), t.fg, "");
+        lv_obj_set_width(view.fc_temp[i], cw3);
+        lv_obj_set_style_text_align(view.fc_temp[i], LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_set_pos(view.fc_temp[i], cx, ph - pad - 16);
+      }
+    }
+  } else if (t.kind == "sensor") {
     if (t.show_title)
       title_label(LV_ALIGN_TOP_LEFT, pad, pad, inner_w - (with_icon ? 34 : 0));
-    if (with_icon || t.kind == "weather") {
-      view.icon = make_label(o, icon_font(t.kind == "weather" && big ? 40 : 28), t.icon_color, sym ? sym : "");
+    if (with_icon) {
+      view.icon = make_label(o, icon_font(28), t.icon_color, sym);
       lv_obj_align(view.icon, LV_ALIGN_TOP_RIGHT, -pad, pad - 4);
     }
     view.value = make_label(o, font_px(big ? 40 : (pw < 110 ? 20 : 28)), t.fg, "–");
     lv_obj_set_width(view.value, inner_w);
     lv_label_set_long_mode(view.value, LABEL_LONG_DOTS);
-    lv_obj_align(view.value, LV_ALIGN_BOTTOM_LEFT, pad, t.kind == "weather" ? -(pad + 18) : -pad);
-    if (t.kind == "weather") {
-      view.sub = make_label(o, font_px(12), t.fg, "");
-      lv_obj_set_width(view.sub, inner_w);
-      lv_label_set_long_mode(view.sub, LABEL_LONG_DOTS);
-      lv_obj_align(view.sub, LV_ALIGN_BOTTOM_LEFT, pad, -pad);
-    }
+    lv_obj_align(view.value, LV_ALIGN_BOTTOM_LEFT, pad, -pad);
   } else if (t.kind == "nav" || t.kind == "action" || t.kind == "settings") {
     if (with_icon) {
       view.icon = make_label(o, icon_font(big ? 40 : 28), t.icon_color, sym);
@@ -1222,6 +1267,19 @@ void GuitionStudio::update_tile_(TileView &view) {
       lv_label_set_text(view.value, main_text);
     if (view.sub != nullptr)
       lv_label_set_text(view.sub, available && st != nullptr ? st->sub.c_str() : "");
+  }
+  if (t.kind == "weather" && st != nullptr) {
+    if (view.detail != nullptr)
+      lv_label_set_text(view.detail, available ? st->detail.c_str() : "");
+    for (int i = 0; i < 3; i++) {
+      if (view.fc_day[i] == nullptr)
+        continue;
+      bool has = available && i < static_cast<int>(st->forecast.size());
+      const char *ic = has ? icon_symbol(st->forecast[i][1]) : nullptr;
+      lv_label_set_text(view.fc_day[i], has ? st->forecast[i][0].c_str() : "");
+      lv_label_set_text(view.fc_icon[i], ic ? ic : "");
+      lv_label_set_text(view.fc_temp[i], has ? st->forecast[i][2].c_str() : "");
+    }
   }
   if (t.kind == "graph") {
     if (view.sub != nullptr)

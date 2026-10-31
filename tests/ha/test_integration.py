@@ -10,6 +10,7 @@ is exercised for real.
 
 from __future__ import annotations
 
+from datetime import timedelta
 import json
 from typing import Any
 from unittest.mock import AsyncMock, patch
@@ -467,6 +468,29 @@ async def test_slideshow_stream(hass: HomeAssistant, hass_ws_client, hass_client
     await ws.send_json({"id": 501, "type": "guition_studio/backup/export"})
     backup = (await ws.receive_json())["result"]
     assert "slide_token" not in json.dumps(backup)
+
+
+async def test_weather_forecast_reaches_display(hass: HomeAssistant, hass_ws_client, setup_studio) -> None:
+    from homeassistant.core import SupportsResponse
+    from homeassistant.util import dt as dt_util
+
+    device = FakeDevice(hass)
+    hass.states.async_set("weather.home", "partlycloudy", {"temperature": 16.4, "humidity": 71, "wind_speed": 9, "wind_speed_unit": "km/h"})
+    today = dt_util.now()
+    forecast = [
+        {"datetime": (today + timedelta(days=d)).isoformat(), "condition": c, "temperature": hi, "templow": lo}
+        for d, c, hi, lo in [(0, "partlycloudy", 18, 9), (1, "rainy", 14, 8), (2, "sunny", 20, 10), (3, "cloudy", 15, 7)]
+    ]
+    calls = async_mock_service(
+        hass, "weather", "get_forecasts", response={"weather.home": {"forecast": forecast}}, supports_response=SupportsResponse.ONLY
+    )
+    ws = await hass_ws_client(hass)
+    await _create_with_layout(hass, ws, lambda layout: layout["pages"][0]["tiles"].append(make_tile("weather", 0, 1, 2, 2, entity="weather.home")))
+    payload = next(m["e"]["weather.home"] for m in reversed(device.states) if "weather.home" in m.get("e", {}))
+    assert payload["s"] == "Teilweise bewölkt" and payload["i"] == "weather-partly-cloudy"
+    assert payload["w"].startswith("↑18° ↓9°") and "Wind 9 km/h" in payload["w"]
+    assert [d[1] for d in payload["f"]] == ["weather-rainy", "weather-sunny", "weather-cloudy"]
+    assert calls and calls[0].data["type"] == "daily"
 
 
 async def test_heartbeat_detects_reboot(hass: HomeAssistant, hass_ws_client, setup_studio) -> None:

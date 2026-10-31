@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.5 – Vollständiges Wetter & weniger Flimmern beim Update
+- **Wetter-Kachel mit allen Daten:** Zustand auf Deutsch, Temperatur, Höchst-/Tiefstwert, Luftfeuchte und Wind. Bei 2×2 zusätzlich eine **3-Tage-Vorhersage** mit Wochentag, Icon und Temperaturen. Home Assistant holt die Vorhersage über `weather.get_forecasts` (30 Minuten zwischengespeichert, alle 10 Minuten aktualisiert). Seit HA 2024 steht sie nicht mehr in den Attributen.
+- Die Eigenschaftsleiste zeigt Wetter, Sensoren usw. jetzt formatiert („Teilweise bewölkt“ statt `partlycloudy`) und beim Wetter zusätzlich Feuchte, Wind und Luftdruck.
+- **Firmware-Update ohne Bildstörungen:** Programmcode läuft jetzt aus dem PSRAM (`CONFIG_SPIRAM_XIP_FROM_PSRAM`). Flash-Schreibvorgänge (OTA, Einstellungen) blockieren dadurch den Bildspeicher nicht mehr, was vorher Flimmern und Springen verursachte. Die Update-Seite mit Fortschrittsbalken (seit 0.5.4) erscheint ab dem Update *von* 0.5.4 oder neuer.
+
 ## 0.5.4 – Umlaute, Update-Anzeige & Farbwähler
 - **Behoben: Umlaute und Sonderzeichen als Rechtecke.** Die in LVGL eingebauten Schriften enthalten nur ASCII. Die Firmware nutzt jetzt eigene Montserrat-Schriften mit ä ö ü ß, „ “, ·, –, …, °, € usw. (erzeugt mit `scripts/gen-fonts.mjs`).
 - **Update-Seite beim Firmware-Update:** Das Display zeigt „Firmware-Update läuft – nicht vom Strom trennen“ mit Fortschrittsbalken und Prozent, danach „Update abgeschlossen“ bzw. bei Fehlern eine Meldung (die alte Firmware bleibt dann aktiv).

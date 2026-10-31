@@ -53,8 +53,29 @@ def test_entity_payload_extras_for_advanced_tiles():
     assert climate["d"] == "20,5 °C" and climate["s"] == "Ziel 22 °C" and climate["o"] == 1
     media = entity_payload("media_player", "playing", {"media_title": "Song", "media_artist": "Band", "volume_level": 0.35})
     assert media["s"] == "Band – Song" and media["n"] == 35
-    weather = entity_payload("weather", "rainy", {"temperature": 12.3, "humidity": 80})
-    assert weather == {"o": 0, "a": 1, "d": "12,3 °C", "s": "Regen · 80 %", "i": "weather-rainy"}
+    weather = entity_payload("weather", "rainy", {"temperature": 12.3, "humidity": 80, "wind_speed": 14, "wind_speed_unit": "km/h"})
+    assert weather == {"o": 0, "a": 1, "d": "12,3 °C", "s": "Regen", "i": "weather-rainy", "w": "Feuchte 80 % · Wind 14 km/h"}
+
+
+def test_weather_forecast_payload():
+    from datetime import datetime, timezone
+
+    from gs_pure.protocol import weather_forecast_payload
+
+    now = datetime(2026, 10, 31, 9, 0, tzinfo=timezone.utc)  # Saturday
+    fc = [
+        {"datetime": "2026-10-31T11:00:00+00:00", "condition": "sunny", "temperature": 18, "templow": 9},
+        {"datetime": "2026-11-01T11:00:00+00:00", "condition": "rainy", "temperature": 14.5, "templow": 8},
+        {"datetime": "2026-11-02T11:00:00+00:00", "condition": "cloudy", "temperature": 12, "templow": 6},
+        {"datetime": "2026-11-03T11:00:00+00:00", "condition": "snowy", "temperature": 2, "templow": -3},
+        {"datetime": "2026-11-04T11:00:00+00:00", "condition": "sunny", "temperature": 5, "templow": 0},
+    ]
+    out = weather_forecast_payload(fc, now)
+    assert out["hl"] == "↑18° ↓9°"
+    assert out["f"] == [["So", "weather-rainy", "14,5°/8°"], ["Mo", "weather-cloudy", "12°/6°"], ["Di", "weather-snowy", "2°/-3°"]]
+    full = entity_payload("weather", "sunny", {"temperature": 17, "humidity": 50}, fc)
+    assert full["w"].startswith("↑18° ↓9° · Feuchte 50 %")
+    assert weather_forecast_payload(None) == {}
 
 
 def test_visibility():

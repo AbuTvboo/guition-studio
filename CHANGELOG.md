@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1 – Einfachere Installation
+- **Online-Installer** unter https://abutvboo.github.io/guition-studio/ (GitHub Pages, immer HTTPS): Firmware per USB direkt im Browser installieren, auch wenn Home Assistant nur über `http://` erreichbar ist. Keine Browser-Flags, kein HTTPS-Setup nötig. WLAN wird im selben Dialog eingerichtet, danach erscheint „Zu Home Assistant hinzufügen“.
+- Der Assistent in Guition Studio erkennt `http://`, Brave und Smartphones und bietet statt einer Fehlermeldung direkt den sicheren Installer an. Andere Wege (esptool, improv-wifi.com) sind ausklappbar.
+- Bei jedem Release aktualisiert eine GitHub-Action den Installer automatisch mit der geprüften Firmware (SHA-256).
+
 ## 0.3.0 – Phase 3 „Erweiterte Funktionen“
 
 **Intelligente Automatisierung (ohne YAML, Reiter „Automatik“ im Designer)**

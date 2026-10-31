@@ -41,6 +41,8 @@ Was **noch nicht** enthalten ist, ist in der Oberfläche als „nicht verfügbar
 
 ## Schnellstart
 
+**Firmware installieren:** https://abutvboo.github.io/guition-studio/ in Chrome oder Edge öffnen, Display per USB anschließen und auf „Installieren“ klicken.
+
 1. **HACS → Benutzerdefinierte Repositories →** dieses Repository als „Integration“ hinzufügen und „Guition Studio“ installieren. Danach Home Assistant neu starten.
 2. **Einstellungen → Geräte & Dienste → Integration hinzufügen → „Guition Studio“**.
 3. In der Seitenleiste **Guition Studio → Meine Displays → Neues Display einrichten** öffnen und dem Assistenten folgen.

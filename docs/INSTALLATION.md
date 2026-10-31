@@ -29,6 +29,10 @@ Die Firmware-Quelle (GitHub-Repository) kann so bleiben. Danach erscheint links 
 4. **WLAN & Home Assistant:** HA meldet „Neues Gerät entdeckt (ESPHome)“. Unter *Geräte & Dienste* auf **Hinzufügen** klicken. HA erzeugt dabei automatisch den Verschlüsselungsschlüssel und speichert ihn auf dem Display. Im Assistenten erscheint das Gerät danach, du wählst es aus und klickst auf „Verknüpfen & weiter“.
 5. **Designer öffnen:** Ein Startlayout (Uhr + Status) ist angelegt. Mit „Startlayout übertragen“ prüfst du die Verbindung.
 
+### Einfachster Weg: Online-Installer
+
+https://abutvboo.github.io/guition-studio/ in Chrome oder Edge öffnen. Die Seite läuft immer über HTTPS und funktioniert deshalb auch, wenn Home Assistant nur per `http://` erreichbar ist. Der Assistent in Guition Studio öffnet sie automatisch, wenn eine Installation im Panel nicht möglich ist.
+
 ### Ohne Web Serial
 
 Den Link „firmware.factory.bin herunterladen“ verwenden und flashen:

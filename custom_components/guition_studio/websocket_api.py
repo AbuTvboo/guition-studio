@@ -52,6 +52,12 @@ def _err(connection, msg, err: Exception) -> None:
         connection.send_error(msg["id"], "failed", str(err))
 
 
+def _installer_url(repo: str) -> str:
+    """HTTPS browser installer published by .github/workflows/pages.yml (GitHub Pages)."""
+    owner, _, name = repo.partition("/")
+    return f"https://{owner.lower()}.github.io/{name}/"
+
+
 @callback
 def async_register(hass: HomeAssistant) -> None:
     for handler in (
@@ -86,6 +92,7 @@ async def ws_info(hass, connection, msg):
             "firmware_repo": _d(hass)["firmware"].repo,
             "firmware_url": FIRMWARE_URL,
             "protocol": PROTOCOL_VERSION,
+            "installer_url": _installer_url(_d(hass)["firmware"].repo),
         },
     )
 

@@ -188,6 +188,7 @@ export interface StudioInfo {
   firmware_repo: string;
   firmware_url: string;
   protocol: number;
+  installer_url: string;
 }
 
 export interface TransferState {

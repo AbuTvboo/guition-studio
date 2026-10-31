@@ -242,15 +242,15 @@ export class GsDisplays extends StudioView {
         return html`
           <p>Verbinde das Guition-Display mit einem <b>USB-C-Datenkabel</b> mit diesem Computer. Das Display muss nicht geöffnet werden.</p>
           <ul class="small">
-            <li>Unterstützte Browser: Google Chrome, Microsoft Edge, Opera (Desktop)</li>
-            <li>Home Assistant muss per HTTPS oder auf diesem Rechner über <code>localhost</code> geöffnet sein</li>
+            <li>Browser: Google Chrome oder Microsoft Edge am Computer</li>
+            <li>Ist Home Assistant über <code>http://</code> geöffnet, startet im nächsten Schritt automatisch der sichere Online-Installer</li>
             <li>Unter Windows wird ggf. ein CH340-Treiber benötigt</li>
           </ul>
           <div class="row nav"><button @click=${() => this.gotoStep(1)}>Zurück</button><span class="spacer"></span><button class="primary" @click=${() => this.gotoStep(3)}>Weiter zur Installation</button></div>`;
       case 3:
         return html`
           <div class="notice warn small"><b>Achtung:</b> Die Installation überschreibt die vorhandene Firmware des Displays vollständig.</div>
-          <gs-usb-installer .api=${this.api} .firmwareUrl=${this.info.firmware_url}></gs-usb-installer>
+          <gs-usb-installer .api=${this.api} .firmwareUrl=${this.info.firmware_url} .installerUrl=${this.info.installer_url}></gs-usb-installer>
           <div class="row nav"><button @click=${() => this.gotoStep(2)}>Zurück</button><span class="spacer"></span><button class="primary" @click=${() => this.gotoStep(4)}>Installation abgeschlossen – weiter</button></div>`;
       case 4: {
         const free = this.candidates.filter((c) => !c.assigned_display);

@@ -1,0 +1,56 @@
+name: Installer (GitHub Pages)
+
+# Publishes the browser installer (ESP Web Tools) with the firmware of the latest
+# release to https://<owner>.github.io/<repo>/ . GitHub Pages is always HTTPS, so
+# Web Serial works even when Home Assistant itself is opened via plain http.
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download and verify firmware of the latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p site/firmware
+          gh release download --repo "$GITHUB_REPOSITORY" --pattern firmware.factory.bin --pattern SHA256SUMS --dir site/firmware
+          (cd site/firmware && grep ' firmware.factory.bin$' SHA256SUMS | sha256sum -c -)
+          echo "VERSION=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName | sed 's/^v//')" >> "$GITHUB_ENV"
+      - name: Build site
+        run: |
+          cp installer/index.html site/
+          cp custom_components/guition_studio/brand/icon.png site/
+          python3 - <<'PY'
+          import json, os
+          manifest = {
+              "name": "Guition Studio",
+              "version": os.environ["VERSION"],
+              "home_assistant_domain": "esphome",
+              "new_install_prompt_erase": True,
+              "builds": [{"chipFamily": "ESP32-S3", "parts": [{"path": "firmware/firmware.factory.bin", "offset": 0}]}],
+          }
+          json.dump(manifest, open("site/manifest.json", "w"), indent=2)
+          PY
+          ls -la site site/firmware
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

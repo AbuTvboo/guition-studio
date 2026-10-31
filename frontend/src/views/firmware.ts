@@ -157,7 +157,7 @@ export class GsFirmware extends StudioView {
 
       <section class="card">
         <div class="row"><h2 style="margin:0">Installation per USB</h2><span class="spacer"></span><button @click=${() => (this.showUsb = !this.showUsb)}>${this.showUsb ? "Ausblenden" : "Anzeigen"}</button></div>
-        ${this.showUsb ? html`<gs-usb-installer .api=${this.api} .firmwareUrl=${this.info.firmware_url}></gs-usb-installer>` : html`<p class="muted small">Für Erstinstallation oder Wiederherstellung.</p>`}
+        ${this.showUsb ? html`<gs-usb-installer .api=${this.api} .firmwareUrl=${this.info.firmware_url} .installerUrl=${this.info.installer_url}></gs-usb-installer>` : html`<p class="muted small">Für Erstinstallation oder Wiederherstellung.</p>`}
       </section>
 
       <section class="card">

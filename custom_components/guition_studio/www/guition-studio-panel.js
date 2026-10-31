@@ -3562,6 +3562,13 @@ var gt, q = [], J = (gt = class extends t {
       <span class="chip ${this.saveState === "error" ? "error" : this.saveState === "saved" ? "" : "warn"}" title="Entwürfe werden automatisch in Home Assistant gespeichert">${n}</span>
       ${e ? e.valid ? c`<span class="chip ok" title="Layoutgröße auf dem Gerät">✓ Gültig · ${((e.size ?? 0) / 1024).toFixed(1)} KB</span>` : c`<span class="chip error" title=${e.errors.join("\n")}>⚠ ${e.errors.length} Hinweis(e)</span>` : a}
       <span class="chip ${t?.online ? "ok" : "error"}">${t?.online ? "● Online" : "○ Offline"}</span>
+      <button
+        class=${this.propsTab === "auto" && !this.selection.length && this.propsOpen ? "toggled" : ""}
+        title="Bildschirmschoner, Diashow, Nachtmodus und Seitenwechsel-Regeln"
+        @click=${() => {
+			this.selection = [], this.propsTab = "auto", this.propsOpen = !0, this.updateComplete.then(() => this.renderRoot.querySelector(".props")?.scrollTo({ top: 0 }));
+		}}
+      >⏾ Automatik</button>
       <button class="icon props-toggle" title="Eigenschaften" @click=${() => this.propsOpen = !this.propsOpen}>☰</button>
       <button class="primary" ?disabled=${!!this.applying && this.applying.state !== "error" && this.applying.state !== "done"} @click=${() => this.apply()}>
         ⇪ Auf Display übertragen
@@ -4673,8 +4680,19 @@ var xt = class extends P {
                 </select>
               </label>
               <label class="field"><span>Bildschirmrotation</span><select disabled><option>0° – nicht verfügbar</option></select></label>
-              <p class="small muted">Rotation und Touch-Empfindlichkeit erfordern in v0.1 einen eigenen Firmware-Build (siehe docs/FIRMWARE.md) und sind hier deshalb gesperrt.</p>
+              <p class="small muted">Rotation und Touch-Empfindlichkeit erfordern einen eigenen Firmware-Build (siehe docs/FIRMWARE.md) und sind hier deshalb gesperrt.</p>
             </div>
+          </div>
+          <div class="card auto-card">
+            <h2>Bildschirmschoner, Diashow, Nachtmodus & Seitenwechsel</h2>
+            <gs-automation-props
+              .hass=${this.hass}
+              .api=${this.api}
+              .layout=${this.layout}
+              @gs-commit=${(e) => {
+			this.layout = e.detail, this.dirty = !0;
+		}}
+            ></gs-automation-props>
           </div>
           <div class="row actions">
             <span class="muted small">${this.dirty ? "Ungespeicherte Änderungen" : "Alle Änderungen gespeichert"}</span><span class="spacer"></span>
@@ -4692,6 +4710,14 @@ var xt = class extends P {
 }, Z = (xt.styles = [...P.styles, r`
       .actions {
         margin-top: 16px;
+        position: sticky;
+        bottom: 0;
+        background: var(--gs-bg);
+        padding: 10px 0;
+      }
+      .auto-card {
+        margin-top: 16px;
+        max-width: 640px;
       }
       th {
         width: 50%;

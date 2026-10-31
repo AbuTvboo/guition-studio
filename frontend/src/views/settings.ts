@@ -2,6 +2,7 @@ import { css, html, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { errorText } from "../api";
 import type { DisplaySettings, Layout } from "../types";
+import "./automation-props";
 import { relTime, toast } from "../ui";
 import { StudioView } from "./base";
 
@@ -132,8 +133,20 @@ export class GsSettings extends StudioView {
                 </select>
               </label>
               <label class="field"><span>Bildschirmrotation</span><select disabled><option>0° – nicht verfügbar</option></select></label>
-              <p class="small muted">Rotation und Touch-Empfindlichkeit erfordern in v0.1 einen eigenen Firmware-Build (siehe docs/FIRMWARE.md) und sind hier deshalb gesperrt.</p>
+              <p class="small muted">Rotation und Touch-Empfindlichkeit erfordern einen eigenen Firmware-Build (siehe docs/FIRMWARE.md) und sind hier deshalb gesperrt.</p>
             </div>
+          </div>
+          <div class="card auto-card">
+            <h2>Bildschirmschoner, Diashow, Nachtmodus & Seitenwechsel</h2>
+            <gs-automation-props
+              .hass=${this.hass}
+              .api=${this.api}
+              .layout=${this.layout}
+              @gs-commit=${(e: CustomEvent<Layout>) => {
+                this.layout = e.detail;
+                this.dirty = true;
+              }}
+            ></gs-automation-props>
           </div>
           <div class="row actions">
             <span class="muted small">${this.dirty ? "Ungespeicherte Änderungen" : "Alle Änderungen gespeichert"}</span><span class="spacer"></span>
@@ -154,6 +167,14 @@ export class GsSettings extends StudioView {
     css`
       .actions {
         margin-top: 16px;
+        position: sticky;
+        bottom: 0;
+        background: var(--gs-bg);
+        padding: 10px 0;
+      }
+      .auto-card {
+        margin-top: 16px;
+        max-width: 640px;
       }
       th {
         width: 50%;

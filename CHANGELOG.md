@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.1 – Bildschirmschoner leichter finden
+- Neuer Knopf **„⏾ Automatik“** in der Werkzeugleiste des Designers: öffnet Bildschirmschoner, Diashow, Nachtmodus und Seitenwechsel-Regeln direkt
+- Dieselben Einstellungen zusätzlich auf der Seite **Einstellungen** (mit „Speichern & auf Display übernehmen“)
+
 ## 0.5.0 – Diashow als Bildschirmschoner
 - **Diashow:** Der Bildschirmschoner kann Fotos aus einem Ordner in Home Assistant zeigen (*Medien → Meine Medien*). Einstellbar im Designer unter *Automatik → Bildschirmschoner → Anzeige: Diashow*: Ordner, Bildwechsel (5 s – 5 min), zufällig oder der Reihe nach, „Ausfüllen“ oder „Ganzes Bild“, Uhrzeit ein/aus.
 - **Gestreamt, nicht gespeichert:** Home Assistant verkleinert jedes Foto auf 480 × 480 (Quellformate JPEG, PNG, WebP, BMP, GIF; Drehung laut EXIF) und liefert immer nur das nächste Bild aus. Das Display hält höchstens zwei entpackte Bilder im Arbeitsspeicher (≈ 0,9 MB von 8 MB PSRAM, nur während der Diashow). Der Flash wird nicht beschrieben.

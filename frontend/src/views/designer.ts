@@ -787,6 +787,16 @@ export class GsDesigner extends LitElement {
           : html`<span class="chip error" title=${v.errors.join("\n")}>⚠ ${v.errors.length} Hinweis(e)</span>`
         : nothing}
       <span class="chip ${display?.online ? "ok" : "error"}">${display?.online ? "● Online" : "○ Offline"}</span>
+      <button
+        class=${this.propsTab === "auto" && !this.selection.length && this.propsOpen ? "toggled" : ""}
+        title="Bildschirmschoner, Diashow, Nachtmodus und Seitenwechsel-Regeln"
+        @click=${() => {
+          this.selection = [];
+          this.propsTab = "auto";
+          this.propsOpen = true;
+          this.updateComplete.then(() => this.renderRoot.querySelector(".props")?.scrollTo({ top: 0 }));
+        }}
+      >⏾ Automatik</button>
       <button class="icon props-toggle" title="Eigenschaften" @click=${() => (this.propsOpen = !this.propsOpen)}>☰</button>
       <button class="primary" ?disabled=${!!this.applying && this.applying.state !== "error" && this.applying.state !== "done"} @click=${() => this.apply()}>
         ⇪ Auf Display übertragen

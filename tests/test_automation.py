@@ -89,6 +89,15 @@ def test_settings_validation_and_device_screensaver():
     assert "Nachtmodus" in text and "Entity-ID" in text and "Auslöser" in text and "Zielseite" in text
 
 
+def test_rotation_setting():
+    layout = default_layout()
+    layout["settings"]["rotation"] = 270
+    doc = json.loads(compile_device_layout(validate_layout(layout))[0])
+    assert doc["set"]["rot"] == 270
+    layout["settings"]["rotation"] = 45  # invalid -> falls back to 0
+    assert validate_layout(layout)["settings"]["rotation"] == 0
+
+
 def test_rgb_and_graph_tiles():
     rgb = make_tile("rgb", 0, 0, entity="light.strip")
     assert resolve_control(rgb, "btn", {"b": "c4"}, None) == ("light", "turn_on", {"entity_id": "light.strip", "rgb_color": [10, 132, 255]})

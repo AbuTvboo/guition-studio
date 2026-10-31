@@ -3530,6 +3530,16 @@ var gt, q = [], J = (gt = class extends t {
 		].map(([e, n]) => c`<option value=${e} ?selected=${t.home_after === e}>${n}</option>`)}
           </select>
         </label>
+        <label class="field"><span>Bildschirmdrehung</span>
+          <select @change=${(e) => n({ rotation: +e.target.value })}>
+            ${[
+			0,
+			90,
+			180,
+			270
+		].map((e) => c`<option value=${e} ?selected=${(t.rotation ?? 0) === e}>${e}°</option>`)}
+          </select>
+        </label>
         <label class="check"><input type="checkbox" .checked=${t.show_header} @change=${(e) => n({ show_header: e.target.checked })} /> Kopfzeile mit Uhr & Status</label>
         <label class="check"><input type="checkbox" .checked=${t.show_dots} @change=${(e) => n({ show_dots: e.target.checked })} /> Seitenpunkte anzeigen</label>
         <label class="check"><input type="checkbox" .checked=${t.swipe} @change=${(e) => n({ swipe: e.target.checked })} /> Wischen zum Seitenwechsel</label>
@@ -4679,8 +4689,17 @@ var xt = class extends P {
                   <option value="en" ?selected=${t.language === "en"}>English (nur Gerätetexte)</option>
                 </select>
               </label>
-              <label class="field"><span>Bildschirmrotation</span><select disabled><option>0° – nicht verfügbar</option></select></label>
-              <p class="small muted">Rotation und Touch-Empfindlichkeit erfordern einen eigenen Firmware-Build (siehe docs/FIRMWARE.md) und sind hier deshalb gesperrt.</p>
+              <label class="field"><span>Bildschirmdrehung</span>
+                <select @change=${(e) => this.set({ rotation: +e.target.value })}>
+                  ${[
+			0,
+			90,
+			180,
+			270
+		].map((e) => c`<option value=${e} ?selected=${(t.rotation ?? 0) === e}>${e}°${e === 0 ? " (Standard, USB-Anschluss unten links)" : ""}</option>`)}
+                </select>
+              </label>
+              <p class="small muted">Dreht Bild und Touch – praktisch, wenn das Display gedreht montiert ist. Auch direkt am Display im Einstellungsmenü änderbar (Firmware ≥ 0.5.2).</p>
             </div>
           </div>
           <div class="card auto-card">

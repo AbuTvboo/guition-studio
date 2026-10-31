@@ -753,6 +753,11 @@ export class GsDesigner extends LitElement {
             ${[[0, "Nie"], [30, "30 Sekunden"], [60, "1 Minute"], [300, "5 Minuten"]].map(([v, l]) => html`<option value=${v} ?selected=${s.home_after === v}>${l}</option>`)}
           </select>
         </label>
+        <label class="field"><span>Bildschirmdrehung</span>
+          <select @change=${(e: Event) => set({ rotation: +(e.target as HTMLSelectElement).value as 0 | 90 | 180 | 270 })}>
+            ${([0, 90, 180, 270] as const).map((r) => html`<option value=${r} ?selected=${(s.rotation ?? 0) === r}>${r}°</option>`)}
+          </select>
+        </label>
         <label class="check"><input type="checkbox" .checked=${s.show_header} @change=${(e: Event) => set({ show_header: (e.target as HTMLInputElement).checked })} /> Kopfzeile mit Uhr & Status</label>
         <label class="check"><input type="checkbox" .checked=${s.show_dots} @change=${(e: Event) => set({ show_dots: (e.target as HTMLInputElement).checked })} /> Seitenpunkte anzeigen</label>
         <label class="check"><input type="checkbox" .checked=${s.swipe} @change=${(e: Event) => set({ swipe: (e.target as HTMLInputElement).checked })} /> Wischen zum Seitenwechsel</label>

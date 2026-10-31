@@ -21,6 +21,7 @@
 #include "esphome/components/online_image/online_image.h"
 #endif
 
+#include "esphome/components/lvgl/lvgl_esphome.h"
 #include <lvgl.h>
 
 #if LVGL_VERSION_MAJOR < 9
@@ -95,6 +96,7 @@ struct LayoutCfg {
   std::vector<std::string> ss_entities;     // up to 2 entities shown on the screensaver
   std::vector<std::string> ss_titles;
   int night_brightness{15}, night_dim{30};
+  int rotation{0};  // 0, 90, 180, 270 degrees
   bool slideshow{false};       // screensaver shows pictures streamed from HA
   std::string slide_url;       // base URL incl. per-display token (no query string)
   int slide_interval{15};      // seconds
@@ -156,6 +158,7 @@ class GuitionStudio : public Component {
 
   void set_hardware(const std::string &hw) { this->hardware_ = hw; }
   void set_max_layout_size(uint32_t size) { this->max_layout_size_ = size; }
+  void set_lvgl(lvgl::LvglComponent *lv) { this->lvgl_ = lv; }
 #ifdef USE_LIGHT
   void set_backlight(light::LightState *bl) { this->backlight_ = bl; }
 #endif
@@ -214,6 +217,8 @@ class GuitionStudio : public Component {
   int standby_() const { return this->ovr_sb_ >= 0 ? this->ovr_sb_ : this->layout_.standby; }
   int timeout_() const { return this->ovr_to_ >= 0 ? this->ovr_to_ : this->layout_.timeout_s; }
   int screensaver_s_() const;
+  int rotation_() const { return this->ovr_rot_ >= 0 ? this->ovr_rot_ : this->layout_.rotation; }
+  void apply_rotation_();
   void load_overrides_();
   void save_overrides_();
   void clear_overrides_();
@@ -222,6 +227,9 @@ class GuitionStudio : public Component {
   void open_settings_();
   void close_settings_();
   void refresh_settings_();
+  void hold_begin_();
+  void hold_cancel_();
+  void hold_update_(uint32_t now);
   void update_tile_(TileView &view);
   void update_status_();
   void show_page_(int index, bool remember);
@@ -297,17 +305,21 @@ class GuitionStudio : public Component {
   lv_obj_t *ss_lines_[2]{nullptr, nullptr};
 
   // local overrides (-1 = use layout), persisted in NVS key "ovr"
-  int ovr_br_{-1}, ovr_sb_{-1}, ovr_to_{-1}, ovr_ss_{-1};
+  int ovr_br_{-1}, ovr_sb_{-1}, ovr_to_{-1}, ovr_ss_{-1}, ovr_rot_{-1};
+  int applied_rotation_{-1};
+  lvgl::LvglComponent *lvgl_{nullptr};
 
   // on-device settings menu
   lv_obj_t *header_hit_{nullptr};
-  uint32_t header_press_start_{0};
-  bool header_opened_{false};
+  // hold 3 s on the header or any empty area to open the settings menu (yellow edge glow as feedback)
+  bool hold_active_{false};
+  uint32_t hold_start_{0};
+  lv_obj_t *hold_glow_{nullptr};
   lv_obj_t *menu_obj_{nullptr};
   lv_obj_t *menu_br_lbl_{nullptr}, *menu_sb_lbl_{nullptr}, *menu_night_lbl_{nullptr}, *menu_ss_lbl_{nullptr};
   lv_obj_t *menu_info_lbl_{nullptr}, *menu_restart_lbl_{nullptr}, *menu_status_lbl_{nullptr};
   lv_obj_t *menu_night_btn_{nullptr}, *menu_ss_btn_{nullptr};
-  std::vector<lv_obj_t *> menu_timeout_btns_, menu_theme_btns_, menu_home_btns_;
+  std::vector<lv_obj_t *> menu_timeout_btns_, menu_theme_btns_, menu_home_btns_, menu_rot_btns_;
   uint32_t restart_armed_until_{0};
 
   // screensaver slideshow: two PSRAM buffers, the next picture decodes in the background

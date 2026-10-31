@@ -112,6 +112,7 @@ export interface DisplaySettings {
   show_dots: boolean;
   swipe: boolean;
   language: "de" | "en";
+  rotation?: 0 | 90 | 180 | 270;
   night?: NightSettings;
   screensaver?: ScreensaverSettings;
   rules?: PageRule[];

@@ -10,7 +10,7 @@
 substitutions:
   name: guition-studio
   friendly_name: Guition Studio
-  fw_version: "0.5.1"
+  fw_version: "0.5.2"
 
 esphome:
   name: ${name}
@@ -189,6 +189,8 @@ touchscreen:
 lvgl:
   displays: [main_display]
   touchscreens: [main_touch]
+  # enables runtime rotation (0/90/180/270) set from Guition Studio or the display menu
+  rotation: 0
   buffer_size: 25%
   default_font: montserrat_16
   pages:

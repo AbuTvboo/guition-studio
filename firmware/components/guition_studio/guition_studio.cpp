@@ -294,9 +294,13 @@ void GuitionStudio::loop() {
     }
     this->hide_screensaver_();
     this->close_settings_();
+    this->apply_rotation_();
     this->set_backlight_(this->dimmed_ ? std::min(this->standby_(), this->effective_brightness_())
                                        : this->effective_brightness_());
   }
+
+  if (this->hold_active_)
+    this->hold_update_(now);
 
   if (now - this->last_heartbeat_ >= 300000u) {  // every 5 minutes: lets HA track uptime/heap and detect reboots
     this->last_heartbeat_ = now;
@@ -491,6 +495,10 @@ bool GuitionStudio::parse_layout_(const char *data, size_t len, LayoutCfg &out, 
   out.txt_unavailable = std::string(na).substr(0, 32);
   out.screensaver_s = clampi(set["ss"] | 0, 0, 86400);
   out.night_brightness = clampi(set["nb"] | 15, 1, 100);
+  {
+    int rot = set["rot"] | 0;
+    out.rotation = (rot == 90 || rot == 180 || rot == 270) ? rot : 0;
+  }
   out.night_dim = clampi(set["nd"] | 30, 0, 80);
   out.theme = std::string(set["th"] | "").substr(0, 24);
   out.slideshow = (set["ssm"] | 0) == 1;
@@ -846,10 +854,10 @@ void GuitionStudio::build_ui_() {
     lv_obj_align(this->header_wifi_, LV_ALIGN_TOP_RIGHT, -44, 13);
     this->header_ha_ = make_label(this->root_, font_px(16), l.muted, LV_SYMBOL_HOME);
     lv_obj_align(this->header_ha_, LV_ALIGN_TOP_RIGHT, -14, 13);
-    // invisible touch area over clock + status icons: hold 3 s to open the settings menu
+    // invisible touch area over the whole header: hold 3 s to open the settings menu
     this->header_hit_ = make_plain(this->root_);
-    lv_obj_set_size(this->header_hit_, 200, HEADER_H);
-    lv_obj_align(this->header_hit_, LV_ALIGN_TOP_RIGHT, 0, 0);
+    lv_obj_set_size(this->header_hit_, SCREEN_W, HEADER_H);
+    lv_obj_align(this->header_hit_, LV_ALIGN_TOP_LEFT, 0, 0);
     lv_obj_add_flag(this->header_hit_, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(this->header_hit_, header_event_cb, LV_EVENT_ALL, this);
   }
@@ -1317,11 +1325,12 @@ void GuitionStudio::handle_gesture_() {
 
 void GuitionStudio::on_root_event(lv_event_code_t code) {
   if (code == LV_EVENT_PRESSED) {
-    this->gesture_ = false;
-    this->swallow_ = this->dimmed_;
-    if (this->dimmed_)
-      this->wake_();
+    if (!this->begin_press_())
+      this->hold_begin_();
+  } else if (code == LV_EVENT_RELEASED || code == LV_EVENT_PRESS_LOST) {
+    this->hold_cancel_();
   } else if (code == LV_EVENT_GESTURE) {
+    this->hold_cancel_();
     if (!this->gesture_ && !this->swallow_) {
       this->gesture_ = true;
       this->handle_gesture_();
@@ -1658,11 +1667,23 @@ enum MenuCode : int {
   MENU_TIMEOUT_BASE = 0x100,  // + option index
   MENU_THEME_BASE = 0x200,    // + theme index
   MENU_HOME_BASE = 0x300,     // + page index
+  MENU_ROTATION_BASE = 0x400,  // + 0..3 (x 90 degrees)
 };
 const int TIMEOUT_OPTIONS[] = {0, 30, 60, 300, 900};
 const char *const TIMEOUT_LABELS[] = {"Nie", "30 s", "1 min", "5 min", "15 min"};
 constexpr uint32_t MENU_BG = 0x0B0F14, MENU_CARD = 0x1C232C, MENU_TEXT = 0xE6EDF3, MENU_MUTED = 0x8B98A5;
 }  // namespace
+
+void GuitionStudio::apply_rotation_() {
+  int rot = this->rotation_();
+  if (this->lvgl_ == nullptr || rot == this->applied_rotation_)
+    return;
+  this->applied_rotation_ = rot;
+  this->lvgl_->set_rotation(rot);  // ESPHome rotates drawing and touch coordinates
+  lv_obj_invalidate(GS_SCREEN_ACTIVE());
+  lv_obj_invalidate(lv_layer_top());
+  ESP_LOGI(TAG, "Screen rotation %d degrees", rot);
+}
 
 int GuitionStudio::screensaver_s_() const {
   if (this->ovr_ss_ == 0)
@@ -1676,9 +1697,10 @@ void GuitionStudio::load_overrides_() {
   nvs_handle_t h;
   if (nvs_open(NVS_NS, NVS_READONLY, &h) != ESP_OK)
     return;
-  int16_t v[4];
+  int16_t v[5] = {-1, -1, -1, -1, -1};
   size_t size = sizeof(v);
-  if (nvs_get_blob(h, "ovr", v, &size) == ESP_OK && size == sizeof(v)) {
+  if (nvs_get_blob(h, "ovr", v, &size) == ESP_OK && (size == sizeof(v) || size == 4 * sizeof(int16_t))) {
+    this->ovr_rot_ = (v[4] == 0 || v[4] == 90 || v[4] == 180 || v[4] == 270) ? v[4] : -1;
     this->ovr_br_ = v[0] >= 5 && v[0] <= 100 ? v[0] : -1;
     this->ovr_sb_ = v[1] >= 0 && v[1] <= 100 ? v[1] : -1;
     this->ovr_to_ = v[2] >= 0 && v[2] <= 30000 ? v[2] : -1;
@@ -1691,17 +1713,18 @@ void GuitionStudio::save_overrides_() {
   nvs_handle_t h;
   if (nvs_open(NVS_NS, NVS_READWRITE, &h) != ESP_OK)
     return;
-  int16_t v[4] = {static_cast<int16_t>(this->ovr_br_), static_cast<int16_t>(this->ovr_sb_),
-                  static_cast<int16_t>(this->ovr_to_), static_cast<int16_t>(this->ovr_ss_)};
+  int16_t v[5] = {static_cast<int16_t>(this->ovr_br_), static_cast<int16_t>(this->ovr_sb_),
+                  static_cast<int16_t>(this->ovr_to_), static_cast<int16_t>(this->ovr_ss_),
+                  static_cast<int16_t>(this->ovr_rot_)};
   nvs_set_blob(h, "ovr", v, sizeof(v));
   nvs_commit(h);
   nvs_close(h);
 }
 
 void GuitionStudio::clear_overrides_() {
-  if (this->ovr_br_ < 0 && this->ovr_sb_ < 0 && this->ovr_to_ < 0 && this->ovr_ss_ < 0)
+  if (this->ovr_br_ < 0 && this->ovr_sb_ < 0 && this->ovr_to_ < 0 && this->ovr_ss_ < 0 && this->ovr_rot_ < 0)
     return;
-  this->ovr_br_ = this->ovr_sb_ = this->ovr_to_ = this->ovr_ss_ = -1;
+  this->ovr_br_ = this->ovr_sb_ = this->ovr_to_ = this->ovr_ss_ = this->ovr_rot_ = -1;
   this->save_overrides_();
 }
 
@@ -1719,15 +1742,51 @@ void GuitionStudio::report_setting_(const char *key, const std::string &value) {
 
 void GuitionStudio::on_header_event(lv_event_code_t code) {
   if (code == LV_EVENT_PRESSED) {
-    this->header_press_start_ = millis();
-    this->header_opened_ = false;
-    this->begin_press_();
-  } else if (code == LV_EVENT_PRESSING) {
-    if (!this->header_opened_ && !this->swallow_ && millis() - this->header_press_start_ >= 3000) {
-      this->header_opened_ = true;
-      this->open_settings_();
-    }
+    if (!this->begin_press_())
+      this->hold_begin_();
+  } else if (code == LV_EVENT_RELEASED || code == LV_EVENT_PRESS_LOST || code == LV_EVENT_GESTURE) {
+    this->hold_cancel_();
   }
+}
+
+void GuitionStudio::hold_begin_() {
+  if (this->menu_obj_ != nullptr || this->ss_obj_ != nullptr || !this->has_layout_)
+    return;
+  this->hold_active_ = true;
+  this->hold_start_ = millis();
+}
+
+void GuitionStudio::hold_cancel_() {
+  this->hold_active_ = false;
+  if (this->hold_glow_ != nullptr) {
+    GS_OBJ_DELETE(this->hold_glow_);
+    this->hold_glow_ = nullptr;
+  }
+}
+
+/// Called every loop while a hold is active: yellow screen edges grow brighter, after 3 s the menu opens.
+void GuitionStudio::hold_update_(uint32_t now) {
+  static constexpr uint32_t GLOW_DELAY = 250, HOLD_TIME = 3000;
+  uint32_t elapsed = now - this->hold_start_;
+  if (elapsed >= HOLD_TIME) {
+    this->hold_cancel_();
+    this->open_settings_();
+    return;
+  }
+  if (elapsed < GLOW_DELAY)
+    return;  // normal taps never show the glow
+  if (this->hold_glow_ == nullptr) {
+    lv_obj_t *g = make_plain(lv_layer_top());  // not clickable: the finger stays on the original object
+    lv_obj_set_size(g, SCREEN_W, SCREEN_H);
+    lv_obj_set_style_bg_opa(g, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_color(g, lv_color_hex(0xFFC107), 0);
+    lv_obj_set_style_border_side(g, LV_BORDER_SIDE_FULL, 0);
+    lv_obj_set_style_shadow_color(g, lv_color_hex(0xFFC107), 0);
+    this->hold_glow_ = g;
+  }
+  int t = static_cast<int>((elapsed - GLOW_DELAY) * 1000 / (HOLD_TIME - GLOW_DELAY));  // 0..1000
+  lv_obj_set_style_border_width(this->hold_glow_, 3 + 15 * t / 1000, 0);
+  lv_obj_set_style_border_opa(this->hold_glow_, static_cast<lv_opa_t>(90 + 165 * t / 1000), 0);
 }
 
 static lv_obj_t *menu_button(lv_obj_t *parent, int x, int y, int w, int h, const char *text, int code, void *self) {
@@ -1783,6 +1842,7 @@ void GuitionStudio::open_settings_() {
   this->menu_timeout_btns_.clear();
   this->menu_theme_btns_.clear();
   this->menu_home_btns_.clear();
+  this->menu_rot_btns_.clear();
 
   lv_obj_t *m = make_plain(lv_layer_top());
   this->menu_obj_ = m;
@@ -1829,6 +1889,16 @@ void GuitionStudio::open_settings_() {
   int n = 5, gap = 8, bw = (440 - (n - 1) * gap) / n;
   for (int i = 0; i < n; i++)
     this->menu_timeout_btns_.push_back(menu_button(c, 20 + i * (bw + gap), y, bw, 44, TIMEOUT_LABELS[i], MENU_TIMEOUT_BASE + i, this));
+  y += 60;
+
+  menu_section(c, y, "BILDSCHIRMDREHUNG");
+  y += 22;
+  {
+    static const char *const ROT_LABELS[] = {"0°", "90°", "180°", "270°"};
+    int rbw = (440 - 3 * gap) / 4;
+    for (int i = 0; i < 4; i++)
+      this->menu_rot_btns_.push_back(menu_button(c, 20 + i * (rbw + gap), y, rbw, 44, ROT_LABELS[i], MENU_ROTATION_BASE + i, this));
+  }
   y += 60;
 
   menu_section(c, y, "MODI");
@@ -1896,6 +1966,7 @@ void GuitionStudio::close_settings_() {
   this->menu_timeout_btns_.clear();
   this->menu_theme_btns_.clear();
   this->menu_home_btns_.clear();
+  this->menu_rot_btns_.clear();
 }
 
 void GuitionStudio::refresh_settings_() {
@@ -1921,6 +1992,8 @@ void GuitionStudio::refresh_settings_() {
     select(this->menu_theme_btns_[i], l.themes[i].first == l.theme);
   for (size_t i = 0; i < this->menu_home_btns_.size(); i++)
     select(this->menu_home_btns_[i], static_cast<int>(i) == l.home);
+  for (size_t i = 0; i < this->menu_rot_btns_.size(); i++)
+    select(this->menu_rot_btns_[i], static_cast<int>(i) * 90 == this->rotation_());
 
   // info block
   std::string info;
@@ -1986,6 +2059,11 @@ void GuitionStudio::on_menu_event(int code, lv_event_code_t event, lv_obj_t *tar
     this->ovr_to_ = TIMEOUT_OPTIONS[code - MENU_TIMEOUT_BASE];
     this->save_overrides_();
     this->report_setting_("timeout", this->ovr_to_);
+  } else if (code >= MENU_ROTATION_BASE && code < MENU_ROTATION_BASE + 4) {
+    this->ovr_rot_ = (code - MENU_ROTATION_BASE) * 90;
+    this->save_overrides_();
+    this->apply_rotation_();
+    this->report_setting_("rotation", this->ovr_rot_);
   } else if (code == MENU_NIGHT) {
     this->set_mode(this->night_ ? 0 : 1, l.night_brightness, l.night_dim);
     this->report_setting_("night", this->night_ ? 1 : 0);

@@ -47,6 +47,7 @@ Deshalb gibt es eine kleine eigene Engine auf Basis von **Pointer Events** (Maus
 |---|---|
 | Kamera-Kachel | bewusst nicht umgesetzt (Videostream über die ESPHome-API auf einem ESP32-Panel nicht sinnvoll) |
 | Graph | Säulendarstellung mit 48 Punkten; keine Achsenbeschriftung |
+| Bildschirmdrehung | per Software (ESPHome LVGL), Touch wird mitgedreht |
 | Nachtmodus | Theme bleibt gleich (Abdunklung statt Farbwechsel); ein Theme-Wechsel bräuchte eine erneute Übertragung |
 | Icons auf dem Gerät | 134 MDI-Icons (kuratierte Auswahl, erweiterbar über `scripts/icons.json` + `gen-icons.mjs`, Flash-Bedarf ca. 120 KB) |
 | Rollladen-Position per Schieberegler | ▲ ■ ▼ vorhanden; ein Positionsregler ist im Protokoll vorbereitet (`set` + `n`), aber noch nicht umgesetzt |

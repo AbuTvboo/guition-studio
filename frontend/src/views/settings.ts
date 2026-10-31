@@ -132,8 +132,12 @@ export class GsSettings extends StudioView {
                   <option value="en" ?selected=${s.language === "en"}>English (nur Gerätetexte)</option>
                 </select>
               </label>
-              <label class="field"><span>Bildschirmrotation</span><select disabled><option>0° – nicht verfügbar</option></select></label>
-              <p class="small muted">Rotation und Touch-Empfindlichkeit erfordern einen eigenen Firmware-Build (siehe docs/FIRMWARE.md) und sind hier deshalb gesperrt.</p>
+              <label class="field"><span>Bildschirmdrehung</span>
+                <select @change=${(e: Event) => this.set({ rotation: +(e.target as HTMLSelectElement).value as 0 | 90 | 180 | 270 })}>
+                  ${([0, 90, 180, 270] as const).map((r) => html`<option value=${r} ?selected=${(s.rotation ?? 0) === r}>${r}°${r === 0 ? " (Standard, USB-Anschluss unten links)" : ""}</option>`)}
+                </select>
+              </label>
+              <p class="small muted">Dreht Bild und Touch – praktisch, wenn das Display gedreht montiert ist. Auch direkt am Display im Einstellungsmenü änderbar (Firmware ≥ 0.5.2).</p>
             </div>
           </div>
           <div class="card auto-card">

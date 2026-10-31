@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.2 – Bildschirmdrehung & leichteres Öffnen der Einstellungen
+- **Bildschirmdrehung 0° / 90° / 180° / 270°:** Bild und Touch drehen sich gemeinsam, ohne neu zu flashen. Einstellbar unter *Einstellungen*, im Designer (*Displayeinstellungen*) und direkt im Display-Menü. Die Drehung bleibt nach einem Neustart erhalten.
+- **Einstellungen am Display öffnen:** 3 Sekunden auf die **Kopfzeile oder eine beliebige leere Fläche** drücken. Die Bildschirmränder leuchten dabei zunehmend **gelb**, nach 3 Sekunden öffnet sich das Menü. Loslassen bricht ab. Die Zeit misst die Firmware selbst, unabhängig davon, wie oft der Touch-Controller beim Halten meldet.
+
 ## 0.5.1 – Bildschirmschoner leichter finden
 - Neuer Knopf **„⏾ Automatik“** in der Werkzeugleiste des Designers: öffnet Bildschirmschoner, Diashow, Nachtmodus und Seitenwechsel-Regeln direkt
 - Dieselben Einstellungen zusätzlich auf der Seite **Einstellungen** (mit „Speichern & auf Display übernehmen“)

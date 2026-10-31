@@ -430,6 +430,9 @@ class StudioManager:
             field = {"brightness": "brightness", "standby": "standby_brightness", "timeout": "timeout"}[key]
             for s in settings_targets:
                 s[field] = value
+        elif key == "rotation" and value in (0, 90, 180, 270) and not isinstance(value, bool):
+            for s in settings_targets:
+                s["rotation"] = value
         elif key == "screensaver" and value in (0, 1):
             for s in settings_targets:
                 s.setdefault("screensaver", {"enabled": False, "after": 120, "entities": []})["enabled"] = bool(value)

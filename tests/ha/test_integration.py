@@ -407,6 +407,8 @@ async def test_settings_changed_on_display(hass: HomeAssistant, hass_ws_client, 
     device.emit("setting", {"k": "brightness", "v": 42})
     device.emit("setting", {"k": "timeout", "v": 300})
     device.emit("setting", {"k": "screensaver", "v": 1})
+    device.emit("setting", {"k": "rotation", "v": 90})
+    device.emit("setting", {"k": "rotation", "v": 45})  # invalid -> ignored
     device.emit("setting", {"k": "brightness", "v": 500})  # out of range -> ignored
     device.emit("setting", {"k": "evil", "v": 1})  # unknown -> ignored
     await hass.async_block_till_done()
@@ -414,6 +416,7 @@ async def test_settings_changed_on_display(hass: HomeAssistant, hass_ws_client, 
     draft = (await ws.receive_json())["result"]["layout"]
     assert draft["settings"]["brightness"] == 42 and draft["settings"]["timeout"] == 300
     assert draft["settings"]["screensaver"]["enabled"] is True
+    assert draft["settings"]["rotation"] == 90
     assert device.layout_crc == first_crc
 
     # theme from the display: confirmed layout is re-sent with the new theme
@@ -421,6 +424,7 @@ async def test_settings_changed_on_display(hass: HomeAssistant, hass_ws_client, 
     await hass.async_block_till_done()
     await _wait_for(hass, lambda: device.layout["set"]["th"] == "amoled")
     assert device.layout["set"]["br"] == 42  # local change survives the retransfer
+    assert device.layout["set"]["rot"] == 90
     device.emit("setting", {"k": "theme", "v": "does-not-exist"})
     await hass.async_block_till_done()
     assert device.layout["set"]["th"] == "amoled"

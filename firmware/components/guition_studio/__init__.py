@@ -21,9 +21,11 @@ CONF_ON_EVENT = "on_event"
 CONF_MAX_LAYOUT_SIZE = "max_layout_size"
 CONF_HARDWARE = "hardware"
 CONF_SLIDESHOW_IMAGE = "slideshow_image"
+CONF_LVGL_ID = "lvgl_id"
 
 gs_ns = cg.esphome_ns.namespace("guition_studio")
 OnlineImage = cg.esphome_ns.namespace("online_image").class_("OnlineImage")
+LvglComponent = cg.esphome_ns.namespace("lvgl").class_("LvglComponent")
 GuitionStudio = gs_ns.class_("GuitionStudio", cg.Component)
 EventTrigger = gs_ns.class_(
     "EventTrigger", automation.Trigger.template(cg.std_string, cg.std_string)
@@ -32,6 +34,8 @@ EventTrigger = gs_ns.class_(
 CONFIG_SCHEMA = cv.Schema(
     {
         cv.GenerateID(): cv.declare_id(GuitionStudio),
+        # runtime screen rotation (requires `rotation:` in the lvgl config)
+        cv.GenerateID(CONF_LVGL_ID): cv.use_id(LvglComponent),
         cv.Optional(CONF_BACKLIGHT): cv.use_id(light.LightState),
         cv.Optional(CONF_TIME_ID): cv.use_id(time_.RealTimeClock),
         # online_image used to stream screensaver slideshow pictures from Home Assistant
@@ -51,6 +55,8 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
     cg.add(var.set_hardware(config[CONF_HARDWARE]))
+    lv_comp = await cg.get_variable(config[CONF_LVGL_ID])
+    cg.add(var.set_lvgl(lv_comp))
     cg.add(var.set_max_layout_size(config[CONF_MAX_LAYOUT_SIZE]))
     if CONF_BACKLIGHT in config:
         bl = await cg.get_variable(config[CONF_BACKLIGHT])

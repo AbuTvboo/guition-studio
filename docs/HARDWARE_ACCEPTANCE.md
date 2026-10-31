@@ -67,4 +67,12 @@ Vorbereitung: HA ≥ 2026.1 über HTTPS, Chrome am PC, Display per USB, eine sch
 | 39 | Antippen während der Diashow | Diashow endet, keine Kachel wird ausgelöst | |
 | 40 | Diagnose: freier PSRAM vor, während und nach der Diashow | während ca. 0,9 MB weniger, danach wieder frei | |
 
+### Zusatz v0.5.2
+
+| # | Schritt | Erwartung | ✓ |
+|---|---|---|---|
+| 41 | 3 s auf eine leere Fläche drücken | Ränder leuchten zunehmend gelb, dann öffnet sich das Menü; früheres Loslassen bricht ab | |
+| 42 | Im Menü „Bildschirmdrehung 90°“ | Bild dreht sich sofort; Kacheln reagieren an der richtigen Stelle | |
+| 43 | Display neu starten | Drehung bleibt; in Guition Studio steht 90° | |
+
 Bei Abweichungen: Diagnose-Export und ESPHome-Log anhängen.

@@ -212,15 +212,18 @@ def _extras(domain: str, state: str, attrs: dict[str, Any]) -> dict[str, Any]:
         text, icon = WEATHER_DE.get(state, (state, "weather-cloudy"))
         out["s"] = text
         out["i"] = icon
-        details = []
         humidity = _fmt_number(attrs.get("humidity"))
         if humidity:
-            details.append(f"Feuchte {humidity} %")
+            out["hu"] = f"Feuchte {humidity} %"
         wind = _fmt_number(attrs.get("wind_speed"))
         if wind:
-            details.append(f"Wind {wind} {attrs.get('wind_speed_unit') or 'km/h'}")
+            out["wi"] = f"Wind {wind} {attrs.get('wind_speed_unit') or 'km/h'}"
+        pressure = _fmt_number(attrs.get("pressure"))
+        if pressure:
+            out["pr"] = f"{pressure} {attrs.get('pressure_unit') or 'hPa'}"
+        details = [out[k] for k in ("hu", "wi") if k in out]
         if details:
-            out["w"] = " · ".join(details)
+            out["w"] = " · ".join(details)  # combined line for firmware < 0.5.6
     return out
 
 
@@ -277,7 +280,7 @@ def entity_payload(
         if domain == "weather" and forecast:
             payload.update(weather_forecast_payload(forecast))
             if payload.get("hl"):
-                payload["w"] = " · ".join(x for x in (payload.pop("hl"), payload.get("w")) if x)
+                payload["w"] = " · ".join(x for x in (payload["hl"], payload.get("w")) if x)
     return payload
 
 

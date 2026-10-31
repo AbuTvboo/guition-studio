@@ -54,7 +54,10 @@ def test_entity_payload_extras_for_advanced_tiles():
     media = entity_payload("media_player", "playing", {"media_title": "Song", "media_artist": "Band", "volume_level": 0.35})
     assert media["s"] == "Band – Song" and media["n"] == 35
     weather = entity_payload("weather", "rainy", {"temperature": 12.3, "humidity": 80, "wind_speed": 14, "wind_speed_unit": "km/h"})
-    assert weather == {"o": 0, "a": 1, "d": "12,3 °C", "s": "Regen", "i": "weather-rainy", "w": "Feuchte 80 % · Wind 14 km/h"}
+    assert weather == {
+        "o": 0, "a": 1, "d": "12,3 °C", "s": "Regen", "i": "weather-rainy",
+        "hu": "Feuchte 80 %", "wi": "Wind 14 km/h", "w": "Feuchte 80 % · Wind 14 km/h",
+    }  # fmt: skip
 
 
 def test_weather_forecast_payload():

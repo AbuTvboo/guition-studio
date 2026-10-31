@@ -72,6 +72,7 @@ struct TileCfg {
   bool show_title{true}, show_state{true}, show_icon{true};
   uint8_t tap{ACTION_NONE}, hold{ACTION_NONE};
   int tap_page{-1}, hold_page{-1};
+  uint8_t wopts{0x2F};  // weather: 1 condition, 2 high/low, 4 humidity, 8 wind, 16 pressure, 32 forecast
 };
 
 struct PageCfg {
@@ -120,7 +121,8 @@ struct EntityState {
   std::string icon;     // icon override (weather condition)
   std::vector<int8_t> graph;  // history 0..100, -1 = no data (graph tiles)
   std::string graph_range;    // "min – max unit"
-  std::string detail;         // weather: high/low, humidity, wind
+  std::string detail;         // weather (firmware < 0.5.6 format): combined detail line
+  std::string hilo, humidity, wind, pressure;  // weather parts, combined per tile options
   std::vector<std::array<std::string, 3>> forecast;  // weather: weekday, icon, "hi°/lo°"
 };
 

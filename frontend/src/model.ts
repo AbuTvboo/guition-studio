@@ -1,5 +1,5 @@
 // Pure, immutable layout operations used by the designer (unit tested).
-import { TILE_ENTITY_DOMAINS, type Layout, type Page, type Tile, type TileStyle, type TileType } from "./types";
+import { DEFAULT_WEATHER_OPTIONS, TILE_ENTITY_DOMAINS, type Layout, type Page, type Tile, type TileStyle, type TileType } from "./types";
 
 export const MAX_PAGES = 10;
 export const MAX_GRID = 6;
@@ -48,6 +48,7 @@ export function makeTile(type: TileType, x = 0, y = 0, w = 1, h = 1, extra: Part
     hold_action: { action: "none" },
     visibility: [],
     hours: 24,
+    weather: { ...DEFAULT_WEATHER_OPTIONS },
     ...extra,
   };
 }
@@ -277,5 +278,7 @@ export function needsEntity(tile: Pick<Tile, "type">): boolean {
 export function entityDomainProblem(tile: Pick<Tile, "type" | "entity">): string | null {
   const allowed = TILE_ENTITY_DOMAINS[tile.type];
   if (!tile.entity || !allowed) return null;
-  return allowed.includes(tile.entity.split(".", 1)[0]) ? null : `Dieser Kacheltyp benötigt eine Entität vom Typ ${allowed.join(", ")}.`;
+  if (allowed.includes(tile.entity.split(".", 1)[0])) return null;
+  const labels: Record<string, string> = { weather: "Wetter", light: "Licht", cover: "Rollladen", climate: "Thermostat", water_heater: "Warmwasser", media_player: "Mediaplayer", sensor: "Sensor", number: "Zahlen", input_number: "Zahlen-Helfer" };
+  return `Dieser Kacheltyp braucht eine ${allowed.map((d) => labels[d] ?? d).join(" oder ")}-Entität (${allowed.map((d) => `${d}.…`).join(", ")}). Bitte in der Liste auswählen.`;
 }

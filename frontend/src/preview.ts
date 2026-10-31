@@ -59,6 +59,7 @@ export interface PreviewState {
   sub: string;
   icon: string | null;
   detail: string;
+  parts?: { humidity: string; wind: string; pressure: string };
 }
 
 const WEATHER: Record<string, [string, string]> = {
@@ -71,7 +72,11 @@ const WEATHER: Record<string, [string, string]> = {
 };
 
 /** Mirrors protocol._extras(): n = 0..100, s = secondary text, i = icon override, d override for climate. */
-export function previewExtras(domain: string, state: string, a: Record<string, any>): { num: number; sub: string; icon: string | null; text?: string; detail?: string } {
+export function previewExtras(
+  domain: string,
+  state: string,
+  a: Record<string, any>
+): { num: number; sub: string; icon: string | null; text?: string; detail?: string; parts?: { humidity: string; wind: string; pressure: string } } {
   if (domain === "light") return { num: state === "on" ? (typeof a.brightness === "number" ? Math.round((a.brightness * 100) / 255) : 100) : 0, sub: "", icon: null };
   if (domain === "cover" && typeof a.current_position === "number") return { num: a.current_position, sub: "", icon: null };
   if (domain === "climate" || domain === "water_heater") {
@@ -90,7 +95,7 @@ export function previewExtras(domain: string, state: string, a: Record<string, a
     if (hum) details.push(`Feuchte ${hum} %`);
     const wind = num(a.wind_speed);
     if (wind) details.push(`Wind ${wind} ${a.wind_speed_unit ?? "km/h"}`);
-    return { num: -1, sub: text, icon, detail: details.join(" · ") };
+    return { num: -1, sub: text, icon, detail: details.join(" · "), parts: { humidity: hum ? `Feuchte ${hum} %` : "", wind: wind ? `Wind ${wind} ${a.wind_speed_unit ?? "km/h"}` : "", pressure: num(a.pressure) ? `${num(a.pressure)} ${a.pressure_unit ?? "hPa"}` : "" } };
   }
   return { num: -1, sub: "", icon: null };
 }
@@ -105,7 +110,7 @@ export function previewState(hass: Hass | undefined, tile: Tile): PreviewState {
   const base = { known: true, available, on: ON.has(st.state), text: formatState(domain, st.state, st.attributes) };
   if (!available) return { ...base, ...empty };
   const ex = previewExtras(domain, st.state, st.attributes);
-  return { ...base, text: ex.text ?? base.text, num: ex.num, sub: ex.sub, icon: ex.icon, detail: ex.detail ?? "" };
+  return { ...base, text: ex.text ?? base.text, num: ex.num, sub: ex.sub, icon: ex.icon, detail: ex.detail ?? "", parts: ex.parts };
 }
 
 export function tileColors(tile: Tile, theme: Theme, ps: PreviewState) {

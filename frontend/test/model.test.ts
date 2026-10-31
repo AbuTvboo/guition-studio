@@ -21,6 +21,7 @@ import { buildLibrary, defaultTileType, filterLibrary } from "../src/entities";
 import { formatState, previewExtras } from "../src/preview";
 import { DEVICE_ICONS, LEGACY_ICONS, normalizeIcon } from "../src/icons";
 import { entityDomainProblem, needsEntity } from "../src/model";
+import { matchesQuery } from "../src/views/entity-picker";
 import type { Hass, Layout } from "../src/types";
 
 function layout(): Layout {
@@ -204,6 +205,20 @@ describe("entity library", () => {
     expect(previewExtras("climate", "heat", { current_temperature: 20.5, temperature: 22 })).toMatchObject({ text: "20,5 °C", sub: "Ziel 22 °C" });
     expect(previewExtras("media_player", "playing", { media_title: "Song", media_artist: "Band", volume_level: 0.35 })).toMatchObject({ sub: "Band – Song", num: 35 });
     expect(previewExtras("weather", "rainy", { humidity: 80, wind_speed: 12 })).toMatchObject({ sub: "Regen", icon: "weather-rainy", detail: "Feuchte 80 % · Wind 12 km/h" });
+  });
+  it("finds entities with German search words", () => {
+    const hass = {
+      states: {
+        "weather.forecast_home": { entity_id: "weather.forecast_home", state: "sunny", attributes: { friendly_name: "Forecast Home" } },
+        "light.kitchen": { entity_id: "light.kitchen", state: "on", attributes: { friendly_name: "Kitchen" } },
+      },
+      connection: {} as Hass["connection"],
+    } as Hass;
+    expect(matchesQuery(hass, hass.states["weather.forecast_home"], "wetter")).toBe(true);
+    expect(matchesQuery(hass, hass.states["light.kitchen"], "wetter")).toBe(false);
+    expect(matchesQuery(hass, hass.states["light.kitchen"], "lampe")).toBe(true);
+    expect(matchesQuery(hass, hass.states["weather.forecast_home"], "forecast")).toBe(true);
+    expect(entityDomainProblem({ type: "weather", entity: "sensor.temp" })).toContain("Wetter-Entität");
   });
   it("maps legacy icon names to MDI", () => {
     expect(normalizeIcon("charge")).toBe("flash");

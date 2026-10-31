@@ -173,6 +173,7 @@ def make_tile(
         "hold_action": {"action": "none"},
         "visibility": [],
         "hours": 24,
+        "weather": dict(WEATHER_OPTIONS),
     }
 
 
@@ -330,6 +331,20 @@ def validate_layout(data: Any) -> dict[str, Any]:
     }
 
 
+DOMAIN_LABELS_DE = {
+    "weather": "Wetter", "light": "Licht", "cover": "Rollladen", "climate": "Thermostat", "water_heater": "Warmwasser",
+    "media_player": "Mediaplayer", "sensor": "Sensor", "number": "Zahlen", "input_number": "Zahlen-Helfer",
+}  # fmt: skip
+
+WEATHER_OPTIONS = {"condition": True, "hilo": True, "humidity": True, "wind": True, "pressure": False, "forecast": True}
+WEATHER_BITS = {"condition": 1, "hilo": 2, "humidity": 4, "wind": 8, "pressure": 16, "forecast": 32}
+
+
+def _weather_options(raw: Any) -> dict[str, bool]:
+    raw = raw if isinstance(raw, dict) else {}
+    return {k: _bool(raw.get(k), default) for k, default in WEATHER_OPTIONS.items()}
+
+
 def _validate_night(raw: Any, errors: list[str]) -> dict[str, Any]:
     n = default_night()
     if not isinstance(raw, dict):
@@ -461,7 +476,8 @@ def _validate_tile(
         if not entity:
             errors.append(f"{where}: Bitte eine Home-Assistant-Entität zuordnen.")
         elif domains is not None and entity.split(".", 1)[0] not in domains:
-            errors.append(f"{where}: Dieser Kacheltyp benötigt eine Entität vom Typ {', '.join(sorted(domains))}.")
+            names = " oder ".join(DOMAIN_LABELS_DE.get(d, d) for d in sorted(domains))
+            errors.append(f"{where}: Dieser Kacheltyp braucht eine {names}-Entität ({', '.join(d + '.…' for d in sorted(domains))}).")
 
     icon = tile.get("icon") or None
     icon = LEGACY_ICONS.get(icon, icon) if icon else None
@@ -510,6 +526,7 @@ def _validate_tile(
         "hold_action": _action(tile.get("hold_action"), errors, where),
         "visibility": visibility,
         "hours": _int(tile.get("hours"), 24, 1, 48),
+        "weather": _weather_options(tile.get("weather")),
     }
 
 
@@ -686,6 +703,9 @@ def compile_device_layout(layout: dict[str, Any], slide_url: str | None = None) 
                 dev["ic"] = t["icon"]
             if t.get("format"):
                 dev["fmt"] = t["format"]
+            if t["type"] == "weather":
+                opts = t.get("weather") or WEATHER_OPTIONS
+                dev["wo"] = sum(bit for key, bit in WEATHER_BITS.items() if opts.get(key, WEATHER_OPTIONS[key]))
             dev.update(
                 {
                     "bg": _hex(s["background"], theme["tile_bg"]),

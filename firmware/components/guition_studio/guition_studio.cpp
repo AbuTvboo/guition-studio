@@ -615,6 +615,7 @@ bool GuitionStudio::parse_layout_(const char *data, size_t len, LayoutCfg &out, 
       tile.hold = clampi(t["ha"] | 0, 0, 8);
       tile.tap_page = t["tp"] | -1;
       tile.hold_page = t["hp"] | -1;
+      tile.wopts = static_cast<uint8_t>(clampi(t["wo"] | 0x2F, 0, 63));
       page.tiles.push_back(std::move(tile));
     }
     out.pages.push_back(std::move(page));
@@ -772,6 +773,12 @@ void GuitionStudio::set_states(const std::string &json) {
     st.num = clampi(v["n"] | -1, -1, 100);
     if (v["w"].is<const char *>())
       st.detail = std::string(v["w"] | "").substr(0, 80);
+    if (v["i"].is<const char *>() && eid.rfind("weather.", 0) == 0) {  // weather push: take all parts (missing = empty)
+      st.hilo = std::string(v["hl"] | "").substr(0, 24);
+      st.humidity = std::string(v["hu"] | "").substr(0, 24);
+      st.wind = std::string(v["wi"] | "").substr(0, 32);
+      st.pressure = std::string(v["pr"] | "").substr(0, 24);
+    }
     if (v["f"].is<JsonArrayConst>()) {
       st.forecast.clear();
       for (JsonArrayConst day : v["f"].as<JsonArrayConst>()) {
@@ -973,25 +980,29 @@ void GuitionStudio::build_tile_(int page_index, lv_obj_t *parent, const TileCfg 
       lv_obj_align(view.sub, LV_ALIGN_CENTER, 0, big ? 32 : 24);
     }
   } else if (t.kind == "weather") {
-    bool wide = pw >= 200, tall = ph >= 200;
+    bool wide = pw >= 200;
+    bool tall = ph >= 200 && (t.wopts & 32);
+    bool any_detail = (t.wopts & (2 | 4 | 8 | 16)) != 0;
     int fc_h = tall ? 74 : 0;
     int bottom = pad + fc_h;
     if (t.show_title)
       title_label(LV_ALIGN_TOP_LEFT, pad, pad, inner_w - 48);
     view.icon = make_label(o, icon_font(tall ? 40 : 28), t.icon_color, sym ? sym : "");
     lv_obj_align(view.icon, LV_ALIGN_TOP_RIGHT, -pad, pad - 4);
-    if (wide || ph >= 150) {
+    if (any_detail && (wide || ph >= 150)) {
       view.detail = make_label(o, font_px(12), t.fg, "");
       lv_obj_set_width(view.detail, inner_w);
       lv_label_set_long_mode(view.detail, LABEL_LONG_DOTS);
       lv_obj_align(view.detail, LV_ALIGN_BOTTOM_LEFT, pad, -bottom);
       bottom += 18;
     }
-    view.sub = make_label(o, font_px(16), t.fg, "");
-    lv_obj_set_width(view.sub, inner_w);
-    lv_label_set_long_mode(view.sub, LABEL_LONG_DOTS);
-    lv_obj_align(view.sub, LV_ALIGN_BOTTOM_LEFT, pad, -bottom);
-    bottom += 22;
+    if (t.wopts & 1) {
+      view.sub = make_label(o, font_px(16), t.fg, "");
+      lv_obj_set_width(view.sub, inner_w);
+      lv_label_set_long_mode(view.sub, LABEL_LONG_DOTS);
+      lv_obj_align(view.sub, LV_ALIGN_BOTTOM_LEFT, pad, -bottom);
+      bottom += 22;
+    }
     view.value = make_label(o, font_px(tall || wide ? 40 : 28), t.fg, "–");
     lv_obj_align(view.value, LV_ALIGN_BOTTOM_LEFT, pad, -bottom);
     if (tall) {
@@ -1269,8 +1280,27 @@ void GuitionStudio::update_tile_(TileView &view) {
       lv_label_set_text(view.sub, available && st != nullptr ? st->sub.c_str() : "");
   }
   if (t.kind == "weather" && st != nullptr) {
-    if (view.detail != nullptr)
-      lv_label_set_text(view.detail, available ? st->detail.c_str() : "");
+    if (view.detail != nullptr) {
+      std::string line;
+      auto add = [&line](const std::string &part) {
+        if (part.empty())
+          return;
+        if (!line.empty())
+          line += " · ";
+        line += part;
+      };
+      if (t.wopts & 2)
+        add(st->hilo);
+      if (t.wopts & 4)
+        add(st->humidity);
+      if (t.wopts & 8)
+        add(st->wind);
+      if (t.wopts & 16)
+        add(st->pressure);
+      if (line.empty() && st->hilo.empty() && st->humidity.empty())
+        line = st->detail;  // data from an older integration version
+      lv_label_set_text(view.detail, available ? line.c_str() : "");
+    }
     for (int i = 0; i < 3; i++) {
       if (view.fc_day[i] == nullptr)
         continue;

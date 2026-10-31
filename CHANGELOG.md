@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.6 – Bessere Entitätsauswahl & einstellbares Wetter
+- **Neue Entitätsauswahl:** zeigt nur passende Entitäten für den Kacheltyp (bei der Wetter-Kachel z. B. alle Wetter-Entitäten), mit Name, Bereich und aktuellem Wert. Sie versteht deutsche Suchbegriffe wie „wetter“, „licht“, „lampe“, „rollladen“, „heizung“, „steckdose“ oder „musik“. Bedienbar mit Maus, Touch und Tastatur.
+- Verständlichere Meldung, wenn eine Entität nicht zum Kacheltyp passt (z. B. „Dieser Kacheltyp braucht eine Wetter-Entität (weather.…)“)
+- **Wetter-Kachel einstellbar:** Zustand, Höchst-/Tiefstwert, Luftfeuchte, Wind, Luftdruck und 3-Tage-Vorhersage einzeln ein- und ausschaltbar, pro Kachel
+- Unterstützen-Link (PayPal) unter *Einstellungen*
+
 ## 0.5.5 – Vollständiges Wetter & weniger Flimmern beim Update
 - **Wetter-Kachel mit allen Daten:** Zustand auf Deutsch, Temperatur, Höchst-/Tiefstwert, Luftfeuchte und Wind. Bei 2×2 zusätzlich eine **3-Tage-Vorhersage** mit Wochentag, Icon und Temperaturen. Home Assistant holt die Vorhersage über `weather.get_forecasts` (30 Minuten zwischengespeichert, alle 10 Minuten aktualisiert). Seit HA 2024 steht sie nicht mehr in den Attributen.
 - Die Eigenschaftsleiste zeigt Wetter, Sensoren usw. jetzt formatiert („Teilweise bewölkt“ statt `partlycloudy`) und beim Wetter zusätzlich Feuchte, Wind und Luftdruck.

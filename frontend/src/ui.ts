@@ -4,7 +4,7 @@ import { styleMap } from "lit/directives/style-map.js";
 import { cellRect, pageGeometry, SCREEN } from "./geometry";
 import { iconFallback, iconMdi } from "./icons";
 import { previewState, tileColors, visibleNow } from "./preview";
-import type { Hass, Layout, Page, Theme, Tile } from "./types";
+import { DEFAULT_WEATHER_OPTIONS, type Hass, type Layout, type Page, type Theme, type Tile } from "./types";
 
 export const sharedStyles = css`
   :host {
@@ -349,20 +349,22 @@ export function renderTileContent(tile: Tile, theme: Theme, hass: Hass | undefin
       </div>`;
       break;
     case "weather": {
+      const wo = { ...DEFAULT_WEATHER_OPTIONS, ...(tile.weather ?? {}) };
       const wide = pw >= 200;
-      const tall = ph >= 200;
+      const tall = ph >= 200 && wo.forecast;
       const fcH = tall ? 74 : 0;
       let bottom = pad + fcH;
-      const showDetail = wide || ph >= 150;
+      const detailText = [wo.hilo ? "↑–° ↓–°" : "", wo.humidity ? ps.parts?.humidity ?? "" : "", wo.wind ? ps.parts?.wind ?? "" : "", wo.pressure ? ps.parts?.pressure ?? "" : ""].filter(Boolean).join(" · ");
+      const showDetail = (wo.hilo || wo.humidity || wo.wind || wo.pressure) && (wide || ph >= 150);
       const detailBottom = bottom;
       if (showDetail) bottom += 18;
       const subBottom = bottom;
-      bottom += 22;
+      if (wo.condition) bottom += 22;
       body = html`${title({ position: "absolute", left: `${pad}px`, top: `${pad}px`, right: `${pad + 48}px` })}
         <div style="position:absolute;right:${pad}px;top:${pad - 4}px;color:${c.icon}">${deviceIcon(ps.icon ?? iconKey, tall ? 40 : 28)}</div>
         <div class="t-value" style="position:absolute;left:${pad}px;bottom:${bottom}px;font-size:${tall || wide ? 40 : 28}px">${ps.known ? (ps.available ? ps.text || "–" : "Nicht verfügbar") : "–"}</div>
-        <div class="t-state" style="position:absolute;left:${pad}px;right:${pad}px;bottom:${subBottom}px;font-size:16px">${ps.sub}</div>
-        ${showDetail ? html`<div class="t-state" style="position:absolute;left:${pad}px;right:${pad}px;bottom:${detailBottom}px;font-size:12px">${ps.detail}</div>` : nothing}
+        ${wo.condition ? html`<div class="t-state" style="position:absolute;left:${pad}px;right:${pad}px;bottom:${subBottom}px;font-size:16px">${ps.sub}</div>` : nothing}
+        ${showDetail ? html`<div class="t-state" style="position:absolute;left:${pad}px;right:${pad}px;bottom:${detailBottom}px;font-size:12px">${detailText}</div>` : nothing}
         ${tall
           ? html`<div class="t-buttons" style="left:${pad}px;right:${pad}px;bottom:${pad}px;height:70px;font-size:12px;text-align:center">
               ${[0, 1, 2].map(() => html`<span style="flex-direction:column;gap:2px">Vorhersage<br />vom Display</span>`)}

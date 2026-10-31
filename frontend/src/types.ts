@@ -90,7 +90,20 @@ export interface Tile {
   hold_action: TileAction;
   visibility: Condition[];
   hours?: number;
+  weather?: WeatherOptions;
 }
+
+export interface WeatherOptions {
+  condition: boolean;
+  hilo: boolean;
+  humidity: boolean;
+  wind: boolean;
+  pressure: boolean;
+  forecast: boolean;
+}
+
+// Mirrors WEATHER_OPTIONS in layout.py
+export const DEFAULT_WEATHER_OPTIONS: WeatherOptions = { condition: true, hilo: true, humidity: true, wind: true, pressure: false, forecast: true };
 
 export interface Page {
   id: string;

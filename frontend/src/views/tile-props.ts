@@ -1,9 +1,11 @@
 import { LitElement, css, html, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { friendlyName } from "../entities";
+import { TILE_ENTITY_DOMAINS } from "../types";
+import "./entity-picker";
 import { formatState } from "../preview";
 import { clone, entityDomainProblem, needsEntity, setGrid } from "../model";
-import type { ActionType, Condition, Hass, Layout, Page, StudioInfo, Tile, TileAction, TileStyle } from "../types";
+import { DEFAULT_WEATHER_OPTIONS, type ActionType, type Condition, type Hass, type Layout, type Page, type StudioInfo, type Tile, type TileAction, type TileStyle, type WeatherOptions } from "../types";
 import { deviceIcon, fireEvent, sharedStyles, toast } from "../ui";
 
 export const TYPE_LABELS: Record<string, string> = {
@@ -139,6 +141,25 @@ export class GsTileProps extends LitElement {
       <p class="muted small" style="margin-top:6px">Die Kachel ist nur sichtbar, wenn alle Bedingungen erfüllt sind. Home Assistant wertet sie aus und aktualisiert das Display live.</p>`;
   }
 
+  private weatherOptions() {
+    const t = this.tile;
+    const opts = { ...DEFAULT_WEATHER_OPTIONS, ...(t.weather ?? {}) };
+    const set = (key: keyof WeatherOptions, value: boolean) => this.patch({ weather: { ...opts, [key]: value } });
+    const items: [keyof WeatherOptions, string][] = [
+      ["condition", "Zustand (z. B. „Sonnig“)"],
+      ["hilo", "Höchst- und Tiefstwert heute"],
+      ["humidity", "Luftfeuchte"],
+      ["wind", "Wind"],
+      ["pressure", "Luftdruck"],
+      ["forecast", "3-Tage-Vorhersage (ab Größe 2×2)"],
+    ];
+    return html`<div class="field-like">
+      <span class="lbl">Wetter-Anzeige</span>
+      ${items.map(([key, label]) => html`<label class="check"><input type="checkbox" .checked=${opts[key]} @change=${(e: Event) => set(key, (e.target as HTMLInputElement).checked)} /> ${label}</label>`)}
+      <p class="muted small">Temperatur und Wetter-Icon werden immer angezeigt. Details erscheinen ab 2 Spalten Breite (oder ab einer hohen Kachel), die Vorhersage ab 2×2.</p>
+    </div>`;
+  }
+
   render() {
     const t = this.tile;
     const theme = this.theme;
@@ -170,18 +191,18 @@ export class GsTileProps extends LitElement {
           <input maxlength="64" .value=${t.title} @input=${(e: Event) => this.patch({ title: (e.target as HTMLInputElement).value })} />
         </label>
         ${t.type !== "clock" && t.type !== "text" && t.type !== "status"
-          ? html`<label class="field"><span>Zugeordnete Entity-ID ${requiresEntity ? "(erforderlich)" : "(optional)"}</span>
-              <input
-                list="gs-entities"
-                placeholder="z. B. light.wohnzimmer"
-                class=${(requiresEntity && !t.entity) || domainProblem ? "invalid" : ""}
-                .value=${t.entity ?? ""}
-                @change=${(e: Event) => {
-                  const v = (e.target as HTMLInputElement).value.trim();
-                  const st = this.hass.states[v];
-                  this.patch({ entity: v || null, ...(st && !t.title ? { title: friendlyName(st).slice(0, 64) } : {}) });
+          ? html`<label class="field"><span>Entität ${requiresEntity ? "(erforderlich)" : "(optional)"}</span>
+              <gs-entity-picker
+                .hass=${this.hass}
+                .value=${t.entity}
+                .domains=${TILE_ENTITY_DOMAINS[t.type] ?? null}
+                ?invalid=${(requiresEntity && !t.entity) || !!domainProblem}
+                @gs-entity=${(e: CustomEvent<string | null>) => {
+                  const v = e.detail;
+                  const st = v ? this.hass.states[v] : undefined;
+                  this.patch({ entity: v, ...(st && !t.title ? { title: friendlyName(st).slice(0, 64) } : {}) });
                 }}
-              />
+              ></gs-entity-picker>
               ${t.entity && !entity ? html`<span style="color:var(--gs-error)">Entität existiert nicht oder ist nicht verfügbar</span>` : nothing}
               ${domainProblem ? html`<span style="color:var(--gs-error)">${domainProblem}</span>` : nothing}
               ${entity
@@ -196,6 +217,7 @@ export class GsTileProps extends LitElement {
                 : nothing}
             </label>`
           : nothing}
+        ${t.type === "weather" ? this.weatherOptions() : nothing}
         ${t.type === "graph"
           ? html`<label class="field"><span>Zeitraum des Verlaufs</span>
               <select @change=${(e: Event) => this.patch({ hours: +(e.target as HTMLSelectElement).value })}>

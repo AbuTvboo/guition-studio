@@ -89,6 +89,20 @@ def test_settings_validation_and_device_screensaver():
     assert "Nachtmodus" in text and "Entity-ID" in text and "Auslöser" in text and "Zielseite" in text
 
 
+def test_weather_options_bitmask_and_message():
+    layout = default_layout()
+    w = make_tile("weather", 0, 1, 2, 2, entity="weather.home")
+    w["weather"] = {"condition": True, "hilo": False, "humidity": True, "wind": False, "pressure": True, "forecast": False}
+    layout["pages"][0]["tiles"].append(w)
+    doc = json.loads(compile_device_layout(validate_layout(layout))[0])
+    tile = next(t for t in doc["pages"][0]["t"] if t["k"] == "weather")
+    assert tile["wo"] == 1 + 4 + 16
+    w["entity"] = "sensor.temperatur"
+    with pytest.raises(LayoutValidationError) as err:
+        validate_layout(layout)
+    assert "Wetter-Entität" in err.value.errors[0]
+
+
 def test_rotation_setting():
     layout = default_layout()
     layout["settings"]["rotation"] = 270

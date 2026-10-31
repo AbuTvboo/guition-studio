@@ -12,6 +12,7 @@ export type TileType =
   | "text"
   | "action"
   | "status"
+  | "settings"
   | "cover"
   | "thermostat"
   | "media"

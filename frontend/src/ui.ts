@@ -391,6 +391,7 @@ export function renderTileContent(tile: Tile, theme: Theme, hass: Hass | undefin
     }
     case "nav":
     case "action":
+    case "settings":
       body = html`<div class="t-center">
         ${tile.show_icon && tile.icon ? html`<div style="color:${c.icon}">${deviceIcon(iconKey, big ? 40 : 28)}</div>` : nothing}
         ${title({ textAlign: "center", maxWidth: "100%" })}

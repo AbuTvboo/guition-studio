@@ -23,7 +23,7 @@ namespace esphome {
 namespace guition_studio {
 
 // Must match custom_components/guition_studio/const.py and frontend/src/geometry.ts
-static constexpr int PROTOCOL_VERSION = 3;
+static constexpr int PROTOCOL_VERSION = 4;
 static constexpr int SCREEN_W = 480;
 static constexpr int SCREEN_H = 480;
 static constexpr int HEADER_H = 44;
@@ -42,6 +42,7 @@ enum TileAction : uint8_t {
   ACTION_BACK = 4,
   ACTION_NEXT = 5,
   ACTION_PREV = 6,
+  ACTION_SETTINGS = 7,  // local: open the settings menu
 };
 
 struct TileCfg {
@@ -84,6 +85,9 @@ struct LayoutCfg {
   int screensaver_s{0};                     // 0 = off
   std::vector<std::string> ss_entities;     // up to 2 entities shown on the screensaver
   std::vector<std::string> ss_titles;
+  int night_brightness{15}, night_dim{30};
+  std::string theme;
+  std::vector<std::pair<std::string, std::string>> themes;  // id, name
   std::vector<PageCfg> pages;
 };
 
@@ -166,6 +170,8 @@ class GuitionStudio : public Component {
   void on_root_event(lv_event_code_t code);
   void on_button_event(int index, uint8_t button, lv_event_code_t code);
   void on_slider_event(int index, lv_event_code_t code);
+  void on_menu_event(int code, lv_event_code_t event, lv_obj_t *target);
+  void on_header_event(lv_event_code_t code);
 
  protected:
   bool parse_layout_(const char *data, size_t len, LayoutCfg &out, std::string &err);
@@ -183,6 +189,19 @@ class GuitionStudio : public Component {
   void update_screensaver_(const std::string &hhmm, const std::string &date);
   void apply_night_overlay_();
   int effective_brightness_() const;
+  // effective settings = layout + local overrides from the on-device menu
+  int brightness_() const { return this->ovr_br_ >= 0 ? this->ovr_br_ : this->layout_.brightness; }
+  int standby_() const { return this->ovr_sb_ >= 0 ? this->ovr_sb_ : this->layout_.standby; }
+  int timeout_() const { return this->ovr_to_ >= 0 ? this->ovr_to_ : this->layout_.timeout_s; }
+  int screensaver_s_() const;
+  void load_overrides_();
+  void save_overrides_();
+  void clear_overrides_();
+  void report_setting_(const char *key, int value);
+  void report_setting_(const char *key, const std::string &value);
+  void open_settings_();
+  void close_settings_();
+  void refresh_settings_();
   void update_tile_(TileView &view);
   void update_status_();
   void show_page_(int index, bool remember);
@@ -256,6 +275,20 @@ class GuitionStudio : public Component {
   lv_obj_t *ss_clock_{nullptr};
   lv_obj_t *ss_date_{nullptr};
   lv_obj_t *ss_lines_[2]{nullptr, nullptr};
+
+  // local overrides (-1 = use layout), persisted in NVS key "ovr"
+  int ovr_br_{-1}, ovr_sb_{-1}, ovr_to_{-1}, ovr_ss_{-1};
+
+  // on-device settings menu
+  lv_obj_t *header_hit_{nullptr};
+  uint32_t header_press_start_{0};
+  bool header_opened_{false};
+  lv_obj_t *menu_obj_{nullptr};
+  lv_obj_t *menu_br_lbl_{nullptr}, *menu_sb_lbl_{nullptr}, *menu_night_lbl_{nullptr}, *menu_ss_lbl_{nullptr};
+  lv_obj_t *menu_info_lbl_{nullptr}, *menu_restart_lbl_{nullptr}, *menu_status_lbl_{nullptr};
+  lv_obj_t *menu_night_btn_{nullptr}, *menu_ss_btn_{nullptr};
+  std::vector<lv_obj_t *> menu_timeout_btns_, menu_theme_btns_, menu_home_btns_;
+  uint32_t restart_armed_until_{0};
 };
 
 class EventTrigger : public Trigger<std::string, std::string> {

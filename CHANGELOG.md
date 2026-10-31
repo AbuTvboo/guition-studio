@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.4.0 – Einstellungen am Display & neue Vorlagen
+
+**Einstellungsmenü direkt am Display**
+- Öffnen über die neue Kachel **„Einstellungen“** (Elementbibliothek → Systemfunktionen) oder **3 Sekunden auf die Uhr** oben rechts drücken
+- Helligkeit und Standby-Helligkeit (Schieberegler mit Live-Vorschau), Bildschirm-Timeout, Nachtmodus und Bildschirmschoner an/aus
+- Design und Startseite wechseln: Home Assistant überträgt dafür das zuletzt bestätigte Layout neu (unfertige Entwürfe werden nicht mitgeschickt)
+- Info: WLAN-Signal, IP-Adresse, Home-Assistant-Verbindung, Firmware, Layout-Revision, freier Speicher
+- Neustart mit Sicherheitsabfrage (zweimal tippen)
+- Änderungen gelten sofort, bleiben nach einem Neustart erhalten und werden in Guition Studio übernommen, damit spätere Übertragungen sie nicht zurücksetzen. Home Assistant nimmt nur bekannte Einstellungen mit geprüften Wertebereichen an.
+- Ein Nachtmodus, der von Hand am Display umgeschaltet wurde, gilt bis zum nächsten geplanten Wechsel
+
+**8 neue Vorlagen** (jetzt 14): Eingang & Flur, Badezimmer, Kinderzimmer, Energie-Dashboard, Garten & Außen, Homeoffice, Einfach (große Kacheln) und Smart Home komplett (4 Seiten mit Navigation, Nachtmodus und Bildschirmschoner)
+
+Protokoll 4 (neue Kachel `settings`, Aktion 7, Event `setting`). Displays brauchen Firmware 0.4.0. Das Update geht direkt über die Update-Entität in Home Assistant.
+
 ## 0.3.1 – Einfachere Installation
 - **Online-Installer** unter https://abutvboo.github.io/guition-studio/ (GitHub Pages, immer HTTPS): Firmware per USB direkt im Browser installieren, auch wenn Home Assistant nur über `http://` erreichbar ist. Keine Browser-Flags, kein HTTPS-Setup nötig. WLAN wird im selben Dialog eingerichtet, danach erscheint „Zu Home Assistant hinzufügen“.
 - Der Assistent in Guition Studio erkennt `http://`, Brave und Smartphones und bietet statt einer Fehlermeldung direkt den sicheren Installer an. Andere Wege (esptool, improv-wifi.com) sind ausklappbar.

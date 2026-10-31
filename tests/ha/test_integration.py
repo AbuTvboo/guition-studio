@@ -395,6 +395,37 @@ async def test_update_and_notify_entities(hass: HomeAssistant, hass_ws_client, s
     assert ent_reg.async_get_entity_id("notify", DOMAIN, f"{display['id']}_notify") is None
 
 
+async def test_settings_changed_on_display(hass: HomeAssistant, hass_ws_client, setup_studio) -> None:
+    device = FakeDevice(hass)
+    ws = await hass_ws_client(hass)
+    display, _ = await _create_with_layout(hass, ws, lambda layout: layout["pages"][0]["tiles"].append(make_tile("settings", 0, 1, title="Einstellungen", icon="cog")))
+    assert device.layout["set"]["th"] == "modern_dark"
+    assert any(t["k"] == "settings" and t["ta"] == 7 for t in device.layout["pages"][0]["t"])
+    first_crc = device.layout_crc
+
+    # local settings: stored in confirmed + draft layout, no retransfer
+    device.emit("setting", {"k": "brightness", "v": 42})
+    device.emit("setting", {"k": "timeout", "v": 300})
+    device.emit("setting", {"k": "screensaver", "v": 1})
+    device.emit("setting", {"k": "brightness", "v": 500})  # out of range -> ignored
+    device.emit("setting", {"k": "evil", "v": 1})  # unknown -> ignored
+    await hass.async_block_till_done()
+    await ws.send_json({"id": 400, "type": "guition_studio/layout/get", "display_id": display["id"]})
+    draft = (await ws.receive_json())["result"]["layout"]
+    assert draft["settings"]["brightness"] == 42 and draft["settings"]["timeout"] == 300
+    assert draft["settings"]["screensaver"]["enabled"] is True
+    assert device.layout_crc == first_crc
+
+    # theme from the display: confirmed layout is re-sent with the new theme
+    device.emit("setting", {"k": "theme", "v": "amoled"})
+    await hass.async_block_till_done()
+    await _wait_for(hass, lambda: device.layout["set"]["th"] == "amoled")
+    assert device.layout["set"]["br"] == 42  # local change survives the retransfer
+    device.emit("setting", {"k": "theme", "v": "does-not-exist"})
+    await hass.async_block_till_done()
+    assert device.layout["set"]["th"] == "amoled"
+
+
 async def test_heartbeat_detects_reboot(hass: HomeAssistant, hass_ws_client, setup_studio) -> None:
     device = FakeDevice(hass)
     ws = await hass_ws_client(hass)

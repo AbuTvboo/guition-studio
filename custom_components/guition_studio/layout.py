@@ -26,6 +26,7 @@ from .const import (
     DEV_ACTION_NONE,
     DEV_ACTION_PREV,
     DEV_ACTION_REMOTE,
+    DEV_ACTION_SETTINGS,
     FONT_SIZES,
     ICONS,
     LAYOUT_SCHEMA,
@@ -597,6 +598,8 @@ def resolve_control(
 
 
 def _device_action(tile: dict[str, Any], which: str, page_index: dict[str, int]) -> tuple[int, int]:
+    if tile.get("type") == "settings" and which == "tap":
+        return DEV_ACTION_SETTINGS, -1
     act = tile.get(f"{which}_action") or {"action": "none"}
     action = act.get("action")
     if action == "navigate":
@@ -714,6 +717,11 @@ def compile_device_layout(layout: dict[str, Any]) -> tuple[str, int]:
             "ok": _hex(None, theme["ok"]),
             "err": _hex(None, theme["error"]),
             "na": lang_na,
+            # on-device settings menu: night values for manual toggle, theme choices, current theme
+            "nb": (settings.get("night") or {}).get("brightness", 15),
+            "nd": (settings.get("night") or {}).get("dim", 30),
+            "th": settings["theme"],
+            "thl": [[key, t["name"]] for key, t in THEMES.items()],
             **_screensaver_device(settings, layout),
         },
         "pages": pages,

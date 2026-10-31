@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 from collections import deque
+import copy
 from datetime import datetime, timedelta, timezone
 from functools import partial
 import logging
@@ -82,6 +83,7 @@ from .protocol import (
     visibility_map,
 )
 from .store import StudioStore
+from .themes import THEMES
 
 _LOGGER = logging.getLogger(__name__)
 ESPHOME = "esphome"
@@ -333,6 +335,11 @@ class StudioManager:
         sun = self.hass.states.get("sun.sun")
         active = night_active(night, local.time(), sun.state == "below_horizon" if sun else None)
         rt = self.rt(display["id"])
+        override = rt.get("night_override")
+        if override is not None:
+            if override["computed"] == active:
+                return  # manual choice from the display stays until the schedule changes
+            rt["night_override"] = None
         if not force and rt.get("night") == active:
             return
         rt["night"] = active
@@ -395,6 +402,68 @@ class StudioManager:
             self.add_log("warning", f"Verlauf konnte nicht gesendet werden: {err}", display_id)
             return 0
         return len(entities)
+
+    # ------------------------------------------------------------------ on-device settings
+
+    LOCAL_SETTINGS = {"brightness": (5, 100), "standby": (0, 100), "timeout": (0, 86400)}
+
+    @callback
+    def _handle_setting(self, display: dict[str, Any], payload: dict[str, Any]) -> None:
+        """A setting was changed in the display's own settings menu.
+
+        Only whitelisted keys with range checks are accepted. Local values are
+        stored in the confirmed and the draft layout so later transfers keep them.
+        Theme / home page need a new compiled layout: the *confirmed* layout is
+        re-sent with the change (unfinished drafts are never pushed).
+        """
+        display_id = display["id"]
+        key, value = payload.get("k"), payload.get("v")
+        applied = display.get("applied")
+        if not applied:
+            return
+        settings_targets = [applied["layout"]["settings"], display["layout"].setdefault("settings", {})]
+        if key in self.LOCAL_SETTINGS:
+            lo, hi = self.LOCAL_SETTINGS[key]
+            if isinstance(value, bool) or not isinstance(value, int) or not lo <= value <= hi:
+                return
+            field = {"brightness": "brightness", "standby": "standby_brightness", "timeout": "timeout"}[key]
+            for s in settings_targets:
+                s[field] = value
+        elif key == "screensaver" and value in (0, 1):
+            for s in settings_targets:
+                s.setdefault("screensaver", {"enabled": False, "after": 120, "entities": []})["enabled"] = bool(value)
+        elif key == "night" and value in (0, 1):
+            settings = applied["layout"]["settings"]
+            sun = self.hass.states.get("sun.sun")
+            computed = night_active(settings.get("night") or {}, dt_util.now().time(), sun.state == "below_horizon" if sun else None)
+            rt = self.rt(display_id)
+            rt["night"] = bool(value)
+            rt["night_override"] = {"value": bool(value), "computed": computed}
+            self.add_log("info", f"Nachtmodus am Display {'eingeschaltet' if value else 'ausgeschaltet'}", display_id)
+            return
+        elif key == "theme" and isinstance(value, str) and value in THEMES:
+            self._resend_with(display, {"theme": value}, f"Design „{THEMES[value]['name']}“")
+            return
+        elif key == "home" and isinstance(value, str) and any(p["id"] == value for p in applied["layout"]["pages"]):
+            self._resend_with(display, {"home_page": value}, "Startseite")
+            return
+        else:
+            self.add_log("warning", f"Ungültige Einstellung vom Display ignoriert: {payload}", display_id)
+            return
+        self.store.schedule_save()
+        self.add_log("info", f"Am Display geändert: {key} = {value}", display_id)
+        self._notify_frontend(display_id, "status")
+
+    @callback
+    def _resend_with(self, display: dict[str, Any], patch: dict[str, Any], label: str) -> None:
+        layout = copy.deepcopy(display["applied"]["layout"])
+        layout["settings"].update(patch)
+        layout["revision"] = int(layout.get("revision", 0)) + 1
+        display["layout"].setdefault("settings", {}).update(patch)
+        display["layout"]["revision"] = max(int(display["layout"].get("revision", 0)), layout["revision"])
+        self.store.schedule_save()
+        self.add_log("info", f"{label} am Display gewählt – Layout wird neu übertragen", display["id"])
+        self.hass.async_create_task(self._safe_resend(display["id"], layout))
 
     @callback
     def notify_displays_changed(self) -> None:
@@ -592,6 +661,8 @@ class StudioManager:
                 fut.set_result(payload)
         elif etype == "hello":
             self._handle_hello(display, payload)
+        elif etype == "setting":
+            self._handle_setting(display, payload)
         elif etype in ("tap", "hold", "set", "btn"):
             self._handle_touch(display, etype, payload)
         elif etype == "hb":

@@ -63,7 +63,7 @@ export function createMockHass(): Hass {
     info: () => ({
       version: "0.1.0-dev", hardware: [{ id: "guition-4848s040", name: "Guition ESP32-S3-4848S040", description: '4" 480×480', width: 480, height: 480, chip_family: "ESP32-S3" }],
       themes, icons: DEVICE_ICONS,
-      tile_types: ["light", "dimmer", "rgb", "switch", "graph", "sensor", "clock", "nav", "text", "action", "status", "cover", "thermostat", "media", "weather"], planned_tile_types: ["camera"], protocol: 3,
+      tile_types: ["light", "dimmer", "rgb", "switch", "graph", "sensor", "clock", "nav", "text", "action", "status", "settings", "cover", "thermostat", "media", "weather"], planned_tile_types: ["camera"], protocol: 3,
       templates: [], favorites: ["light.stehlampe"], limits: { pages: 10, grid: 6, tiles: 160, bytes: 32768 }, firmware_repo: "AbuTvboo/guition-studio", firmware_url: "/api/guition_studio/firmware",
     }),
     displays: () => Object.values(displays).map(status),

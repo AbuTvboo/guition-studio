@@ -232,6 +232,17 @@ static void slider_event_cb(lv_event_t *e) {
   self->on_slider_event(index, lv_event_get_code(e));
 }
 
+static void header_event_cb(lv_event_t *e) {
+  auto *self = static_cast<GuitionStudio *>(lv_event_get_user_data(e));
+  self->on_header_event(lv_event_get_code(e));
+}
+
+static void menu_event_cb(lv_event_t *e) {
+  auto *self = static_cast<GuitionStudio *>(lv_event_get_user_data(e));
+  auto *obj = static_cast<lv_obj_t *>(lv_event_get_current_target(e));
+  self->on_menu_event(static_cast<int>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(obj))), lv_event_get_code(e), obj);
+}
+
 static void root_event_cb(lv_event_t *e) {
   auto *self = static_cast<GuitionStudio *>(lv_event_get_user_data(e));
   self->on_root_event(lv_event_get_code(e));
@@ -253,6 +264,7 @@ void GuitionStudio::setup() {
       ESP_LOGW(TAG, "Recovered previous layout rev %d", this->layout_.revision);
     }
   }
+  this->load_overrides_();
   this->ui_dirty_ = true;
 }
 
@@ -275,7 +287,8 @@ void GuitionStudio::loop() {
       this->build_default_ui_();
     }
     this->hide_screensaver_();
-    this->set_backlight_(this->dimmed_ ? std::min(this->layout_.standby, this->effective_brightness_())
+    this->close_settings_();
+    this->set_backlight_(this->dimmed_ ? std::min(this->standby_(), this->effective_brightness_())
                                        : this->effective_brightness_());
   }
 
@@ -290,6 +303,7 @@ void GuitionStudio::loop() {
   if (now - this->last_tick_ >= 1000) {
     this->last_tick_ = now;
     this->update_status_();
+    this->refresh_settings_();
     if (this->notify_obj_ != nullptr && this->notify_until_ != 0 && now > this->notify_until_)
       this->close_notification_();
   }
@@ -298,14 +312,14 @@ void GuitionStudio::loop() {
     this->last_idle_check_ = now;
     uint32_t inactive = GS_INACTIVE_MS();
     const auto &l = this->layout_;
-    if (l.timeout_s > 0 && !this->dimmed_ && inactive > static_cast<uint32_t>(l.timeout_s) * 1000u) {
+    if (this->timeout_() > 0 && !this->dimmed_ && inactive > static_cast<uint32_t>(this->timeout_()) * 1000u) {
       this->dimmed_ = true;
-      this->set_backlight_(std::min(l.standby, this->effective_brightness_()));
+      this->set_backlight_(std::min(this->standby_(), this->effective_brightness_()));
     } else if (this->dimmed_ && inactive < 400) {
       this->wake_();
     }
-    if (l.screensaver_s > 0 && this->has_layout_ && this->ss_obj_ == nullptr &&
-        inactive > static_cast<uint32_t>(l.screensaver_s) * 1000u) {
+    if (this->screensaver_s_() > 0 && this->has_layout_ && this->ss_obj_ == nullptr && this->menu_obj_ == nullptr &&
+        inactive > static_cast<uint32_t>(this->screensaver_s_()) * 1000u) {
       this->show_screensaver_();
     } else if (this->ss_obj_ != nullptr && inactive < 400) {
       this->hide_screensaver_();
@@ -466,6 +480,15 @@ bool GuitionStudio::parse_layout_(const char *data, size_t len, LayoutCfg &out, 
   const char *na = set["na"] | "Nicht verfügbar";
   out.txt_unavailable = std::string(na).substr(0, 32);
   out.screensaver_s = clampi(set["ss"] | 0, 0, 86400);
+  out.night_brightness = clampi(set["nb"] | 15, 1, 100);
+  out.night_dim = clampi(set["nd"] | 30, 0, 80);
+  out.theme = std::string(set["th"] | "").substr(0, 24);
+  out.themes.clear();
+  for (JsonArrayConst t : set["thl"].as<JsonArrayConst>()) {
+    if (out.themes.size() >= 8)
+      break;
+    out.themes.emplace_back(std::string(t[0] | "").substr(0, 24), std::string(t[1] | "").substr(0, 24));
+  }
   out.ss_entities.clear();
   out.ss_titles.clear();
   for (JsonVariantConst e : set["sse"].as<JsonArrayConst>()) {
@@ -552,8 +575,8 @@ bool GuitionStudio::parse_layout_(const char *data, size_t len, LayoutCfg &out, 
       tile.show_title = (t["st"] | 1) != 0;
       tile.show_state = (t["sv"] | 1) != 0;
       tile.show_icon = (t["si"] | 1) != 0;
-      tile.tap = clampi(t["ta"] | 0, 0, 6);
-      tile.hold = clampi(t["ha"] | 0, 0, 6);
+      tile.tap = clampi(t["ta"] | 0, 0, 7);
+      tile.hold = clampi(t["ha"] | 0, 0, 7);
       tile.tap_page = t["tp"] | -1;
       tile.hold_page = t["hp"] | -1;
       page.tiles.push_back(std::move(tile));
@@ -670,6 +693,7 @@ void GuitionStudio::layout_commit(int32_t session) {
   this->layout_crc_ = crc;
   this->has_layout_ = true;
   this->ui_dirty_ = true;
+  this->clear_overrides_();
   ESP_LOGI(TAG, "Layout rev %d applied (%u pages)", this->layout_.revision, (unsigned) this->layout_.pages.size());
   this->ack_(session, true, "");
 }
@@ -781,6 +805,7 @@ void GuitionStudio::build_ui_() {
   this->dot_objs_.clear();
   this->history_.clear();
   this->header_title_ = this->header_clock_ = this->header_wifi_ = this->header_ha_ = nullptr;
+  this->header_hit_ = nullptr;
 
   this->root_ = make_plain(GS_SCREEN_ACTIVE());
   lv_obj_set_size(this->root_, SCREEN_W, SCREEN_H);
@@ -805,6 +830,12 @@ void GuitionStudio::build_ui_() {
     lv_obj_align(this->header_wifi_, LV_ALIGN_TOP_RIGHT, -44, 13);
     this->header_ha_ = make_label(this->root_, font_px(16), l.muted, LV_SYMBOL_HOME);
     lv_obj_align(this->header_ha_, LV_ALIGN_TOP_RIGHT, -14, 13);
+    // invisible touch area over clock + status icons: hold 3 s to open the settings menu
+    this->header_hit_ = make_plain(this->root_);
+    lv_obj_set_size(this->header_hit_, 200, HEADER_H);
+    lv_obj_align(this->header_hit_, LV_ALIGN_TOP_RIGHT, 0, 0);
+    lv_obj_add_flag(this->header_hit_, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(this->header_hit_, header_event_cb, LV_EVENT_ALL, this);
   }
 
   for (int pi = 0; pi < page_count; pi++) {
@@ -911,7 +942,7 @@ void GuitionStudio::build_tile_(int page_index, lv_obj_t *parent, const TileCfg 
       lv_label_set_long_mode(view.sub, LABEL_LONG_DOTS);
       lv_obj_align(view.sub, LV_ALIGN_BOTTOM_LEFT, pad, -pad);
     }
-  } else if (t.kind == "nav" || t.kind == "action") {
+  } else if (t.kind == "nav" || t.kind == "action" || t.kind == "settings") {
     if (with_icon) {
       view.icon = make_label(o, icon_font(big ? 40 : 28), t.icon_color, sym);
       lv_obj_align(view.icon, LV_ALIGN_CENTER, 0, t.show_title ? -14 : 0);
@@ -1114,7 +1145,7 @@ void GuitionStudio::update_graph_(TileView &view, const EntityState *st) {
 
 void GuitionStudio::update_tile_(TileView &view) {
   const TileCfg &t = *view.cfg;
-  if (t.kind == "clock" || t.kind == "text" || t.kind == "nav" || t.kind == "status")
+  if (t.kind == "clock" || t.kind == "text" || t.kind == "nav" || t.kind == "status" || t.kind == "settings")
     return;  // updated by update_status_ or static
   if (t.entity.empty())
     return;
@@ -1420,6 +1451,9 @@ void GuitionStudio::do_action_(TileView &view, uint8_t action, int page, bool ho
     case ACTION_PREV:
       this->show_page_((this->current_page_ + count - 1) % count, true);
       break;
+    case ACTION_SETTINGS:
+      this->open_settings_();
+      break;
     default:
       break;
   }
@@ -1443,7 +1477,7 @@ void GuitionStudio::wake_() {
 }
 
 int GuitionStudio::effective_brightness_() const {
-  return this->night_ ? std::min(this->night_brightness_, this->layout_.brightness) : this->layout_.brightness;
+  return this->night_ ? std::min(this->night_brightness_, this->brightness_()) : this->brightness_();
 }
 
 void GuitionStudio::set_mode(int32_t night, int32_t brightness, int32_t dim) {
@@ -1451,7 +1485,7 @@ void GuitionStudio::set_mode(int32_t night, int32_t brightness, int32_t dim) {
   this->night_brightness_ = clampi(brightness, 1, 100);
   this->night_dim_ = this->night_ ? clampi(dim, 0, 80) : 0;
   this->apply_night_overlay_();
-  this->set_backlight_(this->dimmed_ ? std::min(this->layout_.standby, this->effective_brightness_())
+  this->set_backlight_(this->dimmed_ ? std::min(this->standby_(), this->effective_brightness_())
                                      : this->effective_brightness_());
   ESP_LOGI(TAG, "Night mode %s (brightness %d%%, dim %d%%)", this->night_ ? "on" : "off", this->night_brightness_,
            this->night_dim_);
@@ -1565,6 +1599,379 @@ void GuitionStudio::close_notification_() {
     this->notify_obj_ = nullptr;
   }
   this->notify_until_ = 0;
+}
+
+// ---------------------------------------------------------------- on-device settings menu
+
+namespace {
+enum MenuCode : int {
+  MENU_CLOSE = 1,
+  MENU_NIGHT = 2,
+  MENU_SCREENSAVER = 3,
+  MENU_RESTART = 4,
+  MENU_SLIDER_BRIGHTNESS = 5,
+  MENU_SLIDER_STANDBY = 6,
+  MENU_TIMEOUT_BASE = 0x100,  // + option index
+  MENU_THEME_BASE = 0x200,    // + theme index
+  MENU_HOME_BASE = 0x300,     // + page index
+};
+const int TIMEOUT_OPTIONS[] = {0, 30, 60, 300, 900};
+const char *const TIMEOUT_LABELS[] = {"Nie", "30 s", "1 min", "5 min", "15 min"};
+constexpr uint32_t MENU_BG = 0x0B0F14, MENU_CARD = 0x1C232C, MENU_TEXT = 0xE6EDF3, MENU_MUTED = 0x8B98A5;
+}  // namespace
+
+int GuitionStudio::screensaver_s_() const {
+  if (this->ovr_ss_ == 0)
+    return 0;
+  if (this->ovr_ss_ == 1)
+    return this->layout_.screensaver_s > 0 ? this->layout_.screensaver_s : 120;
+  return this->layout_.screensaver_s;
+}
+
+void GuitionStudio::load_overrides_() {
+  nvs_handle_t h;
+  if (nvs_open(NVS_NS, NVS_READONLY, &h) != ESP_OK)
+    return;
+  int16_t v[4];
+  size_t size = sizeof(v);
+  if (nvs_get_blob(h, "ovr", v, &size) == ESP_OK && size == sizeof(v)) {
+    this->ovr_br_ = v[0] >= 5 && v[0] <= 100 ? v[0] : -1;
+    this->ovr_sb_ = v[1] >= 0 && v[1] <= 100 ? v[1] : -1;
+    this->ovr_to_ = v[2] >= 0 && v[2] <= 30000 ? v[2] : -1;
+    this->ovr_ss_ = v[3] == 0 || v[3] == 1 ? v[3] : -1;
+  }
+  nvs_close(h);
+}
+
+void GuitionStudio::save_overrides_() {
+  nvs_handle_t h;
+  if (nvs_open(NVS_NS, NVS_READWRITE, &h) != ESP_OK)
+    return;
+  int16_t v[4] = {static_cast<int16_t>(this->ovr_br_), static_cast<int16_t>(this->ovr_sb_),
+                  static_cast<int16_t>(this->ovr_to_), static_cast<int16_t>(this->ovr_ss_)};
+  nvs_set_blob(h, "ovr", v, sizeof(v));
+  nvs_commit(h);
+  nvs_close(h);
+}
+
+void GuitionStudio::clear_overrides_() {
+  if (this->ovr_br_ < 0 && this->ovr_sb_ < 0 && this->ovr_to_ < 0 && this->ovr_ss_ < 0)
+    return;
+  this->ovr_br_ = this->ovr_sb_ = this->ovr_to_ = this->ovr_ss_ = -1;
+  this->save_overrides_();
+}
+
+void GuitionStudio::report_setting_(const char *key, int value) {
+  char payload[64];
+  snprintf(payload, sizeof(payload), "{\"k\":\"%s\",\"v\":%d}", key, value);
+  this->emit("setting", payload);
+}
+
+void GuitionStudio::report_setting_(const char *key, const std::string &value) {
+  // values are validated ids ([A-Za-z0-9_-]) -> no escaping needed
+  std::string payload = std::string("{\"k\":\"") + key + "\",\"v\":\"" + value + "\"}";
+  this->emit("setting", payload);
+}
+
+void GuitionStudio::on_header_event(lv_event_code_t code) {
+  if (code == LV_EVENT_PRESSED) {
+    this->header_press_start_ = millis();
+    this->header_opened_ = false;
+    this->begin_press_();
+  } else if (code == LV_EVENT_PRESSING) {
+    if (!this->header_opened_ && !this->swallow_ && millis() - this->header_press_start_ >= 3000) {
+      this->header_opened_ = true;
+      this->open_settings_();
+    }
+  }
+}
+
+static lv_obj_t *menu_button(lv_obj_t *parent, int x, int y, int w, int h, const char *text, int code, void *self) {
+  lv_obj_t *b = make_plain(parent);
+  lv_obj_set_pos(b, x, y);
+  lv_obj_set_size(b, w, h);
+  lv_obj_set_style_radius(b, 12, 0);
+  lv_obj_set_style_bg_opa(b, LV_OPA_COVER, 0);
+  lv_obj_set_style_bg_color(b, lv_color_hex(MENU_CARD), 0);
+  lv_obj_set_style_bg_opa(b, LV_OPA_70, LV_STATE_PRESSED);
+  lv_obj_add_flag(b, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_user_data(b, reinterpret_cast<void *>(static_cast<intptr_t>(code)));
+  lv_obj_add_event_cb(b, menu_event_cb, LV_EVENT_ALL, self);
+  lv_obj_t *l = make_label(b, font_px(16), MENU_TEXT, text);
+  lv_obj_set_width(l, w - 16);
+  lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, 0);
+  lv_label_set_long_mode(l, LABEL_LONG_DOTS);
+  lv_obj_center(l);
+  return b;
+}
+
+static lv_obj_t *menu_section(lv_obj_t *parent, int y, const char *text) {
+  lv_obj_t *l = make_label(parent, font_px(12), MENU_MUTED, text);
+  lv_obj_set_pos(l, 20, y);
+  return l;
+}
+
+static lv_obj_t *menu_slider(lv_obj_t *parent, int y, int min, int max, int value, int code, void *self, uint32_t accent) {
+  lv_obj_t *s = lv_slider_create(parent);
+  lv_obj_set_pos(s, 30, y);
+  lv_obj_set_size(s, 420, 16);
+  lv_slider_set_range(s, min, max);
+  lv_slider_set_value(s, value, LV_ANIM_OFF);
+  lv_obj_set_style_bg_color(s, lv_color_hex(MENU_CARD), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(s, LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_bg_color(s, lv_color_hex(accent), LV_PART_INDICATOR);
+  lv_obj_set_style_bg_color(s, lv_color_hex(0xFFFFFF), LV_PART_KNOB);
+  lv_obj_set_style_pad_all(s, 6, LV_PART_KNOB);
+  lv_obj_set_ext_click_area(s, 14);
+  lv_obj_set_user_data(s, reinterpret_cast<void *>(static_cast<intptr_t>(code)));
+  lv_obj_add_event_cb(s, menu_event_cb, LV_EVENT_ALL, self);
+  return s;
+}
+
+void GuitionStudio::open_settings_() {
+  if (this->menu_obj_ != nullptr)
+    return;
+  this->hide_screensaver_();
+  if (this->dimmed_)
+    this->wake_();
+  const auto &l = this->layout_;
+  uint32_t accent = l.accent;
+  this->menu_timeout_btns_.clear();
+  this->menu_theme_btns_.clear();
+  this->menu_home_btns_.clear();
+
+  lv_obj_t *m = make_plain(lv_layer_top());
+  this->menu_obj_ = m;
+  lv_obj_set_size(m, SCREEN_W, SCREEN_H);
+  lv_obj_set_style_bg_color(m, lv_color_hex(MENU_BG), 0);
+  lv_obj_set_style_bg_opa(m, LV_OPA_COVER, 0);
+  lv_obj_add_flag(m, LV_OBJ_FLAG_CLICKABLE);
+
+  lv_obj_t *title = make_label(m, font_px(28), MENU_TEXT, "Einstellungen");
+  lv_obj_set_pos(title, 20, 12);
+  lv_obj_t *close = make_plain(m);
+  lv_obj_set_size(close, 52, 52);
+  lv_obj_set_pos(close, SCREEN_W - 64, 6);
+  lv_obj_set_style_radius(close, 26, 0);
+  lv_obj_set_style_bg_color(close, lv_color_hex(MENU_CARD), 0);
+  lv_obj_set_style_bg_opa(close, LV_OPA_COVER, 0);
+  lv_obj_add_flag(close, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_user_data(close, reinterpret_cast<void *>(static_cast<intptr_t>(MENU_CLOSE)));
+  lv_obj_add_event_cb(close, menu_event_cb, LV_EVENT_ALL, this);
+  const char *x = icon_symbol("close");
+  lv_obj_center(make_label(close, icon_font(28), MENU_TEXT, x ? x : "X"));
+
+  // scrollable content
+  lv_obj_t *c = make_plain(m);
+  lv_obj_set_pos(c, 0, 64);
+  lv_obj_set_size(c, SCREEN_W, SCREEN_H - 64);
+  lv_obj_add_flag(c, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_scroll_dir(c, LV_DIR_VER);
+  int y = 6;
+
+  menu_section(c, y, "ANZEIGE");
+  y += 22;
+  this->menu_br_lbl_ = make_label(c, font_px(16), MENU_TEXT, "");
+  lv_obj_set_pos(this->menu_br_lbl_, 20, y);
+  menu_slider(c, y + 30, 5, 100, this->brightness_(), MENU_SLIDER_BRIGHTNESS, this, accent);
+  y += 66;
+  this->menu_sb_lbl_ = make_label(c, font_px(16), MENU_TEXT, "");
+  lv_obj_set_pos(this->menu_sb_lbl_, 20, y);
+  menu_slider(c, y + 30, 0, 100, this->standby_(), MENU_SLIDER_STANDBY, this, accent);
+  y += 70;
+
+  menu_section(c, y, "BILDSCHIRM-TIMEOUT");
+  y += 22;
+  int n = 5, gap = 8, bw = (440 - (n - 1) * gap) / n;
+  for (int i = 0; i < n; i++)
+    this->menu_timeout_btns_.push_back(menu_button(c, 20 + i * (bw + gap), y, bw, 44, TIMEOUT_LABELS[i], MENU_TIMEOUT_BASE + i, this));
+  y += 60;
+
+  menu_section(c, y, "MODI");
+  y += 22;
+  this->menu_night_btn_ = menu_button(c, 20, y, 214, 48, "", MENU_NIGHT, this);
+  this->menu_night_lbl_ = lv_obj_get_child(this->menu_night_btn_, 0);
+  this->menu_ss_btn_ = menu_button(c, 246, y, 214, 48, "", MENU_SCREENSAVER, this);
+  this->menu_ss_lbl_ = lv_obj_get_child(this->menu_ss_btn_, 0);
+  y += 64;
+
+  if (!l.themes.empty()) {
+    menu_section(c, y, "DESIGN");
+    y += 22;
+    for (size_t i = 0; i < l.themes.size(); i++) {
+      int col = static_cast<int>(i % 2), row = static_cast<int>(i / 2);
+      this->menu_theme_btns_.push_back(
+          menu_button(c, 20 + col * 226, y + row * 52, 214, 44, l.themes[i].second.c_str(), MENU_THEME_BASE + static_cast<int>(i), this));
+    }
+    y += static_cast<int>((l.themes.size() + 1) / 2) * 52 + 12;
+  }
+
+  if (l.pages.size() > 1) {
+    menu_section(c, y, "STARTSEITE");
+    y += 22;
+    for (size_t i = 0; i < l.pages.size(); i++) {
+      int col = static_cast<int>(i % 2), row = static_cast<int>(i / 2);
+      this->menu_home_btns_.push_back(
+          menu_button(c, 20 + col * 226, y + row * 52, 214, 44, l.pages[i].name.c_str(), MENU_HOME_BASE + static_cast<int>(i), this));
+    }
+    y += static_cast<int>((l.pages.size() + 1) / 2) * 52 + 12;
+  }
+
+  this->menu_status_lbl_ = make_label(c, font_px(16), accent, "");
+  lv_obj_set_width(this->menu_status_lbl_, 440);
+  lv_obj_set_pos(this->menu_status_lbl_, 20, y);
+  y += 26;
+
+  menu_section(c, y, "INFO");
+  y += 22;
+  this->menu_info_lbl_ = make_label(c, font_px(16), MENU_TEXT, "");
+  lv_obj_set_width(this->menu_info_lbl_, 440);
+  lv_obj_set_pos(this->menu_info_lbl_, 20, y);
+  y += 160;
+
+  lv_obj_t *restart = menu_button(c, 20, y, 440, 52, "", MENU_RESTART, this);
+  lv_obj_set_style_bg_color(restart, lv_color_hex(0x5A1E1E), 0);
+  this->menu_restart_lbl_ = lv_obj_get_child(restart, 0);
+  y += 72;
+  lv_obj_t *spacer = make_plain(c);  // bottom padding for scrolling
+  lv_obj_set_pos(spacer, 0, y);
+  lv_obj_set_size(spacer, 10, 10);
+
+  this->restart_armed_until_ = 0;
+  this->refresh_settings_();
+}
+
+void GuitionStudio::close_settings_() {
+  if (this->menu_obj_ == nullptr)
+    return;
+  GS_OBJ_DELETE(this->menu_obj_);
+  this->menu_obj_ = nullptr;
+  this->menu_br_lbl_ = this->menu_sb_lbl_ = this->menu_night_lbl_ = this->menu_ss_lbl_ = nullptr;
+  this->menu_info_lbl_ = this->menu_restart_lbl_ = this->menu_status_lbl_ = nullptr;
+  this->menu_night_btn_ = this->menu_ss_btn_ = nullptr;
+  this->menu_timeout_btns_.clear();
+  this->menu_theme_btns_.clear();
+  this->menu_home_btns_.clear();
+}
+
+void GuitionStudio::refresh_settings_() {
+  if (this->menu_obj_ == nullptr)
+    return;
+  const auto &l = this->layout_;
+  auto select = [&](lv_obj_t *btn, bool on) {
+    lv_obj_set_style_bg_color(btn, lv_color_hex(on ? l.accent : MENU_CARD), 0);
+  };
+  char buf[64];
+  snprintf(buf, sizeof(buf), "Helligkeit: %d %%", this->brightness_());
+  lv_label_set_text(this->menu_br_lbl_, buf);
+  snprintf(buf, sizeof(buf), "Standby-Helligkeit: %d %%", this->standby_());
+  lv_label_set_text(this->menu_sb_lbl_, buf);
+  for (size_t i = 0; i < this->menu_timeout_btns_.size(); i++)
+    select(this->menu_timeout_btns_[i], TIMEOUT_OPTIONS[i] == this->timeout_());
+  lv_label_set_text(this->menu_night_lbl_, this->night_ ? "Nachtmodus: An" : "Nachtmodus: Aus");
+  select(this->menu_night_btn_, this->night_);
+  bool ss = this->screensaver_s_() > 0;
+  lv_label_set_text(this->menu_ss_lbl_, ss ? "Bildschirmschoner: An" : "Bildschirmschoner: Aus");
+  select(this->menu_ss_btn_, ss);
+  for (size_t i = 0; i < this->menu_theme_btns_.size(); i++)
+    select(this->menu_theme_btns_[i], l.themes[i].first == l.theme);
+  for (size_t i = 0; i < this->menu_home_btns_.size(); i++)
+    select(this->menu_home_btns_[i], static_cast<int>(i) == l.home);
+
+  // info block
+  std::string info;
+  bool ha_ok = false;
+#ifdef USE_API
+  ha_ok = api::global_api_server != nullptr && api::global_api_server->is_connected();
+#endif
+#ifdef USE_WIFI
+  if (wifi::global_wifi_component != nullptr && wifi::global_wifi_component->is_connected()) {
+    snprintf(buf, sizeof(buf), "WLAN: %d dBm\n", static_cast<int>(wifi::global_wifi_component->wifi_rssi()));
+    info += buf;
+    auto ips = wifi::global_wifi_component->wifi_sta_ip_addresses();
+    char ip[48] = {0};  // >= IP_ADDRESS_BUFFER_SIZE (IPv6 text)
+    ips[0].str_to(ip);
+    info += std::string("IP: ") + ip + "\n";
+  } else {
+    info += "WLAN: getrennt\n";
+  }
+#endif
+  info += ha_ok ? "Home Assistant: verbunden\n" : "Home Assistant: getrennt\n";
+  snprintf(buf, sizeof(buf), "Firmware: %s (Protokoll %d)\n", ESPHOME_PROJECT_VERSION, PROTOCOL_VERSION);
+  info += buf;
+  snprintf(buf, sizeof(buf), "Layout: Revision %d · %u Seiten\n", l.revision, static_cast<unsigned>(l.pages.size()));
+  info += buf;
+  snprintf(buf, sizeof(buf), "Freier Speicher: %u KB", static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024));
+  info += buf;
+  lv_label_set_text(this->menu_info_lbl_, info.c_str());
+
+  bool armed = this->restart_armed_until_ != 0 && millis() < this->restart_armed_until_;
+  lv_label_set_text(this->menu_restart_lbl_, armed ? "Zum Neustart erneut tippen" : "Display neu starten");
+}
+
+void GuitionStudio::on_menu_event(int code, lv_event_code_t event, lv_obj_t *target) {
+  if (this->menu_obj_ == nullptr)
+    return;
+  if (code == MENU_SLIDER_BRIGHTNESS || code == MENU_SLIDER_STANDBY) {
+    int v = static_cast<int>(lv_slider_get_value(target));
+    if (event == LV_EVENT_VALUE_CHANGED) {
+      if (code == MENU_SLIDER_BRIGHTNESS) {
+        this->ovr_br_ = v;
+        this->set_backlight_(this->effective_brightness_());
+      } else {
+        this->ovr_sb_ = v;
+        this->set_backlight_(v > 0 ? v : 1);  // live preview of the standby level
+      }
+      this->refresh_settings_();
+    } else if (event == LV_EVENT_RELEASED || event == LV_EVENT_PRESS_LOST) {
+      if (code == MENU_SLIDER_STANDBY)
+        this->set_backlight_(this->effective_brightness_());
+      this->save_overrides_();
+      this->report_setting_(code == MENU_SLIDER_BRIGHTNESS ? "brightness" : "standby", v);
+    }
+    return;
+  }
+  if (event != LV_EVENT_CLICKED)
+    return;
+  const auto &l = this->layout_;
+  if (code == MENU_CLOSE) {
+    this->close_settings_();
+    return;
+  }
+  if (code >= MENU_TIMEOUT_BASE && code < MENU_TIMEOUT_BASE + 5) {
+    this->ovr_to_ = TIMEOUT_OPTIONS[code - MENU_TIMEOUT_BASE];
+    this->save_overrides_();
+    this->report_setting_("timeout", this->ovr_to_);
+  } else if (code == MENU_NIGHT) {
+    this->set_mode(this->night_ ? 0 : 1, l.night_brightness, l.night_dim);
+    this->report_setting_("night", this->night_ ? 1 : 0);
+  } else if (code == MENU_SCREENSAVER) {
+    this->ovr_ss_ = this->screensaver_s_() > 0 ? 0 : 1;
+    this->save_overrides_();
+    this->report_setting_("screensaver", this->ovr_ss_);
+  } else if (code >= MENU_THEME_BASE && code < MENU_THEME_BASE + static_cast<int>(l.themes.size())) {
+    const auto &theme = l.themes[code - MENU_THEME_BASE];
+    if (theme.first != l.theme) {
+      this->report_setting_("theme", theme.first);
+      lv_label_set_text(this->menu_status_lbl_, ("Design „" + theme.second + "“ wird von Home Assistant übertragen …").c_str());
+    }
+    return;
+  } else if (code >= MENU_HOME_BASE && code < MENU_HOME_BASE + static_cast<int>(l.pages.size())) {
+    int index = code - MENU_HOME_BASE;
+    if (index != l.home) {
+      this->report_setting_("home", l.pages[index].id);
+      lv_label_set_text(this->menu_status_lbl_, ("Startseite „" + l.pages[index].name + "“ wird übernommen …").c_str());
+    }
+    return;
+  } else if (code == MENU_RESTART) {
+    if (this->restart_armed_until_ != 0 && millis() < this->restart_armed_until_) {
+      lv_label_set_text(this->menu_restart_lbl_, "Neustart …");
+      App.safe_reboot();
+      return;
+    }
+    this->restart_armed_until_ = millis() + 3000;
+  }
+  this->refresh_settings_();
 }
 
 }  // namespace guition_studio

@@ -36,6 +36,7 @@ Das Display ruft **niemals** selbst HA-Dienste auf. Es meldet nur `tap`/`hold`/`
 | `set` | `{"t":"t_…","p":"p_…","v":35}`: Schieberegler losgelassen (nur `dimmer`, 0–100; 0 = aus) |
 | `btn` | `{"t":"t_…","p":"p_…","b":"down"}`: Taste in einer Kachel. `cover`: up/stop/down · `thermostat`: minus/plus · `media`: prev/play/next/vol_down/vol_up |
 | `page` | `{"page":1,"id":"p_…"}` |
+| `setting` | `{"k":"brightness","v":70}`: im Einstellungsmenü geändert. Schlüssel: brightness, standby, timeout, screensaver, night (lokal) sowie theme, home (HA überträgt neu) |
 | `hb` | `{"up":3600,"heap":…,"psram":…}`: Heartbeat alle 5 Minuten |
 | `ota` | `{"state":"start|progress|done|error","p":40}` |
 | `rollback` | `{"ok":true,"rev":2,"crc":…}` |

@@ -49,4 +49,13 @@ Vorbereitung: HA ≥ 2026.1 über HTTPS, Chrome am PC, Display per USB, eine sch
 | 31 | Automation mit `notify.send_message` an die Notify-Entität des Displays | Pop-up erscheint | |
 | 32 | Display kurz vom Strom trennen | Diagnose zählt einen Neustart | |
 
+### Zusatz v0.4
+
+| # | Schritt | Erwartung | ✓ |
+|---|---|---|---|
+| 33 | 3 s auf die Uhr oben rechts drücken | Einstellungsmenü öffnet sich | |
+| 34 | Helligkeit ziehen, Menü schließen, Display neu starten | Helligkeit bleibt; in Guition Studio steht derselbe Wert | |
+| 35 | Design „AMOLED Black“ am Display wählen | Display zeigt nach wenigen Sekunden das neue Design | |
+| 36 | Neustart-Knopf einmal, dann innerhalb von 3 s erneut tippen | erst Sicherheitsabfrage, dann Neustart | |
+
 Bei Abweichungen: Diagnose-Export und ESPHome-Log anhängen.

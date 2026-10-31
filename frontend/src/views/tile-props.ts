@@ -17,6 +17,7 @@ export const TYPE_LABELS: Record<string, string> = {
   text: "Text",
   action: "Aktion / Szene / Skript",
   status: "WLAN/HA-Status",
+  settings: "Einstellungen (öffnet das Menü am Display)",
   cover: "Rollladen (▲ ■ ▼)",
   thermostat: "Thermostat (− +)",
   media: "Mediaplayer",
@@ -270,7 +271,10 @@ export class GsTileProps extends LitElement {
 
       <section>
         <h3>Aktionen</h3>
-        ${this.actionEditor("tap_action", "Beim Tippen")} ${this.actionEditor("hold_action", "Beim langen Tippen")}
+        ${t.type === "settings"
+          ? html`<p class="small">Tippen öffnet das Einstellungsmenü direkt am Display (Helligkeit, Timeout, Nachtmodus, Design, Startseite, Info, Neustart). Alternativ: 3 Sekunden auf die Uhr oben rechts drücken.</p>`
+          : this.actionEditor("tap_action", "Beim Tippen")}
+        ${this.actionEditor("hold_action", "Beim langen Tippen")}
         <p class="muted small">Aktionen werden in Home Assistant ausgeführt – das Display meldet nur, welche Kachel berührt wurde.</p>
       </section>
 

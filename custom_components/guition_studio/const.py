@@ -8,8 +8,8 @@ and frontend/src/geometry.ts.
 from __future__ import annotations
 
 DOMAIN = "guition_studio"
-VERSION = "0.3.1"
-PROTOCOL_VERSION = 3
+VERSION = "0.4.0"
+PROTOCOL_VERSION = 4
 LAYOUT_SCHEMA = 1
 
 PANEL_URL = "guition-studio"
@@ -69,7 +69,7 @@ TRANSFER_TIMEOUT = 20.0
 TRANSFER_RETRIES = 3
 
 TILE_TYPES = [
-    "light", "dimmer", "rgb", "switch", "sensor", "graph", "clock", "nav", "text", "action", "status",
+    "light", "dimmer", "rgb", "switch", "sensor", "graph", "clock", "nav", "text", "action", "status", "settings",
     "cover", "thermostat", "media", "weather",
 ]  # fmt: skip
 # Recognised by the editor but intentionally not rendered by the firmware
@@ -113,6 +113,7 @@ DEV_ACTION_HOME = 3
 DEV_ACTION_BACK = 4
 DEV_ACTION_NEXT = 5
 DEV_ACTION_PREV = 6
+DEV_ACTION_SETTINGS = 7  # local: open the on-device settings menu
 
 # Material Design Icons available on the device (generated from scripts/icons.json)
 from .icons import ICONS, LEGACY_ICONS  # noqa: E402, F401

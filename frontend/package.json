@@ -1,6 +1,6 @@
 {
     "name":  "guition-studio-frontend",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "private":  true,
     "type":  "module",
     "description":  "Guition Studio panel for Home Assistant",

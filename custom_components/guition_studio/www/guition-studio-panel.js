@@ -23,7 +23,7 @@ var v = class {
 			name: e,
 			description: t,
 			layout: n
-		}), this.deleteTemplate = (e) => this.call("template/delete", { template_id: e }), this.setFavorites = (e) => this.call("favorites", { favorites: e }), this.exportBackup = () => this.call("backup/export"), this.restoreBackup = (e) => this.call("backup/restore", { backup: e }), this.log = () => this.call("log"), this.setDebug = (e) => this.call("debug", { enabled: e }), this.firmwareStatus = () => this.call("firmware/status"), this.firmwareCheck = () => this.call("firmware/check"), this.firmwareDownload = (e) => this.call("firmware/download", { version: e }), this.firmwareOta = (e, t) => this.call("firmware/ota", {
+		}), this.deleteTemplate = (e) => this.call("template/delete", { template_id: e }), this.setFavorites = (e) => this.call("favorites", { favorites: e }), this.exportBackup = () => this.call("backup/export"), this.restoreBackup = (e) => this.call("backup/restore", { backup: e }), this.log = () => this.call("log"), this.setDebug = (e) => this.call("debug", { enabled: e }), this.firmwareStatus = () => this.call("firmware/status"), this.firmwareCheck = () => this.call("firmware/check"), this.firmwareDownload = (e) => this.call("firmware/download", { version: e }), this.slideFolders = () => this.call("slideshow/folders"), this.firmwareOta = (e, t) => this.call("firmware/ota", {
 			display_id: e,
 			version: t
 		});
@@ -1682,17 +1682,17 @@ function je(e, t = 3, n = 3) {
 function Me(e) {
 	return e.pages.reduce((e, t) => e + t.tiles.length, 0);
 }
-function B(e, t, n, r, i) {
+function Ne(e, t, n, r, i) {
 	return t >= 0 && n >= 0 && r >= 1 && i >= 1 && t + r <= e.cols && n + i <= e.rows;
 }
-function Ne(e, t) {
+function Pe(e, t) {
 	return e.x < t.x + t.w && t.x < e.x + e.w && e.y < t.y + t.h && t.y < e.y + e.h;
 }
-function V(e, t, n = /* @__PURE__ */ new Set()) {
-	return B(e, t.x, t.y, t.w, t.h) ? !e.tiles.some((e) => !n.has(e.id) && Ne(e, t)) : !1;
+function B(e, t, n = /* @__PURE__ */ new Set()) {
+	return Ne(e, t.x, t.y, t.w, t.h) ? !e.tiles.some((e) => !n.has(e.id) && Pe(e, t)) : !1;
 }
-function Pe(e, t = 1, n = 1) {
-	for (let r = 0; r + n <= e.rows; r++) for (let i = 0; i + t <= e.cols; i++) if (V(e, {
+function Fe(e, t = 1, n = 1) {
+	for (let r = 0; r + n <= e.rows; r++) for (let i = 0; i + t <= e.cols; i++) if (B(e, {
 		x: i,
 		y: r,
 		w: t,
@@ -1703,12 +1703,12 @@ function Pe(e, t = 1, n = 1) {
 	};
 	return null;
 }
-function Fe(e) {
+function Ie(e) {
 	let t = Array.from({ length: e.rows }, () => Array(e.cols).fill(!1));
 	for (let n of e.tiles) for (let r = n.y; r < n.y + n.h && r < e.rows; r++) for (let i = n.x; i < n.x + n.w && i < e.cols; i++) t[r][i] = !0;
 	return t;
 }
-function H(e, t, n, r, i, a, o) {
+function V(e, t, n, r, i, a, o) {
 	let s = R(e), c = s.pages.find((e) => e.id === t), l = s.pages.find((e) => e.id === i);
 	if (!c || !l) return {
 		layout: e,
@@ -1722,7 +1722,7 @@ function H(e, t, n, r, i, a, o) {
 		reason: "Kachel nicht gefunden"
 	};
 	let f = a - d.x, p = o - d.y, m = new Set(c === l ? n : []);
-	for (let t of u) if (!V(l, {
+	for (let t of u) if (!B(l, {
 		x: t.x + f,
 		y: t.y + p,
 		w: t.w,
@@ -1730,7 +1730,7 @@ function H(e, t, n, r, i, a, o) {
 	}, m)) return {
 		layout: e,
 		ok: !1,
-		reason: B(l, t.x + f, t.y + p, t.w, t.h) ? "Platz ist belegt" : "Außerhalb des Displays"
+		reason: Ne(l, t.x + f, t.y + p, t.w, t.h) ? "Platz ist belegt" : "Außerhalb des Displays"
 	};
 	c.tiles = c.tiles.filter((e) => !n.includes(e.id));
 	for (let e of u) e.x += f, e.y += p, l.tiles.push(e);
@@ -1739,13 +1739,13 @@ function H(e, t, n, r, i, a, o) {
 		ok: !0
 	};
 }
-function Ie(e, t, n, r, i) {
+function Le(e, t, n, r, i) {
 	let a = R(e), o = a.pages.find((e) => e.id === t), s = o?.tiles.find((e) => e.id === n);
 	return !o || !s ? {
 		layout: e,
 		ok: !1,
 		reason: "Kachel nicht gefunden"
-	} : V(o, {
+	} : B(o, {
 		x: s.x,
 		y: s.y,
 		w: r,
@@ -1756,10 +1756,10 @@ function Ie(e, t, n, r, i) {
 	}) : {
 		layout: e,
 		ok: !1,
-		reason: B(o, s.x, s.y, r, i) ? "Platz ist belegt" : "Außerhalb des Displays"
+		reason: Ne(o, s.x, s.y, r, i) ? "Platz ist belegt" : "Außerhalb des Displays"
 	};
 }
-function Le(e, t, n) {
+function Re(e, t, n) {
 	if (Me(e) >= 160) return {
 		layout: e,
 		ok: !1,
@@ -1771,9 +1771,9 @@ function Le(e, t, n) {
 		ok: !1,
 		reason: "Seite nicht gefunden"
 	};
-	if (!V(i, n)) {
-		let { w: t, h: r } = n, a = Pe(i, t, r);
-		if (a ||= (t = r = 1, Pe(i, 1, 1)), !a) return {
+	if (!B(i, n)) {
+		let { w: t, h: r } = n, a = Fe(i, t, r);
+		if (a ||= (t = r = 1, Fe(i, 1, 1)), !a) return {
 			layout: e,
 			ok: !1,
 			reason: "Kein freier Platz auf dieser Seite"
@@ -1790,16 +1790,16 @@ function Le(e, t, n) {
 		ok: !0
 	};
 }
-function Re(e, t, n, r) {
+function ze(e, t, n, r) {
 	let i = R(e), a = i.pages.find((e) => e.id === t)?.tiles.find((e) => e.id === n);
 	return a && Object.assign(a, R(r)), i;
 }
-function ze(e, t) {
+function Be(e, t) {
 	let n = R(e);
 	for (let e of n.pages) e.tiles = e.tiles.filter((e) => !t.includes(e.id));
 	return n;
 }
-function Be(e, t, n) {
+function Ve(e, t, n) {
 	let r = R(e), i = [], a = 0, o = () => r.pages.find((e) => e.id === t);
 	if (!o()) return {
 		layout: e,
@@ -1807,7 +1807,7 @@ function Be(e, t, n) {
 		skipped: n.length
 	};
 	let s = Math.min(...n.map((e) => e.x)), c = Math.min(...n.map((e) => e.y)), l = null;
-	for (let e = 0; e < o().rows && !l; e++) for (let t = 0; t < o().cols && !l; t++) n.every((n) => V(o(), {
+	for (let e = 0; e < o().rows && !l; e++) for (let t = 0; t < o().cols && !l; t++) n.every((n) => B(o(), {
 		x: n.x - s + t,
 		y: n.y - c + e,
 		w: n.w,
@@ -1822,7 +1822,7 @@ function Be(e, t, n) {
 			id: L("t")
 		};
 		l && (n.x = e.x - s + l.x, n.y = e.y - c + l.y);
-		let o = Le(r, t, n);
+		let o = Re(r, t, n);
 		o.ok ? (r = o.layout, i.push(n.id)) : a++;
 	}
 	return {
@@ -1831,7 +1831,7 @@ function Be(e, t, n) {
 		skipped: a
 	};
 }
-function Ve(e, t) {
+function He(e, t) {
 	if (e.pages.length >= 10) return null;
 	let n = R(e), r = je(t ?? `Seite ${n.pages.length + 1}`);
 	return n.pages.push(r), {
@@ -1839,7 +1839,7 @@ function Ve(e, t) {
 		id: r.id
 	};
 }
-function He(e, t) {
+function Ue(e, t) {
 	if (e.pages.length >= 10) return null;
 	let n = e.pages.find((e) => e.id === t);
 	if (!n || Me(e) + n.tiles.length > 160) return null;
@@ -1856,7 +1856,7 @@ function He(e, t) {
 		id: i.id
 	};
 }
-function Ue(e, t) {
+function We(e, t) {
 	if (e.pages.length <= 1) return null;
 	let n = R(e);
 	n.pages = n.pages.filter((e) => e.id !== t);
@@ -1866,13 +1866,13 @@ function Ue(e, t) {
 		page: null
 	}), n;
 }
-function We(e, t, n) {
+function Ge(e, t, n) {
 	let r = R(e);
 	if (n < 0 || n >= r.pages.length || t === n) return r;
 	let [i] = r.pages.splice(t, 1);
 	return r.pages.splice(n, 0, i), r;
 }
-function Ge(e, t, n, r) {
+function Ke(e, t, n, r) {
 	if (n < 1 || r < 1 || n > 6 || r > 6) return {
 		layout: e,
 		ok: !1,
@@ -1894,18 +1894,18 @@ function Ge(e, t, n, r) {
 		ok: !0
 	});
 }
-function Ke(e) {
-	return e.pages.flatMap((e) => e.tiles.filter((e) => qe(e) && !e.entity));
-}
 function qe(e) {
-	return e.type in ke;
+	return e.pages.flatMap((e) => e.tiles.filter((e) => Je(e) && !e.entity));
 }
 function Je(e) {
+	return e.type in ke;
+}
+function Ye(e) {
 	let t = ke[e.type];
 	return !e.entity || !t || t.includes(e.entity.split(".", 1)[0]) ? null : `Dieser Kacheltyp benötigt eine Entität vom Typ ${t.join(", ")}.`;
 }
 // src/entities.ts
-var Ye = [
+var Xe = [
 	{
 		key: "all",
 		label: "Alle",
@@ -1982,11 +1982,11 @@ var Ye = [
 		icon: "mdi:cog"
 	}
 ];
-function Xe(e) {
+function Ze(e) {
 	return e.split(".", 1)[0];
 }
-function Ze(e) {
-	let t = Xe(e.entity_id), n = e.attributes.device_class;
+function Qe(e) {
+	let t = Ze(e.entity_id), n = e.attributes.device_class;
 	switch (t) {
 		case "light": return "light";
 		case "switch": return n === "outlet" ? "outlet" : "switch";
@@ -2018,34 +2018,34 @@ function Ze(e) {
 		default: return null;
 	}
 }
-function U(e) {
+function H(e) {
 	return e.attributes.friendly_name || e.entity_id;
 }
-function Qe(e, t) {
+function $e(e, t) {
 	let n = e.entities?.[t], r = n?.area_id || (n?.device_id ? e.devices?.[n.device_id]?.area_id : null);
 	return r && e.areas?.[r]?.name || "";
 }
-function $e(e, t) {
+function et(e, t) {
 	let n = e.entities?.[t]?.device_id, r = n ? e.devices?.[n] : void 0;
 	return r?.name_by_user || r?.name || "";
 }
-function et(e) {
+function tt(e) {
 	let t = [];
 	for (let n of Object.values(e.states)) {
-		let r = Ze(n);
+		let r = Qe(n);
 		r && (e.entities?.[n.entity_id]?.hidden || t.push({
 			entity_id: n.entity_id,
-			name: U(n),
-			domain: Xe(n.entity_id),
+			name: H(n),
+			domain: Ze(n.entity_id),
 			category: r,
-			area: Qe(e, n.entity_id),
-			device: $e(e, n.entity_id),
+			area: $e(e, n.entity_id),
+			device: et(e, n.entity_id),
 			state: n.state
 		}));
 	}
 	return t.sort((e, t) => e.name.localeCompare(t.name, "de"));
 }
-function tt(e, t, n, r) {
+function nt(e, t, n, r) {
 	let i = t.toLowerCase().split(/\s+/).filter(Boolean), a = new Set(r);
 	return e.filter((e) => {
 		if (n === "favorites" && !a.has(e.entity_id) || n !== "all" && n !== "favorites" && e.category !== n) return !1;
@@ -2053,8 +2053,8 @@ function tt(e, t, n, r) {
 		return i.every((e) => t.includes(e));
 	});
 }
-function nt(e, t) {
-	let n = Xe(e);
+function rt(e, t) {
+	let n = Ze(e);
 	if (n === "light") {
 		let e = t?.attributes.supported_color_modes ?? [];
 		return e.some((e) => [
@@ -2081,25 +2081,25 @@ function nt(e, t) {
 		"input_button"
 	].includes(n) ? "action" : "sensor";
 }
-function rt(e, t) {
-	let n = Xe(t), r = e?.attributes.device_class;
+function it(e, t) {
+	let n = Ze(t), r = e?.attributes.device_class;
 	return n === "light" ? "lightbulb" : n === "switch" ? r === "outlet" ? "power-socket-de" : "toggle-switch" : n === "fan" ? "fan" : n === "cover" ? r === "garage" ? "garage" : r === "blind" ? "blinds" : r === "curtain" ? "curtains" : "window-shutter" : n === "media_player" ? r === "tv" ? "television" : "speaker" : n === "scene" ? "palette" : n === "script" ? "script-text" : n === "automation" ? "robot" : n === "climate" || n === "water_heater" ? "radiator" : n === "weather" ? "weather-partly-cloudy" : n === "lock" ? "lock" : n === "vacuum" ? "robot-vacuum" : n === "person" || n === "device_tracker" ? "account" : r === "temperature" ? "thermometer" : r === "humidity" || r === "moisture" ? "water-percent" : r === "power" || r === "energy" || r === "voltage" || r === "current" ? "lightning-bolt" : r === "battery" ? "battery" : r === "motion" || r === "occupancy" || r === "presence" ? "motion-sensor" : r === "connectivity" ? "wifi" : r === "door" || r === "garage_door" ? "door" : r === "window" || r === "opening" ? "window-closed" : "gauge";
 }
-var it = {
+var at = {
 	media: [2, 1],
 	thermostat: [1, 1],
 	cover: [1, 1]
 };
-function W(e, t) {
-	let n = e.states[t], r = nt(t, n), [i, a] = it[r] ?? [1, 1];
+function U(e, t) {
+	let n = e.states[t], r = rt(t, n), [i, a] = at[r] ?? [1, 1];
 	return z(r, 0, 0, i, a, {
 		entity: t,
-		title: n ? U(n).slice(0, 64) : t,
-		icon: rt(n, t)
+		title: n ? H(n).slice(0, 64) : t,
+		icon: it(n, t)
 	});
 }
 // src/history.ts
-var at = class {
+var ot = class {
 	constructor(e = 100) {
 		this.limit = e, this.past = [], this.future = [];
 	}
@@ -2124,7 +2124,7 @@ var at = class {
 	get canRedo() {
 		return this.future.length > 0;
 	}
-}, ot, st, ct = {
+}, st, ct, lt = {
 	light: "Licht (Ein/Aus)",
 	dimmer: "Licht mit Helligkeitsregler",
 	rgb: "RGB-Licht (Farben + Helligkeit)",
@@ -2142,7 +2142,7 @@ var at = class {
 	media: "Mediaplayer",
 	weather: "Wetter",
 	camera: "Kameravorschau (Stream auf ESP32 nicht sinnvoll)"
-}, lt = {
+}, ut = {
 	none: "Keine Aktion",
 	default: "Standard (passend zur Entität)",
 	toggle: "Umschalten",
@@ -2154,13 +2154,13 @@ var at = class {
 	back: "Zurück",
 	next: "Nächste Seite",
 	prev: "Vorherige Seite"
-}, ut = {
+}, dt = {
 	s: "Klein",
 	m: "Normal",
 	l: "Groß",
 	xl: "Sehr groß",
 	xxl: "Riesig"
-}, G = (ot = class extends t {
+}, W = (st = class extends t {
 	constructor(...e) {
 		super(...e), this.iconsOpen = !1, this.iconFilter = "", this.jsonError = null;
 	}
@@ -2208,7 +2208,7 @@ var at = class {
 				data: {}
 			} : { action: t });
 		}}>
-          ${Object.keys(lt).map((e) => c`<option value=${e} ?selected=${n.action === e}>${lt[e]}</option>`)}
+          ${Object.keys(ut).map((e) => c`<option value=${e} ?selected=${n.action === e}>${ut[e]}</option>`)}
         </select>
       </label>
       ${n.action === "navigate" ? c`<label class="field"><span>Zielseite</span>
@@ -2281,10 +2281,10 @@ var at = class {
       <p class="muted small" style="margin-top:6px">Die Kachel ist nur sichtbar, wenn alle Bedingungen erfüllt sind. Home Assistant wertet sie aus und aktualisiert das Display live.</p>`;
 	}
 	render() {
-		let e = this.tile, t = this.theme, n = e.entity ? this.hass.states[e.entity] : void 0, r = qe(e), i = Je(e), o = this.info.icons.filter((e) => e.includes(this.iconFilter.trim().toLowerCase()));
+		let e = this.tile, t = this.theme, n = e.entity ? this.hass.states[e.entity] : void 0, r = Je(e), i = Ye(e), o = this.info.icons.filter((e) => e.includes(this.iconFilter.trim().toLowerCase()));
 		return c`
       <datalist id="gs-entities">
-        ${Object.values(this.hass.states).map((e) => c`<option value=${e.entity_id}>${U(e)}</option>`)}
+        ${Object.values(this.hass.states).map((e) => c`<option value=${e.entity_id}>${H(e)}</option>`)}
       </datalist>
       <div class="row head">
         <h2 style="margin:0">Kachel</h2><span class="spacer"></span>
@@ -2296,9 +2296,9 @@ var at = class {
         <h3>Inhalt</h3>
         <label class="field"><span>Kacheltyp</span>
           <select @change=${(e) => this.patch({ type: e.target.value })}>
-            ${this.info.tile_types.map((t) => c`<option value=${t} ?selected=${e.type === t}>${ct[t] ?? t}</option>`)}
+            ${this.info.tile_types.map((t) => c`<option value=${t} ?selected=${e.type === t}>${lt[t] ?? t}</option>`)}
             <optgroup label="Geplant (noch nicht in Firmware v1)">
-              ${this.info.planned_tile_types.map((e) => c`<option disabled>${ct[e] ?? e} – nicht verfügbar</option>`)}
+              ${this.info.planned_tile_types.map((e) => c`<option disabled>${lt[e] ?? e} – nicht verfügbar</option>`)}
             </optgroup>
           </select>
         </label>
@@ -2315,7 +2315,7 @@ var at = class {
 			let n = t.target.value.trim(), r = this.hass.states[n];
 			this.patch({
 				entity: n || null,
-				...r && !e.title ? { title: U(r).slice(0, 64) } : {}
+				...r && !e.title ? { title: H(r).slice(0, 64) } : {}
 			});
 		}}
               />
@@ -2371,7 +2371,7 @@ var at = class {
         <h3>Darstellung</h3>
         <label class="field"><span>Schriftgröße</span>
           <select @change=${(e) => this.patchStyle({ font_size: e.target.value })}>
-            ${Object.entries(ut).map(([t, n]) => c`<option value=${t} ?selected=${e.style.font_size === t}>${n}</option>`)}
+            ${Object.entries(dt).map(([t, n]) => c`<option value=${t} ?selected=${e.style.font_size === t}>${n}</option>`)}
           </select>
         </label>
         ${this.colorField("Hintergrund", "background", t.tile_bg)} ${this.colorField("Textfarbe", "color", t.text)}
@@ -2434,7 +2434,7 @@ var at = class {
       </section>
     `;
 	}
-}, ot.styles = [T, r`
+}, st.styles = [T, r`
       :host {
         display: block;
       }
@@ -2502,20 +2502,20 @@ var at = class {
       input.invalid {
         border-color: var(--gs-error);
       }
-    `], ot);
-N([s({ attribute: !1 })], G.prototype, "hass", void 0), N([s({ attribute: !1 })], G.prototype, "info", void 0), N([s({ attribute: !1 })], G.prototype, "layout", void 0), N([s({ attribute: !1 })], G.prototype, "page", void 0), N([s({ attribute: !1 })], G.prototype, "tile", void 0), N([e()], G.prototype, "iconsOpen", void 0), N([e()], G.prototype, "iconFilter", void 0), N([e()], G.prototype, "jsonError", void 0), G = N([u("gs-tile-props")], G);
-var dt = [
+    `], st);
+N([s({ attribute: !1 })], W.prototype, "hass", void 0), N([s({ attribute: !1 })], W.prototype, "info", void 0), N([s({ attribute: !1 })], W.prototype, "layout", void 0), N([s({ attribute: !1 })], W.prototype, "page", void 0), N([s({ attribute: !1 })], W.prototype, "tile", void 0), N([e()], W.prototype, "iconsOpen", void 0), N([e()], W.prototype, "iconFilter", void 0), N([e()], W.prototype, "jsonError", void 0), W = N([u("gs-tile-props")], W);
+var ft = [
 	[2, 2],
 	[2, 3],
 	[3, 3],
 	[3, 4],
 	[4, 4]
-], K = (st = class extends t {
+], G = (ct = class extends t {
 	commit(e) {
 		O(this, "gs-commit", e);
 	}
 	grid(e, t) {
-		let n = Ge(this.layout, this.page.id, e, t);
+		let n = Ke(this.layout, this.page.id, e, t);
 		n.ok ? this.commit(n.layout) : A(this, n.reason ?? "Nicht möglich", "error");
 	}
 	render() {
@@ -2536,7 +2536,7 @@ var dt = [
       <div class="field-like">
         <span class="lbl">Raster (Spalten × Zeilen)</span>
         <div class="presets">
-          ${dt.map(([t, n]) => c`<button class=${e.cols === t && e.rows === n ? "sel" : ""} @click=${() => this.grid(t, n)}>${t} × ${n}</button>`)}
+          ${ft.map(([t, n]) => c`<button class=${e.cols === t && e.rows === n ? "sel" : ""} @click=${() => this.grid(t, n)}>${t} × ${n}</button>`)}
         </div>
         <div class="custom">
           <label class="field"><span>Spalten</span>
@@ -2550,7 +2550,7 @@ var dt = [
       </div>
     `;
 	}
-}, st.styles = [T, r`
+}, ct.styles = [T, r`
       .color-row {
         display: grid;
         grid-template-columns: 1fr auto 44px;
@@ -2584,10 +2584,10 @@ var dt = [
         grid-template-columns: 1fr 1fr;
         gap: 10px;
       }
-    `], st);
-N([s({ attribute: !1 })], K.prototype, "info", void 0), N([s({ attribute: !1 })], K.prototype, "layout", void 0), N([s({ attribute: !1 })], K.prototype, "page", void 0), K = N([u("gs-page-props")], K);
+    `], ct);
+N([s({ attribute: !1 })], G.prototype, "info", void 0), N([s({ attribute: !1 })], G.prototype, "layout", void 0), N([s({ attribute: !1 })], G.prototype, "page", void 0), G = N([u("gs-page-props")], G);
 // src/views/automation-props.ts
-var ft, pt = {
+var pt, mt = {
 	enabled: !1,
 	mode: "time",
 	start: "22:00",
@@ -2595,20 +2595,37 @@ var ft, pt = {
 	brightness: 15,
 	dim: 30,
 	page: null
-}, mt = {
+}, ht = {
 	enabled: !1,
 	after: 120,
-	entities: []
-}, ht = (ft = class extends t {
+	entities: [],
+	mode: "clock",
+	folder: "guition_studio",
+	interval: 15,
+	order: "random",
+	fit: "cover",
+	show_clock: !0
+}, K = (pt = class extends t {
+	constructor(...e) {
+		super(...e), this.folders = null, this.mediaRoot = "";
+	}
+	async loadFolders() {
+		if (this.api) try {
+			let e = await this.api.slideFolders();
+			this.folders = e.folders, this.mediaRoot = e.root;
+		} catch {
+			this.folders = [];
+		}
+	}
 	get night() {
 		return {
-			...pt,
+			...mt,
 			...this.layout.settings.night ?? {}
 		};
 	}
 	get screensaver() {
 		return {
-			...mt,
+			...ht,
 			...this.layout.settings.screensaver ?? {}
 		};
 	}
@@ -2649,7 +2666,7 @@ var ft, pt = {
 		let e = this.night, t = this.screensaver;
 		return c`
       <datalist id="gs-auto-entities">
-        ${Object.values(this.hass.states).map((e) => c`<option value=${e.entity_id}>${U(e)}</option>`)}
+        ${Object.values(this.hass.states).map((e) => c`<option value=${e.entity_id}>${H(e)}</option>`)}
       </datalist>
       <p class="muted small">Gilt nach dem nächsten „Auf Display übertragen“. Home Assistant wertet die Regeln aus, ohne YAML.</p>
 
@@ -2767,7 +2784,20 @@ var ft, pt = {
 		].map(([e, n]) => c`<option value=${e} ?selected=${t.after === e}>${n}</option>`)}
                 </select>
               </label>
-              ${[0, 1].map((e) => c`<label class="field"><span>Wert ${e + 1} (optional)</span>
+              <label class="field"><span>Anzeige</span>
+                <select @change=${(e) => {
+			let n = e.target.value;
+			this.commit({ screensaver: {
+				...t,
+				mode: n
+			} }), n === "slideshow" && !this.folders && this.loadFolders();
+		}}>
+                  <option value="clock" ?selected=${t.mode !== "slideshow"}>Uhr, Datum & Werte</option>
+                  <option value="slideshow" ?selected=${t.mode === "slideshow"}>Diashow (Bilder aus Home Assistant)</option>
+                </select>
+              </label>
+              ${t.mode === "slideshow" ? this.renderSlideshow(t) : a}
+              ${t.mode === "slideshow" ? a : [0, 1].map((e) => c`<label class="field"><span>Wert ${e + 1} (optional)</span>
                   <input list="gs-auto-entities" placeholder="z. B. sensor.aussentemperatur" .value=${t.entities[e] ?? ""}
                     @change=${(n) => {
 			let r = [...t.entities];
@@ -2781,7 +2811,56 @@ var ft, pt = {
       </section>
     `;
 	}
-}, ft.styles = [T, r`
+	firstUpdated() {
+		this.screensaver.mode === "slideshow" && this.loadFolders();
+	}
+	renderSlideshow(e) {
+		let t = (t) => this.commit({ screensaver: {
+			...e,
+			...t
+		} }), n = this.folders?.find((t) => t.folder === e.folder);
+		return c`<label class="field"><span>Bilderordner (in „Medien → Meine Medien“)</span>
+        ${this.folders === null ? c`<span><span class="spinner"></span> Ordner werden geladen …</span>` : c`<select @change=${(e) => t({ folder: e.target.value })}>
+              ${n ? a : c`<option selected value=${e.folder ?? ""}>${e.folder || "Hauptordner"} (nicht gefunden)</option>`}
+              ${this.folders.map((t) => c`<option value=${t.folder} ?selected=${t.folder === e.folder}>${t.folder || "Hauptordner"} – ${t.count} Bild${t.count === 1 ? "" : "er"}</option>`)}
+            </select>`}
+      </label>
+      ${n && n.count === 0 ? c`<div class="notice warn small">In diesem Ordner liegen keine Bilder.</div>` : a}
+      <div class="notice small">
+        Bilder hochladen: In Home Assistant links <b>Medien → Meine Medien</b> öffnen, einen Ordner (z. B. <code>guition_studio</code>) anlegen und Fotos hineinziehen.
+        Home Assistant verkleinert jedes Bild auf 480 × 480 und schickt immer nur <b>ein</b> Bild ans Display – im Display wird nichts gespeichert.
+        ${this.mediaRoot ? c`<br /><span class="muted">Speicherort: <code>${this.mediaRoot}</code></span>` : a}
+        <br /><button style="margin-top:6px" @click=${() => this.loadFolders()}>↻ Ordner neu laden</button>
+      </div>
+      <div class="grid2">
+        <label class="field"><span>Bildwechsel</span>
+          <select @change=${(e) => t({ interval: +e.target.value })}>
+            ${[
+			[5, "5 s"],
+			[10, "10 s"],
+			[15, "15 s"],
+			[30, "30 s"],
+			[60, "1 min"],
+			[300, "5 min"]
+		].map(([t, n]) => c`<option value=${t} ?selected=${(e.interval ?? 15) === t}>${n}</option>`)}
+          </select>
+        </label>
+        <label class="field"><span>Reihenfolge</span>
+          <select @change=${(e) => t({ order: e.target.value })}>
+            <option value="random" ?selected=${e.order !== "sequential"}>Zufällig</option>
+            <option value="sequential" ?selected=${e.order === "sequential"}>Der Reihe nach</option>
+          </select>
+        </label>
+      </div>
+      <label class="field"><span>Bildausschnitt</span>
+        <select @change=${(e) => t({ fit: e.target.value })}>
+          <option value="cover" ?selected=${e.fit !== "contain"}>Ausfüllen (Ränder werden beschnitten)</option>
+          <option value="contain" ?selected=${e.fit === "contain"}>Ganzes Bild (mit schwarzen Rändern)</option>
+        </select>
+      </label>
+      <label class="check"><input type="checkbox" .checked=${e.show_clock !== !1} @change=${(e) => t({ show_clock: e.target.checked })} /> Uhrzeit & Datum über den Bildern</label>`;
+	}
+}, pt.styles = [T, r`
       section {
         border-top: 1px solid var(--gs-border);
         padding-top: 12px;
@@ -2813,12 +2892,12 @@ var ft, pt = {
         grid-template-columns: 1fr 96px 70px;
         gap: 4px;
       }
-    `], ft);
-N([s({ attribute: !1 })], ht.prototype, "hass", void 0), N([s({ attribute: !1 })], ht.prototype, "layout", void 0), ht = N([u("gs-automation-props")], ht);
+    `], pt);
+N([s({ attribute: !1 })], K.prototype, "hass", void 0), N([s({ attribute: !1 })], K.prototype, "layout", void 0), N([s({ attribute: !1 })], K.prototype, "api", void 0), N([e()], K.prototype, "folders", void 0), N([e()], K.prototype, "mediaRoot", void 0), K = N([u("gs-automation-props")], K);
 // src/views/designer.ts
 var gt, q = [], J = (gt = class extends t {
 	constructor(...e) {
-		super(...e), this.displays = [], this.displayId = null, this.layout = null, this.activePage = "", this.selection = [], this.zoom = .8, this.showGrid = !0, this.multi = !1, this.drag = null, this.saveState = "saved", this.validation = null, this.applying = null, this.search = "", this.category = "all", this.favorites = [], this.libraryOpen = !0, this.propsOpen = !1, this.loading = !1, this.loadError = null, this.pageDragIndex = null, this.propsTab = "page", this.history = new at(), this.libraryCache = null, this.loadedFor = null, this.onKeyDown = (e) => {
+		super(...e), this.displays = [], this.displayId = null, this.layout = null, this.activePage = "", this.selection = [], this.zoom = .8, this.showGrid = !0, this.multi = !1, this.drag = null, this.saveState = "saved", this.validation = null, this.applying = null, this.search = "", this.category = "all", this.favorites = [], this.libraryOpen = !0, this.propsOpen = !1, this.loading = !1, this.loadError = null, this.pageDragIndex = null, this.propsTab = "page", this.history = new ot(), this.libraryCache = null, this.loadedFor = null, this.onKeyDown = (e) => {
 			let t = e.composedPath()[0];
 			if ([
 				"INPUT",
@@ -2863,13 +2942,13 @@ var gt, q = [], J = (gt = class extends t {
 				e.preventDefault();
 				let [t, n] = a[r], o = i.tiles.find((e) => e.id === this.selection[0]);
 				if (!o) return;
-				let s = e.shiftKey ? Ie(this.layout, i.id, o.id, o.w + t, o.h + n) : H(this.layout, i.id, this.selection, o.id, i.id, o.x + t, o.y + n);
+				let s = e.shiftKey ? Le(this.layout, i.id, o.id, o.w + t, o.h + n) : V(this.layout, i.id, this.selection, o.id, i.id, o.x + t, o.y + n);
 				s.ok ? this.commit(s.layout) : A(this, s.reason ?? "Nicht möglich");
 			} else if ((r === "PageUp" || r === "PageDown") && this.selection.length) {
 				e.preventDefault();
 				let t = this.layout.pages.indexOf(i) + (r === "PageDown" ? 1 : -1), n = this.layout.pages[t], a = i.tiles.find((e) => e.id === this.selection[0]);
 				if (!n || !a) return;
-				let o = H(this.layout, i.id, this.selection, a.id, n.id, a.x, a.y);
+				let o = V(this.layout, i.id, this.selection, a.id, n.id, a.x, a.y);
 				o.ok ? (this.commit(o.layout), this.activePage = n.id) : A(this, `Auf „${n.name}“ ist an dieser Position kein Platz`);
 			}
 		}, this.cancelDrag = () => {
@@ -2896,7 +2975,7 @@ var gt, q = [], J = (gt = class extends t {
 						y: a.y,
 						w: t,
 						h: s
-					}, r.valid = V(i, {
+					}, r.valid = B(i, {
 						x: a.x,
 						y: a.y,
 						w: t,
@@ -2920,7 +2999,7 @@ var gt, q = [], J = (gt = class extends t {
 					y: s,
 					w: e,
 					h: n
-				}, r.valid = V(i.page, {
+				}, r.valid = B(i.page, {
 					x: o,
 					y: s,
 					w: e,
@@ -2935,7 +3014,7 @@ var gt, q = [], J = (gt = class extends t {
 					w: o.w,
 					h: o.h
 				};
-				let p = H(this.layout, e.id, t.ids, o.id, i.page.id, d, f);
+				let p = V(this.layout, e.id, t.ids, o.id, i.page.id, d, f);
 				r.valid = p.ok, r.reason = p.reason;
 			}
 			this.drag = r;
@@ -2952,7 +3031,7 @@ var gt, q = [], J = (gt = class extends t {
 			}
 			let t = e.target;
 			if (e.mode === "new" && e.newTile) {
-				let n = Le(this.layout, t.page, {
+				let n = Re(this.layout, t.page, {
 					...e.newTile,
 					x: t.x,
 					y: t.y,
@@ -2961,10 +3040,10 @@ var gt, q = [], J = (gt = class extends t {
 				});
 				n.ok ? (this.commit(n.layout), this.activePage = t.page, this.selection = [e.newTile.id]) : A(this, n.reason ?? "Nicht möglich", "error");
 			} else if (e.mode === "resize" && e.anchorId && e.sourcePage) {
-				let n = Ie(this.layout, e.sourcePage, e.anchorId, t.w, t.h);
+				let n = Le(this.layout, e.sourcePage, e.anchorId, t.w, t.h);
 				n.ok && this.commit(n.layout);
 			} else if (e.mode === "move" && e.anchorId && e.sourcePage) {
-				let n = H(this.layout, e.sourcePage, e.ids, e.anchorId, t.page, t.x, t.y);
+				let n = V(this.layout, e.sourcePage, e.ids, e.anchorId, t.page, t.x, t.y);
 				n.ok && (this.commit(n.layout), this.activePage = t.page);
 			}
 		};
@@ -3044,7 +3123,7 @@ var gt, q = [], J = (gt = class extends t {
 	}
 	paste() {
 		if (!this.layout || !q.length || !this.page) return;
-		let e = Be(this.layout, this.page.id, q);
+		let e = Ve(this.layout, this.page.id, q);
 		e.ids.length ? (this.commit(e.layout), this.selection = e.ids, e.skipped && A(this, `${e.skipped} Kachel(n) passten nicht mehr auf die Seite`, "error")) : A(this, "Kein freier Platz auf dieser Seite", "error");
 	}
 	duplicateSelection() {
@@ -3052,7 +3131,7 @@ var gt, q = [], J = (gt = class extends t {
 		e.length && (q = R(e), this.paste());
 	}
 	async deleteSelection() {
-		this.layout && this.selection.length && (this.commit(ze(this.layout, this.selection)), this.selection = []);
+		this.layout && this.selection.length && (this.commit(Be(this.layout, this.selection)), this.selection = []);
 	}
 	startTileDrag(e, t, n) {
 		if (e.button !== 0) return;
@@ -3143,7 +3222,7 @@ var gt, q = [], J = (gt = class extends t {
 	}
 	addToActivePage(e) {
 		if (!this.layout || !this.page) return;
-		let t = Le(this.layout, this.page.id, e);
+		let t = Re(this.layout, this.page.id, e);
 		t.ok ? (this.commit(t.layout), this.selection = [e.id], this.propsOpen = !0) : A(this, t.reason ?? "Kein Platz", "error");
 	}
 	async renamePage(e) {
@@ -3164,7 +3243,7 @@ var gt, q = [], J = (gt = class extends t {
 			confirm: "Löschen",
 			danger: !0
 		})) return;
-		let t = Ue(this.layout, e.id);
+		let t = We(this.layout, e.id);
 		t && this.commit(t);
 	}
 	setHome(e) {
@@ -3175,7 +3254,7 @@ var gt, q = [], J = (gt = class extends t {
 	onPageDrop(e) {
 		if (this.pageDragIndex === null || !this.layout) return;
 		let t = this.pageDragIndex;
-		this.pageDragIndex = null, t !== e && this.commit(We(this.layout, t, e));
+		this.pageDragIndex = null, t !== e && this.commit(Ge(this.layout, t, e));
 	}
 	async apply() {
 		if (!this.layout || !this.displayId) return;
@@ -3183,7 +3262,7 @@ var gt, q = [], J = (gt = class extends t {
 			A(this, "Dieses Display ist mit keinem Gerät verknüpft. Bitte unter „Meine Displays“ ein Gerät zuordnen.", "error");
 			return;
 		}
-		let e = Ke(this.layout);
+		let e = qe(this.layout);
 		if (e.length) {
 			let t = this.layout.pages.find((t) => t.tiles.includes(e[0]));
 			this.activePage = t.id, this.selection = [e[0].id], this.propsOpen = !0, A(this, `${e.length} Kachel(n) ohne zugeordnete Entität – bitte zuerst eine Entität wählen.`, "error");
@@ -3225,7 +3304,7 @@ var gt, q = [], J = (gt = class extends t {
 	get libraryEntries() {
 		return this.libraryCache && this.libraryCache.states === this.hass.states || (this.libraryCache = {
 			states: this.hass.states,
-			entries: et(this.hass)
+			entries: tt(this.hass)
 		}), this.libraryCache.entries;
 	}
 	systemItems() {
@@ -3396,21 +3475,21 @@ var gt, q = [], J = (gt = class extends t {
       </ul>
       <div class="page-actions">
         <button title="Seite hinzufügen" ?disabled=${e.pages.length >= 10} @click=${() => {
-			let t = Ve(e);
+			let t = He(e);
 			t && (this.commit(t.layout), this.activePage = t.id);
 		}}>＋ Neu</button>
         <button title="Seite duplizieren" ?disabled=${e.pages.length >= 10} @click=${() => {
-			let t = this.page && He(e, this.page.id);
+			let t = this.page && Ue(e, this.page.id);
 			t ? (this.commit(t.layout), this.activePage = t.id) : A(this, "Duplizieren nicht möglich (Seiten- oder Kachellimit erreicht)");
 		}}>⧉</button>
         <button title="Seite umbenennen" @click=${() => this.page && this.renamePage(this.page)}>✎</button>
         <button title="Seite nach oben" @click=${() => {
 			let t = e.pages.indexOf(this.page);
-			t > 0 && this.commit(We(e, t, t - 1));
+			t > 0 && this.commit(Ge(e, t, t - 1));
 		}}>↑</button>
         <button title="Seite nach unten" @click=${() => {
 			let t = e.pages.indexOf(this.page);
-			t < e.pages.length - 1 && this.commit(We(e, t, t + 1));
+			t < e.pages.length - 1 && this.commit(Ge(e, t, t + 1));
 		}}>↓</button>
         <button class="danger" title="Seite löschen" @click=${() => this.page && this.deletePage(this.page)}>🗑</button>
       </div>
@@ -3498,7 +3577,7 @@ var gt, q = [], J = (gt = class extends t {
 		}}
     >
       ${e.pages.map((o, s) => {
-			let l = Fe(o), u = i && i.mode === "move" ? new Set(i.ids) : /* @__PURE__ */ new Set();
+			let l = Ie(o), u = i && i.mode === "move" ? new Set(i.ids) : /* @__PURE__ */ new Set();
 			return c`<div class="page-col ${o.id === this.page?.id ? "active" : ""}" data-col=${o.id}>
           <div class="page-label" @click=${() => this.activePage = o.id} @dblclick=${() => this.renamePage(o)}>
             <span class="num">${s + 1}</span> ${o.name}
@@ -3527,7 +3606,7 @@ var gt, q = [], J = (gt = class extends t {
 				return c`<div class="cell ${e ? "occ" : "free"} ${i ? "show" : ""}" style="left:${a.x}px;top:${a.y}px;width:${a.w}px;height:${a.h}px"></div>`;
 			})) : a}
                 ${Oe(o.tiles, (e) => e.id, (e) => {
-				let r = S(o, n, e.x, e.y, e.w, e.h), i = this.selection.includes(e.id) && o.id === this.page?.id, s = qe(e) && !e.entity, l = e.visibility.length > 0 && !me(this.hass, e);
+				let r = S(o, n, e.x, e.y, e.w, e.h), i = this.selection.includes(e.id) && o.id === this.page?.id, s = Je(e) && !e.entity, l = e.visibility.length > 0 && !me(this.hass, e);
 				return c`<div
                       class=${d({
 					tile: !0,
@@ -3554,7 +3633,7 @@ var gt, q = [], J = (gt = class extends t {
         </div>`;
 		})}
       ${e.pages.length < 10 ? c`<button class="add-page" style="height:${480 * r}px" @click=${() => {
-			let t = Ve(e);
+			let t = He(e);
 			t && (this.commit(t.layout), this.activePage = t.id);
 		}}>＋<br />Seite hinzufügen</button>` : a}
     </div>`;
@@ -3570,13 +3649,13 @@ var gt, q = [], J = (gt = class extends t {
 				h: e.h
 			}));
 		}
-		return a.filter((t) => B(e, t.x, t.y, t.w, t.h)).map((n) => {
+		return a.filter((t) => Ne(e, t.x, t.y, t.w, t.h)).map((n) => {
 			let i = S(e, r, n.x, n.y, n.w, n.h);
 			return c`<div class="drop ${t.valid ? "valid" : "invalid"}" style="left:${i.x}px;top:${i.y}px;width:${i.w}px;height:${i.h}px"></div>`;
 		});
 	}
 	renderLibrary() {
-		let e = tt(this.libraryEntries, this.search, this.category, this.favorites), t = this.systemItems().filter((e) => (this.category === "all" || this.category === e.category) && e.label.toLowerCase().includes(this.search.toLowerCase())), n = this.category === "all" || this.category === "navigation" || this.category === "system";
+		let e = nt(this.libraryEntries, this.search, this.category, this.favorites), t = this.systemItems().filter((e) => (this.category === "all" || this.category === e.category) && e.label.toLowerCase().includes(this.search.toLowerCase())), n = this.category === "all" || this.category === "navigation" || this.category === "system";
 		return c`<section class="library" aria-label="Elementbibliothek">
       <div class="lib-head">
         <button class="ghost" @click=${() => this.libraryOpen = !this.libraryOpen} title="Bibliothek ein-/ausklappen">${this.libraryOpen ? "▾" : "▸"} Elemente</button>
@@ -3590,7 +3669,7 @@ var gt, q = [], J = (gt = class extends t {
         <span class="muted small">${e.length + (n ? t.length : 0)} Treffer</span>
       </div>
       ${this.libraryOpen ? c`<div class="cats" role="tablist">
-              ${Ye.map((e) => c`<button role="tab" aria-selected=${this.category === e.key} class="cat ${this.category === e.key ? "active" : ""}" @click=${() => this.category = e.key}>
+              ${Xe.map((e) => c`<button role="tab" aria-selected=${this.category === e.key} class="cat ${this.category === e.key ? "active" : ""}" @click=${() => this.category = e.key}>
                   ${E(e.icon, "")} ${e.label}
                 </button>`)}
             </div>
@@ -3611,9 +3690,9 @@ var gt, q = [], J = (gt = class extends t {
                   tabindex="0"
                   title="${e.entity_id} – ziehen oder Enter zum Hinzufügen"
                   @pointerdown=${(t) => {
-			t.target.closest(".fav") || this.startNewDrag(t, () => W(this.hass, e.entity_id), e.name);
+			t.target.closest(".fav") || this.startNewDrag(t, () => U(this.hass, e.entity_id), e.name);
 		}}
-                  @keydown=${(t) => t.key === "Enter" && this.addToActivePage(W(this.hass, e.entity_id))}
+                  @keydown=${(t) => t.key === "Enter" && this.addToActivePage(U(this.hass, e.entity_id))}
                 >
                   <button class="fav ghost" title="Favorit" @click=${() => this.toggleFavorite(e.entity_id)}>${this.favorites.includes(e.entity_id) ? "★" : "☆"}</button>
                   <span class="nm">${e.name}</span>
@@ -3635,10 +3714,10 @@ var gt, q = [], J = (gt = class extends t {
             .layout=${e}
             .page=${t}
             .tile=${n[0]}
-            @gs-patch=${(r) => this.commit(Re(e, t.id, n[0].id, r.detail))}
+            @gs-patch=${(r) => this.commit(ze(e, t.id, n[0].id, r.detail))}
             @gs-geometry=${(r) => {
-			let i = r.detail, a = n[0], o = H(e, t.id, [a.id], a.id, t.id, i.x, i.y);
-			o.ok && (i.w !== a.w || i.h !== a.h) && (o = Ie(o.layout, t.id, a.id, i.w, i.h)), o.ok ? this.commit(o.layout) : A(this, o.reason ?? "Nicht möglich");
+			let i = r.detail, a = n[0], o = V(e, t.id, [a.id], a.id, t.id, i.x, i.y);
+			o.ok && (i.w !== a.w || i.h !== a.h) && (o = Le(o.layout, t.id, a.id, i.w, i.h)), o.ok ? this.commit(o.layout) : A(this, o.reason ?? "Nicht möglich");
 		}}
             @gs-delete=${() => this.deleteSelection()}
             @gs-duplicate=${() => this.duplicateSelection()}
@@ -3652,7 +3731,7 @@ var gt, q = [], J = (gt = class extends t {
               <button role="tab" aria-selected=${this.propsTab === "page"} class=${this.propsTab === "page" ? "active" : ""} @click=${() => this.propsTab = "page"}>Seite</button>
               <button role="tab" aria-selected=${this.propsTab === "auto"} class=${this.propsTab === "auto" ? "active" : ""} @click=${() => this.propsTab = "auto"}>Automatik</button>
             </div>
-            ${this.propsTab === "auto" ? c`<gs-automation-props .hass=${this.hass} .layout=${e} @gs-commit=${(e) => this.commit(e.detail)}></gs-automation-props>` : c`<gs-page-props
+            ${this.propsTab === "auto" ? c`<gs-automation-props .hass=${this.hass} .api=${this.api} .layout=${e} @gs-commit=${(e) => this.commit(e.detail)}></gs-automation-props>` : c`<gs-page-props
                   .info=${this.info}
                   .layout=${e}
                   .page=${t}
@@ -4364,21 +4443,21 @@ var X = (yt = class extends P {
 	async suggestFromArea() {
 		let e = this.targetId;
 		if (!e || !this.area) return;
-		let t = et(this.hass).filter((e) => e.area === this.area && e.state !== "unavailable"), n = (e) => t.filter((t) => e.includes(t.category)), r = [
-			n(["light"]).map((e) => W(this.hass, e.entity_id)),
+		let t = tt(this.hass).filter((e) => e.area === this.area && e.state !== "unavailable"), n = (e) => t.filter((t) => e.includes(t.category)), r = [
+			n(["light"]).map((e) => U(this.hass, e.entity_id)),
 			n([
 				"switch",
 				"outlet",
 				"cover",
 				"climate"
-			]).map((e) => W(this.hass, e.entity_id)),
+			]).map((e) => U(this.hass, e.entity_id)),
 			t.filter((e) => e.category === "sensor" && [
 				"temperature",
 				"humidity",
 				"power",
 				"energy"
-			].includes(this.hass.states[e.entity_id]?.attributes.device_class)).map((e) => W(this.hass, e.entity_id)),
-			n(["scene", "script"]).map((e) => W(this.hass, e.entity_id))
+			].includes(this.hass.states[e.entity_id]?.attributes.device_class)).map((e) => U(this.hass, e.entity_id)),
+			n(["scene", "script"]).map((e) => U(this.hass, e.entity_id))
 		].flat();
 		if (!r.length) {
 			A(this, "In diesem Bereich wurden keine passenden Entitäten gefunden.", "error");
@@ -4390,10 +4469,10 @@ var X = (yt = class extends P {
 			tap_action: { action: "none" }
 		})), i.push(o), a = o;
 		for (let e of r) {
-			let t = Pe(a, 1, 1);
+			let t = Fe(a, 1, 1);
 			if (!t) {
 				if (i.length >= 10) break;
-				a = je(`${this.area} ${i.length + 1}`), i.push(a), t = Pe(a, 1, 1);
+				a = je(`${this.area} ${i.length + 1}`), i.push(a), t = Fe(a, 1, 1);
 			}
 			a.tiles.push({
 				...e,

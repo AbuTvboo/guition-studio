@@ -426,6 +426,45 @@ async def test_settings_changed_on_display(hass: HomeAssistant, hass_ws_client, 
     assert device.layout["set"]["th"] == "amoled"
 
 
+async def test_slideshow_stream(hass: HomeAssistant, hass_ws_client, hass_client_no_auth, setup_studio, tmp_path) -> None:
+    from io import BytesIO
+
+    from PIL import Image
+
+    from homeassistant.core_config import async_process_ha_core_config
+
+    await async_process_ha_core_config(hass, {"internal_url": "http://192.168.1.10:8123"})
+    folder = tmp_path / "media" / "fotos"
+    folder.mkdir(parents=True)
+    Image.new("RGB", (1200, 800), (10, 120, 200)).save(folder / "a.jpg")
+    hass.config.media_dirs = {"local": str(tmp_path / "media")}
+
+    device = FakeDevice(hass)
+    ws = await hass_ws_client(hass)
+
+    def mutate(layout):
+        layout["settings"]["screensaver"] = {"enabled": True, "after": 60, "entities": [], "mode": "slideshow", "folder": "fotos", "interval": 10, "order": "random", "fit": "cover", "show_clock": True}
+
+    display, _ = await _create_with_layout(hass, ws, mutate)
+    url = device.layout["set"]["slu"]
+    assert url.startswith("http://192.168.1.10:8123/api/guition_studio/slide/") and url.endswith("/next.jpg")
+
+    client = await hass_client_no_auth()
+    path = url.replace("http://192.168.1.10:8123", "")
+    resp = await client.get(path + "?n=1")
+    assert resp.status == 200 and resp.headers["Content-Type"] == "image/jpeg"
+    assert Image.open(BytesIO(await resp.read())).size == (480, 480)
+    wrong = path.replace(path.split("/")[-2], "falsch")
+    assert (await client.get(wrong)).status == 404
+
+    await ws.send_json({"id": 500, "type": "guition_studio/slideshow/folders"})
+    folders = (await ws.receive_json())["result"]["folders"]
+    assert {"folder": "fotos", "count": 1} in folders
+    await ws.send_json({"id": 501, "type": "guition_studio/backup/export"})
+    backup = (await ws.receive_json())["result"]
+    assert "slide_token" not in json.dumps(backup)
+
+
 async def test_heartbeat_detects_reboot(hass: HomeAssistant, hass_ws_client, setup_studio) -> None:
     device = FakeDevice(hass)
     ws = await hass_ws_client(hass)

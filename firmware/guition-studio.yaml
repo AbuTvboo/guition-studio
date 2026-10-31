@@ -10,7 +10,7 @@
 substitutions:
   name: guition-studio
   friendly_name: Guition Studio
-  fw_version: "0.4.0"
+  fw_version: "0.5.0"
 
 esphome:
   name: ${name}
@@ -203,10 +203,25 @@ lvgl:
         - label: { id: gs_font40, hidden: true, text: " ", text_font: montserrat_40 }
         # Enables LV_USE_SLIDER for the runtime dimmer tile.
         - slider: { id: gs_slider_probe, hidden: true, min_value: 0, max_value: 100 }
+        # Enables LV_USE_IMAGE for the screensaver slideshow.
+        - image: { id: gs_image_probe, hidden: true, src: gs_slide }
+
+image:
+  # Screensaver slideshow: pictures are streamed one at a time from Home Assistant
+  # (resized to 480x480 JPEG there). Nothing is stored in flash; the URL incl. a
+  # per-display token is set at runtime from the layout.
+  - platform: online_image
+    id: gs_slide
+    url: "http://127.0.0.1/guition-studio-placeholder.jpg"
+    format: JPEG
+    type: RGB565
+    resize: 480x480
+    update_interval: never
 
 guition_studio:
   id: studio
   backlight: backlight
+  slideshow_image: gs_slide
   time_id: ha_time
   hardware: guition-4848s040
   max_layout_size: 32768

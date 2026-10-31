@@ -20,8 +20,10 @@ CONF_BACKLIGHT = "backlight"
 CONF_ON_EVENT = "on_event"
 CONF_MAX_LAYOUT_SIZE = "max_layout_size"
 CONF_HARDWARE = "hardware"
+CONF_SLIDESHOW_IMAGE = "slideshow_image"
 
 gs_ns = cg.esphome_ns.namespace("guition_studio")
+OnlineImage = cg.esphome_ns.namespace("online_image").class_("OnlineImage")
 GuitionStudio = gs_ns.class_("GuitionStudio", cg.Component)
 EventTrigger = gs_ns.class_(
     "EventTrigger", automation.Trigger.template(cg.std_string, cg.std_string)
@@ -32,6 +34,8 @@ CONFIG_SCHEMA = cv.Schema(
         cv.GenerateID(): cv.declare_id(GuitionStudio),
         cv.Optional(CONF_BACKLIGHT): cv.use_id(light.LightState),
         cv.Optional(CONF_TIME_ID): cv.use_id(time_.RealTimeClock),
+        # online_image used to stream screensaver slideshow pictures from Home Assistant
+        cv.Optional(CONF_SLIDESHOW_IMAGE): cv.use_id(OnlineImage),
         cv.Optional(CONF_HARDWARE, default="guition-4848s040"): cv.string_strict,
         cv.Optional(CONF_MAX_LAYOUT_SIZE, default=32768): cv.int_range(
             min=1024, max=131072
@@ -54,6 +58,10 @@ async def to_code(config):
     if CONF_TIME_ID in config:
         clock = await cg.get_variable(config[CONF_TIME_ID])
         cg.add(var.set_time(clock))
+    if CONF_SLIDESHOW_IMAGE in config:
+        img = await cg.get_variable(config[CONF_SLIDESHOW_IMAGE])
+        cg.add_define("USE_GS_SLIDESHOW")
+        cg.add(var.set_slideshow_image(img))
     for conf in config.get(CONF_ON_EVENT, []):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
         await automation.build_automation(

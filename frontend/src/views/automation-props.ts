@@ -1,18 +1,43 @@
 import { LitElement, css, html, nothing } from "lit";
-import { customElement, property } from "lit/decorators.js";
+import { customElement, property, state } from "lit/decorators.js";
+import type { StudioApi } from "../api";
 import { friendlyName } from "../entities";
 import { clone, newId } from "../model";
 import type { Hass, Layout, NightSettings, PageRule, ScreensaverSettings } from "../types";
 import { fireEvent, sharedStyles } from "../ui";
 
 export const DEFAULT_NIGHT: NightSettings = { enabled: false, mode: "time", start: "22:00", end: "06:30", brightness: 15, dim: 30, page: null };
-export const DEFAULT_SCREENSAVER: ScreensaverSettings = { enabled: false, after: 120, entities: [] };
+export const DEFAULT_SCREENSAVER: ScreensaverSettings = {
+  enabled: false,
+  after: 120,
+  entities: [],
+  mode: "clock",
+  folder: "guition_studio",
+  interval: 15,
+  order: "random",
+  fit: "cover",
+  show_clock: true,
+};
 
 /** Smart page switching, night mode and screensaver (evaluated by Home Assistant / the display). */
 @customElement("gs-automation-props")
 export class GsAutomationProps extends LitElement {
   @property({ attribute: false }) hass!: Hass;
   @property({ attribute: false }) layout!: Layout;
+  @property({ attribute: false }) api?: StudioApi;
+  @state() private folders: { folder: string; count: number }[] | null = null;
+  @state() private mediaRoot = "";
+
+  private async loadFolders() {
+    if (!this.api) return;
+    try {
+      const res = await this.api.slideFolders();
+      this.folders = res.folders;
+      this.mediaRoot = res.root;
+    } catch {
+      this.folders = [];
+    }
+  }
 
   private get night(): NightSettings {
     return { ...DEFAULT_NIGHT, ...(this.layout.settings.night ?? {}) };
@@ -129,7 +154,18 @@ export class GsAutomationProps extends LitElement {
                   ${[[30, "30 Sekunden"], [60, "1 Minute"], [120, "2 Minuten"], [300, "5 Minuten"], [900, "15 Minuten"]].map(([v, l]) => html`<option value=${v} ?selected=${ss.after === v}>${l}</option>`)}
                 </select>
               </label>
-              ${[0, 1].map(
+              <label class="field"><span>Anzeige</span>
+                <select @change=${(e: Event) => {
+                  const mode = (e.target as HTMLSelectElement).value as ScreensaverSettings["mode"];
+                  this.commit({ screensaver: { ...ss, mode } });
+                  if (mode === "slideshow" && !this.folders) this.loadFolders();
+                }}>
+                  <option value="clock" ?selected=${ss.mode !== "slideshow"}>Uhr, Datum & Werte</option>
+                  <option value="slideshow" ?selected=${ss.mode === "slideshow"}>Diashow (Bilder aus Home Assistant)</option>
+                </select>
+              </label>
+              ${ss.mode === "slideshow" ? this.renderSlideshow(ss) : nothing}
+              ${ss.mode !== "slideshow" ? [0, 1].map(
                 (i) => html`<label class="field"><span>Wert ${i + 1} (optional)</span>
                   <input list="gs-auto-entities" placeholder="z. B. sensor.aussentemperatur" .value=${ss.entities[i] ?? ""}
                     @change=${(e: Event) => {
@@ -138,11 +174,55 @@ export class GsAutomationProps extends LitElement {
                       this.commit({ screensaver: { ...ss, entities: ents.filter(Boolean).slice(0, 2) } });
                     }} />
                 </label>`
-              )}
+              ) : nothing}
               <p class="muted small">Antippen beendet den Bildschirmschoner, ohne eine Kachel auszulösen. Er erscheint vor dem Dimmen, wenn seine Zeit kürzer ist als der Bildschirm-Timeout.</p>`
           : nothing}
       </section>
     `;
+  }
+
+  protected firstUpdated(): void {
+    if (this.screensaver.mode === "slideshow") this.loadFolders();
+  }
+
+  private renderSlideshow(ss: ScreensaverSettings) {
+    const set = (patch: Partial<ScreensaverSettings>) => this.commit({ screensaver: { ...ss, ...patch } });
+    const current = this.folders?.find((f) => f.folder === ss.folder);
+    return html`<label class="field"><span>Bilderordner (in „Medien → Meine Medien“)</span>
+        ${this.folders === null
+          ? html`<span><span class="spinner"></span> Ordner werden geladen …</span>`
+          : html`<select @change=${(e: Event) => set({ folder: (e.target as HTMLSelectElement).value })}>
+              ${!current ? html`<option selected value=${ss.folder ?? ""}>${ss.folder || "Hauptordner"} (nicht gefunden)</option>` : nothing}
+              ${this.folders.map((f) => html`<option value=${f.folder} ?selected=${f.folder === ss.folder}>${f.folder || "Hauptordner"} – ${f.count} Bild${f.count === 1 ? "" : "er"}</option>`)}
+            </select>`}
+      </label>
+      ${current && current.count === 0 ? html`<div class="notice warn small">In diesem Ordner liegen keine Bilder.</div>` : nothing}
+      <div class="notice small">
+        Bilder hochladen: In Home Assistant links <b>Medien → Meine Medien</b> öffnen, einen Ordner (z. B. <code>guition_studio</code>) anlegen und Fotos hineinziehen.
+        Home Assistant verkleinert jedes Bild auf 480 × 480 und schickt immer nur <b>ein</b> Bild ans Display – im Display wird nichts gespeichert.
+        ${this.mediaRoot ? html`<br /><span class="muted">Speicherort: <code>${this.mediaRoot}</code></span>` : nothing}
+        <br /><button style="margin-top:6px" @click=${() => this.loadFolders()}>↻ Ordner neu laden</button>
+      </div>
+      <div class="grid2">
+        <label class="field"><span>Bildwechsel</span>
+          <select @change=${(e: Event) => set({ interval: +(e.target as HTMLSelectElement).value })}>
+            ${[[5, "5 s"], [10, "10 s"], [15, "15 s"], [30, "30 s"], [60, "1 min"], [300, "5 min"]].map(([v, l]) => html`<option value=${v} ?selected=${(ss.interval ?? 15) === v}>${l}</option>`)}
+          </select>
+        </label>
+        <label class="field"><span>Reihenfolge</span>
+          <select @change=${(e: Event) => set({ order: (e.target as HTMLSelectElement).value as ScreensaverSettings["order"] })}>
+            <option value="random" ?selected=${ss.order !== "sequential"}>Zufällig</option>
+            <option value="sequential" ?selected=${ss.order === "sequential"}>Der Reihe nach</option>
+          </select>
+        </label>
+      </div>
+      <label class="field"><span>Bildausschnitt</span>
+        <select @change=${(e: Event) => set({ fit: (e.target as HTMLSelectElement).value as ScreensaverSettings["fit"] })}>
+          <option value="cover" ?selected=${ss.fit !== "contain"}>Ausfüllen (Ränder werden beschnitten)</option>
+          <option value="contain" ?selected=${ss.fit === "contain"}>Ganzes Bild (mit schwarzen Rändern)</option>
+        </select>
+      </label>
+      <label class="check"><input type="checkbox" .checked=${ss.show_clock !== false} @change=${(e: Event) => set({ show_clock: (e.target as HTMLInputElement).checked })} /> Uhrzeit & Datum über den Bildern</label>`;
   }
 
   static styles = [

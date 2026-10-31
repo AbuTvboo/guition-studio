@@ -27,6 +27,7 @@ from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.helpers.network import NoURLAvailableError, get_url
 from homeassistant.helpers.event import (
     async_call_later,
     async_track_state_change_event,
@@ -465,6 +466,21 @@ class StudioManager:
         self.add_log("info", f"{label} am Display gewählt – Layout wird neu übertragen", display["id"])
         self.hass.async_create_task(self._safe_resend(display["id"], layout))
 
+    def _slide_url(self, display: dict[str, Any], layout: dict[str, Any]) -> str | None:
+        """Streaming URL for the screensaver slideshow (secret per-display token, local HA URL)."""
+        ss = (layout.get("settings") or {}).get("screensaver") or {}
+        if not ss.get("enabled") or ss.get("mode") != "slideshow":
+            return None
+        if not display.get("slide_token"):
+            display["slide_token"] = secrets.token_urlsafe(18)
+            self.store.schedule_save()
+        try:
+            base = get_url(self.hass, allow_external=False, allow_cloud=False, prefer_external=False)
+        except NoURLAvailableError:
+            self.add_log("warning", "Diashow: keine interne Home-Assistant-URL konfiguriert (Einstellungen → System → Netzwerk).", display["id"])
+            return None
+        return f"{base}/api/guition_studio/slide/{display['id']}/{display['slide_token']}/next.jpg"
+
     @callback
     def notify_displays_changed(self) -> None:
         async_dispatcher_send(self.hass, SIGNAL_DISPLAYS_CHANGED)
@@ -532,7 +548,7 @@ class StudioManager:
         display = self.store.get_display(display_id)
         if display is None:
             raise TransferError("Display nicht gefunden.")
-        payload, crc = compile_device_layout(layout)
+        payload, crc = compile_device_layout(layout, self._slide_url(display, layout))
         raw = payload.encode("utf-8")
         chunks = chunk_payload(payload, CHUNK_SIZE)
         lock = self._locks.setdefault(display_id, asyncio.Lock())

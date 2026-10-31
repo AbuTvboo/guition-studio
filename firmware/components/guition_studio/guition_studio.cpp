@@ -265,6 +265,12 @@ void GuitionStudio::setup() {
     }
   }
   this->load_overrides_();
+#ifdef USE_GS_SLIDESHOW
+  if (this->slide_img_ != nullptr) {
+    this->slide_img_->add_on_finished_callback([this](bool /*cached*/) { this->slide_ready_(); });
+    this->slide_img_->add_on_error_callback([this]() { this->slide_failed_(); });
+  }
+#endif
   this->ui_dirty_ = true;
 }
 
@@ -304,6 +310,10 @@ void GuitionStudio::loop() {
     this->last_tick_ = now;
     this->update_status_();
     this->refresh_settings_();
+    if (this->ss_obj_ != nullptr && this->ss_img_ != nullptr && !this->slide_pending_ && now >= this->slide_next_at_)
+      this->slide_next_();
+    if (this->ss_obj_ == nullptr && !this->slide_pending_ && this->slide_buf_[0] != nullptr)
+      this->slide_stop_();
     if (this->notify_obj_ != nullptr && this->notify_until_ != 0 && now > this->notify_until_)
       this->close_notification_();
   }
@@ -483,6 +493,12 @@ bool GuitionStudio::parse_layout_(const char *data, size_t len, LayoutCfg &out, 
   out.night_brightness = clampi(set["nb"] | 15, 1, 100);
   out.night_dim = clampi(set["nd"] | 30, 0, 80);
   out.theme = std::string(set["th"] | "").substr(0, 24);
+  out.slideshow = (set["ssm"] | 0) == 1;
+  out.slide_url = std::string(set["slu"] | "").substr(0, 240);
+  if (out.slide_url.rfind("http://", 0) != 0 && out.slide_url.rfind("https://", 0) != 0)
+    out.slideshow = false;
+  out.slide_interval = clampi(set["sli"] | 15, 5, 600);
+  out.slide_clock = (set["slc"] | 1) != 0;
   out.themes.clear();
   for (JsonArrayConst t : set["thl"].as<JsonArrayConst>()) {
     if (out.themes.size() >= 8)
@@ -1519,13 +1535,39 @@ void GuitionStudio::show_screensaver_() {
   lv_obj_set_style_bg_color(o, lv_color_hex(0x000000), 0);
   lv_obj_set_style_bg_opa(o, LV_OPA_COVER, 0);
   lv_obj_add_flag(o, LV_OBJ_FLAG_CLICKABLE);  // swallows the waking tap
+  bool slides = false;
+#ifdef USE_GS_SLIDESHOW
+  slides = l.slideshow && this->slide_img_ != nullptr;
+#endif
+  if (slides) {
+    this->ss_img_ = lv_image_create(o);
+    lv_obj_set_pos(this->ss_img_, 0, 0);
+    lv_obj_set_size(this->ss_img_, SCREEN_W, SCREEN_H);
+    lv_obj_add_flag(this->ss_img_, LV_OBJ_FLAG_HIDDEN);  // until the first picture is decoded
+    this->slide_errors_ = 0;
+    this->slide_next_at_ = 0;  // load immediately
+  }
   this->ss_clock_ = make_label(o, font_px(40), 0xFFFFFF, "--:--");
   lv_obj_align(this->ss_clock_, LV_ALIGN_CENTER, 0, -70);
   this->ss_date_ = make_label(o, font_px(20), l.muted, "");
   lv_obj_align(this->ss_date_, LV_ALIGN_CENTER, 0, 10);
+  if (slides) {
+    // small clock with a dark pill in the lower left corner over the pictures
+    lv_obj_align(this->ss_clock_, LV_ALIGN_BOTTOM_LEFT, 20, -44);
+    lv_obj_align(this->ss_date_, LV_ALIGN_BOTTOM_LEFT, 22, -18);
+    lv_obj_set_style_text_color(this->ss_date_, lv_color_hex(0xFFFFFF), 0);
+    for (lv_obj_t *lbl : {this->ss_clock_, this->ss_date_}) {
+      lv_obj_set_style_bg_color(lbl, lv_color_hex(0x000000), 0);
+      lv_obj_set_style_bg_opa(lbl, LV_OPA_40, 0);
+      lv_obj_set_style_pad_hor(lbl, 8, 0);
+      lv_obj_set_style_radius(lbl, 8, 0);
+      if (!l.slide_clock)
+        lv_obj_add_flag(lbl, LV_OBJ_FLAG_HIDDEN);
+    }
+  }
   for (int i = 0; i < 2; i++) {
     this->ss_lines_[i] = nullptr;
-    if (i < static_cast<int>(l.ss_entities.size())) {
+    if (i < static_cast<int>(l.ss_entities.size()) && !slides) {
       this->ss_lines_[i] = make_label(o, font_px(28), 0xE6EDF3, "");
       lv_obj_set_width(this->ss_lines_[i], 440);
       lv_obj_set_style_text_align(this->ss_lines_[i], LV_TEXT_ALIGN_CENTER, 0);
@@ -1544,6 +1586,8 @@ void GuitionStudio::hide_screensaver_() {
     return;
   GS_OBJ_DELETE(this->ss_obj_);
   this->ss_obj_ = nullptr;
+  this->ss_img_ = nullptr;
+  this->slide_stop_();
   this->ss_clock_ = this->ss_date_ = nullptr;
   this->ss_lines_[0] = this->ss_lines_[1] = nullptr;
 }
@@ -1972,6 +2016,87 @@ void GuitionStudio::on_menu_event(int code, lv_event_code_t event, lv_obj_t *tar
     this->restart_armed_until_ = millis() + 3000;
   }
   this->refresh_settings_();
+}
+
+// ---------------------------------------------------------------- screensaver slideshow
+
+static constexpr int SLIDE_W = SCREEN_W, SLIDE_H = SCREEN_H;
+
+void GuitionStudio::slide_next_() {
+#ifdef USE_GS_SLIDESHOW
+  if (this->slide_img_ == nullptr || this->ss_obj_ == nullptr || this->slide_pending_ || this->layout_.slide_url.empty())
+    return;
+  if (this->slide_img_->is_decoding())
+    return;
+  size_t size = this->slide_img_->get_buffer_size(SLIDE_W, SLIDE_H);
+  for (auto &buf : this->slide_buf_) {
+    if (buf == nullptr) {
+      buf = static_cast<uint8_t *>(heap_caps_calloc(1, size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+      if (buf == nullptr) {
+        ESP_LOGW(TAG, "Slideshow: not enough PSRAM for picture buffers");
+        this->slide_next_at_ = millis() + 60000;
+        return;
+      }
+    }
+  }
+  // decode into the buffer that is currently NOT shown
+  int back = this->slide_front_ == 0 ? 1 : 0;
+  if (!this->slide_img_->set_external_buffer(this->slide_buf_[back], SLIDE_W, SLIDE_H)) {
+    this->slide_failed_();
+    return;
+  }
+  char query[24];
+  snprintf(query, sizeof(query), "?n=%u", static_cast<unsigned>(++this->slide_counter_));
+  this->slide_img_->set_url(this->layout_.slide_url + query);
+  this->slide_pending_ = true;
+  this->slide_img_->update();
+#endif
+}
+
+void GuitionStudio::slide_ready_() {
+#ifdef USE_GS_SLIDESHOW
+  this->slide_pending_ = false;
+  this->slide_errors_ = 0;
+  this->slide_next_at_ = millis() + static_cast<uint32_t>(this->layout_.slide_interval) * 1000u;
+  if (this->ss_obj_ == nullptr || this->ss_img_ == nullptr || this->slide_img_ == nullptr)
+    return;
+  int back = this->slide_front_ == 0 ? 1 : 0;
+  // copy the descriptor: the image object reuses its own descriptor for the next decode
+  this->slide_dsc_[back] = *this->slide_img_->get_lv_image_dsc();
+#if LVGL_VERSION_MAJOR >= 9
+  // raw RGB565 descriptors are drawn directly from the buffer (no decoder cache involved)
+  lv_image_set_src(this->ss_img_, &this->slide_dsc_[back]);
+#else
+  lv_img_cache_invalidate_src(&this->slide_dsc_[back]);
+  lv_img_set_src(this->ss_img_, &this->slide_dsc_[back]);
+#endif
+  this->slide_front_ = back;
+  GS_REMOVE_FLAG(this->ss_img_, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_invalidate(this->ss_img_);
+#endif
+}
+
+void GuitionStudio::slide_failed_() {
+  this->slide_pending_ = false;
+  // keep showing the last picture (or the clock); back off on repeated errors
+  this->slide_errors_ = this->slide_errors_ < 6 ? this->slide_errors_ + 1 : 6;
+  uint32_t delay_s = static_cast<uint32_t>(this->layout_.slide_interval) * (1u << (this->slide_errors_ > 3 ? 3 : this->slide_errors_));
+  this->slide_next_at_ = millis() + std::min<uint32_t>(delay_s, 600u) * 1000u;
+  ESP_LOGW(TAG, "Slideshow: picture could not be loaded (%u errors in a row)", this->slide_errors_);
+}
+
+void GuitionStudio::slide_stop_() {
+#ifdef USE_GS_SLIDESHOW
+  if (this->slide_img_ != nullptr && !this->slide_img_->is_decoding())
+    this->slide_img_->release();  // lets go of the external buffer
+#endif
+  if (this->slide_pending_)
+    return;  // a running decode still writes into a buffer: free it after the decode ends
+  for (auto &buf : this->slide_buf_) {
+    free(buf);
+    buf = nullptr;
+  }
+  this->slide_front_ = -1;
 }
 
 }  // namespace guition_studio

@@ -17,13 +17,22 @@
 #include "esphome/components/time/real_time_clock.h"
 #endif
 
+#ifdef USE_GS_SLIDESHOW
+#include "esphome/components/online_image/online_image.h"
+#endif
+
 #include <lvgl.h>
+
+#if LVGL_VERSION_MAJOR < 9
+typedef lv_img_dsc_t lv_image_dsc_t;  // NOLINT
+#define lv_image_create lv_img_create
+#endif
 
 namespace esphome {
 namespace guition_studio {
 
 // Must match custom_components/guition_studio/const.py and frontend/src/geometry.ts
-static constexpr int PROTOCOL_VERSION = 4;
+static constexpr int PROTOCOL_VERSION = 5;
 static constexpr int SCREEN_W = 480;
 static constexpr int SCREEN_H = 480;
 static constexpr int HEADER_H = 44;
@@ -86,6 +95,10 @@ struct LayoutCfg {
   std::vector<std::string> ss_entities;     // up to 2 entities shown on the screensaver
   std::vector<std::string> ss_titles;
   int night_brightness{15}, night_dim{30};
+  bool slideshow{false};       // screensaver shows pictures streamed from HA
+  std::string slide_url;       // base URL incl. per-display token (no query string)
+  int slide_interval{15};      // seconds
+  bool slide_clock{true};
   std::string theme;
   std::vector<std::pair<std::string, std::string>> themes;  // id, name
   std::vector<PageCfg> pages;
@@ -149,6 +162,9 @@ class GuitionStudio : public Component {
 #ifdef USE_TIME
   void set_time(time::RealTimeClock *t) { this->time_ = t; }
 #endif
+#ifdef USE_GS_SLIDESHOW
+  void set_slideshow_image(online_image::OnlineImage *img) { this->slide_img_ = img; }
+#endif
   void add_on_event_callback(std::function<void(const std::string &, const std::string &)> &&cb) {
     this->event_callbacks_.add(std::move(cb));
   }
@@ -188,6 +204,10 @@ class GuitionStudio : public Component {
   void hide_screensaver_();
   void update_screensaver_(const std::string &hhmm, const std::string &date);
   void apply_night_overlay_();
+  void slide_next_();
+  void slide_ready_();
+  void slide_failed_();
+  void slide_stop_();
   int effective_brightness_() const;
   // effective settings = layout + local overrides from the on-device menu
   int brightness_() const { return this->ovr_br_ >= 0 ? this->ovr_br_ : this->layout_.brightness; }
@@ -289,6 +309,19 @@ class GuitionStudio : public Component {
   lv_obj_t *menu_night_btn_{nullptr}, *menu_ss_btn_{nullptr};
   std::vector<lv_obj_t *> menu_timeout_btns_, menu_theme_btns_, menu_home_btns_;
   uint32_t restart_armed_until_{0};
+
+  // screensaver slideshow: two PSRAM buffers, the next picture decodes in the background
+#ifdef USE_GS_SLIDESHOW
+  online_image::OnlineImage *slide_img_{nullptr};
+#endif
+  lv_obj_t *ss_img_{nullptr};
+  uint8_t *slide_buf_[2]{nullptr, nullptr};
+  lv_image_dsc_t slide_dsc_[2]{};
+  int slide_front_{-1};
+  bool slide_pending_{false};
+  uint32_t slide_next_at_{0};
+  uint32_t slide_counter_{0};
+  uint8_t slide_errors_{0};
 };
 
 class EventTrigger : public Trigger<std::string, std::string> {

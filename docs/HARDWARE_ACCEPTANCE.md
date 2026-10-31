@@ -58,4 +58,13 @@ Vorbereitung: HA ≥ 2026.1 über HTTPS, Chrome am PC, Display per USB, eine sch
 | 35 | Design „AMOLED Black“ am Display wählen | Display zeigt nach wenigen Sekunden das neue Design | |
 | 36 | Neustart-Knopf einmal, dann innerhalb von 3 s erneut tippen | erst Sicherheitsabfrage, dann Neustart | |
 
+### Zusatz v0.5
+
+| # | Schritt | Erwartung | ✓ |
+|---|---|---|---|
+| 37 | In HA *Medien → Meine Medien* Ordner `guition_studio` mit 3–5 Fotos anlegen; im Designer Bildschirmschoner „Diashow“, Wechsel 10 s, übertragen | nach der Schonerzeit erscheinen die Fotos im Wechsel, ohne Flackern | |
+| 38 | Hochformat-Foto mit „Ganzes Bild“ | Foto vollständig mit schwarzen Rändern, richtig gedreht | |
+| 39 | Antippen während der Diashow | Diashow endet, keine Kachel wird ausgelöst | |
+| 40 | Diagnose: freier PSRAM vor, während und nach der Diashow | während ca. 0,9 MB weniger, danach wieder frei | |
+
 Bei Abweichungen: Diagnose-Export und ESPHome-Log anhängen.

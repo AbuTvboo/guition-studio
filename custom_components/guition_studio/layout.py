@@ -46,6 +46,7 @@ from .themes import THEMES, get_theme
 
 ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,24}$")
 TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
+FOLDER_RE = re.compile(r"^[\w\-. /]{0,120}$")
 ENTITY_RE = re.compile(r"^[a-z0-9_]+\.[a-z0-9_]+$")
 SERVICE_RE = re.compile(r"^[a-z0-9_]+\.[a-z0-9_]+$")
 COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
@@ -95,7 +96,11 @@ def default_night() -> dict[str, Any]:
 
 
 def default_screensaver() -> dict[str, Any]:
-    return {"enabled": False, "after": 120, "entities": []}
+    return {
+        "enabled": False, "after": 120, "entities": [],
+        # slideshow: pictures streamed from a Home Assistant media folder
+        "mode": "clock", "folder": "guition_studio", "interval": 15, "order": "random", "fit": "cover", "show_clock": True,
+    }  # fmt: skip
 
 
 def default_style() -> dict[str, Any]:
@@ -353,6 +358,16 @@ def _validate_screensaver(raw: Any, errors: list[str]) -> dict[str, Any]:
             errors.append(f"Bildschirmschoner: ungültige Entity-ID „{e}“.")
         else:
             s["entities"].append(e)
+    s["mode"] = raw.get("mode") if raw.get("mode") in ("clock", "slideshow") else "clock"
+    folder = raw.get("folder", s["folder"])
+    if not isinstance(folder, str) or ".." in folder or not FOLDER_RE.match(folder):
+        errors.append("Bildschirmschoner: ungültiger Bilderordner.")
+    else:
+        s["folder"] = folder.strip("/")
+    s["interval"] = _int(raw.get("interval"), 15, 5, 600)
+    s["order"] = raw.get("order") if raw.get("order") in ("random", "sequential") else "random"
+    s["fit"] = raw.get("fit") if raw.get("fit") in ("cover", "contain") else "cover"
+    s["show_clock"] = _bool(raw.get("show_clock"), True)
     return s
 
 
@@ -624,7 +639,7 @@ def _hex(color: str | None, fallback: str) -> str:
     return (color or fallback).lstrip("#").upper()
 
 
-def compile_device_layout(layout: dict[str, Any]) -> tuple[str, int]:
+def compile_device_layout(layout: dict[str, Any], slide_url: str | None = None) -> tuple[str, int]:
     """Compile a validated layout into the compact device JSON. Returns (payload, crc32)."""
     settings = layout["settings"]
     theme = get_theme(settings["theme"])
@@ -722,7 +737,7 @@ def compile_device_layout(layout: dict[str, Any]) -> tuple[str, int]:
             "nd": (settings.get("night") or {}).get("dim", 30),
             "th": settings["theme"],
             "thl": [[key, t["name"]] for key, t in THEMES.items()],
-            **_screensaver_device(settings, layout),
+            **_screensaver_device(settings, layout, slide_url),
         },
         "pages": pages,
     }
@@ -738,7 +753,7 @@ def compile_device_layout(layout: dict[str, Any]) -> tuple[str, int]:
     return payload, zlib.crc32(payload.encode("utf-8"))
 
 
-def _screensaver_device(settings: dict[str, Any], layout: dict[str, Any]) -> dict[str, Any]:
+def _screensaver_device(settings: dict[str, Any], layout: dict[str, Any], slide_url: str | None = None) -> dict[str, Any]:
     ss = settings.get("screensaver") or {}
     if not ss.get("enabled"):
         return {}
@@ -746,7 +761,10 @@ def _screensaver_device(settings: dict[str, Any], layout: dict[str, Any]) -> dic
     for eid in ss.get("entities", []):
         tile = next((t for p in layout["pages"] for t in p["tiles"] if t.get("entity") == eid and t.get("title")), None)
         titles.append((tile["title"] if tile else eid.split(".", 1)[1].replace("_", " ").title())[:32])
-    return {"ss": ss["after"], "sse": ss.get("entities", []), "sst": titles}
+    out = {"ss": ss["after"], "sse": ss.get("entities", []), "sst": titles}
+    if ss.get("mode") == "slideshow" and slide_url:
+        out.update(ssm=1, slu=slide_url, sli=ss.get("interval", 15), slc=int(ss.get("show_clock", True)))
+    return out
 
 
 def layout_entities(layout: dict[str, Any]) -> set[str]:

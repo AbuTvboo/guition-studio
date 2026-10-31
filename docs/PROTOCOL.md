@@ -18,6 +18,7 @@ Das Display ruft **niemals** selbst HA-Dienste auf. Es meldet nur `tap`/`hold`/`
 | `gs_layout_commit` | `session:int` | prüfen, speichern, anzeigen, `ack` senden |
 | `gs_states` | `data:string` | `{"e":{"light.x":{"o":1,"a":1,"d":"An · 50 %","n":50}},"v":{"t_1":0}}` (o = an, a = verfügbar, d = Anzeigetext, optional n = 0–100 für Helligkeit/Position/Lautstärke, s = Zweitzeile wie Zieltemperatur oder Medientitel, i = Icon für Wetter; v = Sichtbarkeit pro Kachel), ≤ 1500 Bytes je Nachricht |
 | `gs_page` | `page:int` | Seite anzeigen (weckt das Display, beendet den Bildschirmschoner) |
+| *(Layout `set`)* | `ss, sse, sst, ssm, slu, sli, slc` | Bildschirmschoner: Zeit, Werte, Titel; Diashow an, Bild-URL (mit Display-Schlüssel), Intervall, Uhr |
 | `gs_mode` | `night:int, brightness:int, dim:int` | Nachtmodus an/aus, max. Helligkeit in %, Abdunklung 0–80 % |
 | `gs_notify` | `title, message:string, seconds:int` | Pop-up |
 | `gs_rollback` | – | vorheriges Layout aktivieren |

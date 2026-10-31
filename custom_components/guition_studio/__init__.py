@@ -29,8 +29,9 @@ from .const import (
     STATIC_URL,
 )
 from .firmware import FirmwareManager
-from .http import FirmwareView
+from .http import FirmwareView, SlideView
 from .manager import StudioManager
+from .slideshow import SlideshowSource
 from .store import StudioStore
 
 _LOGGER = logging.getLogger(__name__)
@@ -51,7 +52,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await store.async_load()
     manager = StudioManager(hass, store)
     firmware = FirmwareManager(hass, entry.options.get(CONF_FIRMWARE_REPO, entry.data.get(CONF_FIRMWARE_REPO, DEFAULT_FIRMWARE_REPO)))
-    hass.data[DOMAIN] = {"store": store, "manager": manager, "firmware": firmware, "entry": entry}
+    hass.data[DOMAIN] = {"store": store, "manager": manager, "firmware": firmware, "entry": entry, "slideshow": SlideshowSource()}
 
     await _async_register_frontend(hass)
     _register_services(hass)
@@ -99,6 +100,7 @@ async def _async_register_frontend(hass: HomeAssistant) -> None:
     if "static" not in flags:
         await hass.http.async_register_static_paths([StaticPathConfig(STATIC_URL, str(FRONTEND_DIR), False)])
         hass.http.register_view(FirmwareView(hass))
+        hass.http.register_view(SlideView(hass))
         websocket_api.async_register(hass)
         flags.add("static")
     version = await hass.async_add_executor_job(_file_hash, FRONTEND_DIR / PANEL_FILE)

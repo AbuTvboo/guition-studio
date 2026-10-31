@@ -131,6 +131,12 @@ export interface ScreensaverSettings {
   enabled: boolean;
   after: number;
   entities: string[];
+  mode?: "clock" | "slideshow";
+  folder?: string;
+  interval?: number;
+  order?: "random" | "sequential";
+  fit?: "cover" | "contain";
+  show_clock?: boolean;
 }
 
 export interface PageRule {

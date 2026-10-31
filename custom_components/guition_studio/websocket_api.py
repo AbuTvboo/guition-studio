@@ -64,7 +64,7 @@ def async_register(hass: HomeAssistant) -> None:
         ws_info, ws_displays, ws_display_create, ws_display_update, ws_display_delete, ws_candidates,
         ws_layout_get, ws_layout_save, ws_layout_validate, ws_layout_apply, ws_layout_copy, ws_command,
         ws_template_save, ws_template_delete, ws_favorites, ws_backup_export, ws_backup_restore, ws_log,
-        ws_fw_status, ws_fw_check, ws_fw_download, ws_fw_ota, ws_debug,
+        ws_fw_status, ws_fw_check, ws_fw_download, ws_fw_ota, ws_debug, ws_slide_folders,
     ):  # fmt: skip
         websocket_api.async_register_command(hass, handler)
 
@@ -297,6 +297,8 @@ async def ws_favorites(hass, connection, msg):
 async def ws_backup_export(hass, connection, msg):
     store = _d(hass)["store"]
     data = copy.deepcopy(store.data)
+    for display in data.get("displays", {}).values():
+        display.pop("slide_token", None)  # secret, regenerated on demand
     connection.send_result(msg["id"], {"format": "guition-studio-backup", "version": 1, "app_version": VERSION, "data": data})
 
 
@@ -376,6 +378,16 @@ async def ws_fw_ota(hass, connection, msg):
         _err(connection, msg, err)
         return
     connection.send_result(msg["id"], result)
+
+
+@_cmd({"type": "slideshow/folders"})
+async def ws_slide_folders(hass, connection, msg):
+    from .http import media_root  # noqa: PLC0415
+    from .slideshow import list_folders  # noqa: PLC0415
+
+    root = media_root(hass)
+    folders = await hass.async_add_executor_job(list_folders, root)
+    connection.send_result(msg["id"], {"root": str(root), "folders": folders})
 
 
 __all__ = ["async_register", "default_layout"]

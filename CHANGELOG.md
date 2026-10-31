@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0 – Diashow als Bildschirmschoner
+- **Diashow:** Der Bildschirmschoner kann Fotos aus einem Ordner in Home Assistant zeigen (*Medien → Meine Medien*). Einstellbar im Designer unter *Automatik → Bildschirmschoner → Anzeige: Diashow*: Ordner, Bildwechsel (5 s – 5 min), zufällig oder der Reihe nach, „Ausfüllen“ oder „Ganzes Bild“, Uhrzeit ein/aus.
+- **Gestreamt, nicht gespeichert:** Home Assistant verkleinert jedes Foto auf 480 × 480 (Quellformate JPEG, PNG, WebP, BMP, GIF; Drehung laut EXIF) und liefert immer nur das nächste Bild aus. Das Display hält höchstens zwei entpackte Bilder im Arbeitsspeicher (≈ 0,9 MB von 8 MB PSRAM, nur während der Diashow). Der Flash wird nicht beschrieben.
+- **Ohne Flackern:** Das nächste Bild wird im Hintergrund in einen zweiten Puffer entpackt und erst dann eingeblendet.
+- **Geschützt:** Der Bilder-Endpunkt verlangt einen zufälligen Schlüssel pro Display, der nur über die verschlüsselte ESPHome-Verbindung zum Display gelangt. Ausgeliefert werden nur Bilder aus dem gewählten Medienordner (kein Zugriff auf andere Pfade). Der Schlüssel ist nicht in Backups enthalten.
+- Ist der Ordner leer oder nicht erreichbar, zeigt der Schoner die Uhr und versucht es mit wachsendem Abstand erneut.
+
+Protokoll 5 (Bildschirmschoner-Felder `ssm`, `slu`, `sli`, `slc`). Voraussetzung: In Home Assistant ist eine interne URL eingetragen (*Einstellungen → System → Netzwerk*).
+
 ## 0.4.0 – Einstellungen am Display & neue Vorlagen
 
 **Einstellungsmenü direkt am Display**

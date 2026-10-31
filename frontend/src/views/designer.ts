@@ -1009,7 +1009,7 @@ export class GsDesigner extends LitElement {
               <button role="tab" aria-selected=${this.propsTab === "auto"} class=${this.propsTab === "auto" ? "active" : ""} @click=${() => (this.propsTab = "auto")}>Automatik</button>
             </div>
             ${this.propsTab === "auto"
-              ? html`<gs-automation-props .hass=${this.hass} .layout=${layout} @gs-commit=${(e: CustomEvent<Layout>) => this.commit(e.detail)}></gs-automation-props>`
+              ? html`<gs-automation-props .hass=${this.hass} .api=${this.api} .layout=${layout} @gs-commit=${(e: CustomEvent<Layout>) => this.commit(e.detail)}></gs-automation-props>`
               : html`<gs-page-props
                   .info=${this.info}
                   .layout=${layout}

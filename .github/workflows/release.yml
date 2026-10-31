@@ -1,0 +1,35 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Version must match firmware and integration
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          grep -q "fw_version: \"$TAG\"" firmware/guition-studio.yaml
+          grep -q "\"version\": \"$TAG\"" custom_components/guition_studio/manifest.json
+      - run: pip install esphome==2026.10.1
+      - run: esphome compile firmware/guition-studio.yaml
+      - run: python scripts/package_firmware.py --version "${GITHUB_REF_NAME#v}"
+      - name: Integration zip for HACS
+        run: cd custom_components/guition_studio && zip -r ../../guition_studio.zip . -x "__pycache__/*"
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/firmware/*/firmware.factory.bin
+            dist/firmware/*/firmware.ota.bin
+            dist/firmware/*/SHA256SUMS
+            guition_studio.zip
+          generate_release_notes: true

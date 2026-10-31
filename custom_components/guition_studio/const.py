@@ -8,7 +8,7 @@ and frontend/src/geometry.ts.
 from __future__ import annotations
 
 DOMAIN = "guition_studio"
-VERSION = "0.5.3"
+VERSION = "0.5.4"
 PROTOCOL_VERSION = 5
 LAYOUT_SCHEMA = 1
 
@@ -114,6 +114,7 @@ DEV_ACTION_BACK = 4
 DEV_ACTION_NEXT = 5
 DEV_ACTION_PREV = 6
 DEV_ACTION_SETTINGS = 7  # local: open the on-device settings menu
+DEV_ACTION_COLOR = 8  # local: open the colour picker (RGB tiles)
 
 # Material Design Icons available on the device (generated from scripts/icons.json)
 from .icons import ICONS, LEGACY_ICONS  # noqa: E402, F401

@@ -682,7 +682,7 @@ class StudioManager:
             self._handle_hello(display, payload)
         elif etype == "setting":
             self._handle_setting(display, payload)
-        elif etype in ("tap", "hold", "set", "btn"):
+        elif etype in ("tap", "hold", "set", "btn", "color"):
             self._handle_touch(display, etype, payload)
         elif etype == "hb":
             up = payload.get("up")
@@ -757,15 +757,15 @@ class StudioManager:
         if tile is None:
             self.add_log("warning", f"Unbekannte Kachel {payload.get('t')} berührt", display_id)
             return
-        if etype in ("set", "btn"):
+        if etype in ("set", "btn", "color"):
             state = self.hass.states.get(tile.get("entity") or "")
             resolved = resolve_control(tile, etype, payload, dict(state.attributes) if state else None)
-            label = f"Regler {payload.get('v')} %" if etype == "set" else f"Taste {payload.get('b')}"
+            label = {"set": f"Regler {payload.get('v')} %", "btn": f"Taste {payload.get('b')}", "color": "Farbe"}[etype]
         else:
             resolved = resolve_action(tile, etype)
             label = "Tippen" if etype == "tap" else "Lange tippen"
         if resolved is None:
-            if etype in ("set", "btn"):
+            if etype in ("set", "btn", "color"):
                 self.add_log("warning", f"Ungültige Bedienung {etype} {payload} an Kachel {tile['id']} ignoriert", display_id)
             return
         domain, service, data = resolved

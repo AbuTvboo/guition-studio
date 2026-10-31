@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.4 – Umlaute, Update-Anzeige & Farbwähler
+- **Behoben: Umlaute und Sonderzeichen als Rechtecke.** Die in LVGL eingebauten Schriften enthalten nur ASCII. Die Firmware nutzt jetzt eigene Montserrat-Schriften mit ä ö ü ß, „ “, ·, –, …, °, € usw. (erzeugt mit `scripts/gen-fonts.mjs`).
+- **Update-Seite beim Firmware-Update:** Das Display zeigt „Firmware-Update läuft – nicht vom Strom trennen“ mit Fortschrittsbalken und Prozent, danach „Update abgeschlossen“ bzw. bei Fehlern eine Meldung (die alte Firmware bleibt dann aktiv).
+- **Farbwähler für RGB-Lichter:** Langes Tippen auf eine RGB-Kachel (z. B. WLED) öffnet am Display ein Farbfenster mit 12 Farben, 6 Pastelltönen, 5 Weißtönen (Kerze bis Kalt) und Helligkeitsregler. Home Assistant prüft Farbton, Sättigung und Farbtemperatur auf gültige Bereiche.
+
 ## 0.5.3 – Touch an der richtigen Stelle
 - **Behoben:** Berührungen kamen punktgespiegelt an (✕ oben rechts löste z. B. „Nachtmodus“ aus). Das ESPHome-Displaymodell `GUITION-4848S040` dreht das Bild per `mirror_x`/`mirror_y` um 180°, der Touch-Controller GT911 wurde nicht mitgedreht. Die Firmware spiegelt den Touch jetzt passend.
 - Neu: **Touch-Ausrichtung** unter *Einstellungen* (Standard / 180° / links-rechts / oben-unten), um abweichende Board-Revisionen ohne Neu-Flashen zu korrigieren

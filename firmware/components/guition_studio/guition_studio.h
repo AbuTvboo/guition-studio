@@ -54,6 +54,7 @@ enum TileAction : uint8_t {
   ACTION_NEXT = 5,
   ACTION_PREV = 6,
   ACTION_SETTINGS = 7,  // local: open the settings menu
+  ACTION_COLOR = 8,     // local: open the colour picker of an RGB tile
 };
 
 struct TileCfg {
@@ -185,6 +186,9 @@ class GuitionStudio : public Component {
   void rollback();
   void send_hello();
   void set_mode(int32_t night, int32_t brightness, int32_t dim);
+  /// OTA progress screen: state 0 = running (progress 0..100), 1 = done, 2 = failed
+  void ota_status(int state, float progress);
+  void on_color_event(int code, lv_event_code_t event, lv_obj_t *target);
   void emit(const std::string &type, const std::string &payload);
 
   // LVGL event entry points
@@ -214,6 +218,8 @@ class GuitionStudio : public Component {
   void slide_ready_();
   void slide_failed_();
   void slide_stop_();
+  void open_color_picker_(int view_index);
+  void close_color_picker_();
   int effective_brightness_() const;
   // effective settings = layout + local overrides from the on-device menu
   int brightness_() const { return this->ovr_br_ >= 0 ? this->ovr_br_ : this->layout_.brightness; }
@@ -340,6 +346,15 @@ class GuitionStudio : public Component {
   uint32_t slide_next_at_{0};
   uint32_t slide_counter_{0};
   uint8_t slide_errors_{0};
+
+  // firmware update screen
+  lv_obj_t *ota_obj_{nullptr}, *ota_fill_{nullptr}, *ota_title_{nullptr}, *ota_sub_{nullptr}, *ota_pct_{nullptr};
+  int ota_last_pct_{-1};
+
+  // colour picker popup (RGB tiles, opened by long press)
+  lv_obj_t *color_obj_{nullptr};
+  int color_tile_{-1};
+  uint32_t ota_hide_at_{0};
 };
 
 class EventTrigger : public Trigger<std::string, std::string> {

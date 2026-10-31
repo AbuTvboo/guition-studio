@@ -20,6 +20,7 @@ from typing import Any
 from .const import (
     ACTIONS,
     DEV_ACTION_BACK,
+    DEV_ACTION_COLOR,
     DEV_ACTION_HOME,
     DEV_ACTION_NAVIGATE,
     DEV_ACTION_NEXT,
@@ -583,6 +584,16 @@ def resolve_control(
     ttype = tile.get("type")
     if not entity:
         return None
+    if kind == "color" and ttype == "rgb":
+        h, s, k = payload.get("h"), payload.get("s"), payload.get("k")
+        if isinstance(k, int) and not isinstance(k, bool) and 1500 <= k <= 10000:
+            return ("light", "turn_on", {"entity_id": entity, "color_temp_kelvin": k})
+        if (
+            isinstance(h, int) and isinstance(s, int) and not isinstance(h, bool) and not isinstance(s, bool)
+            and 0 <= h <= 360 and 0 <= s <= 100
+        ):
+            return ("light", "turn_on", {"entity_id": entity, "hs_color": [h, s]})
+        return None
     if kind == "btn" and ttype == "rgb":
         swatch = RGB_SWATCHES.get(payload.get("b"))
         return ("light", "turn_on", {"entity_id": entity, **swatch}) if swatch else None
@@ -619,6 +630,8 @@ def resolve_control(
 def _device_action(tile: dict[str, Any], which: str, page_index: dict[str, int]) -> tuple[int, int]:
     if tile.get("type") == "settings" and which == "tap":
         return DEV_ACTION_SETTINGS, -1
+    if tile.get("type") == "rgb" and which == "hold" and (tile.get("hold_action") or {}).get("action", "none") in ("none", "default"):
+        return DEV_ACTION_COLOR, -1  # long press opens the colour picker on the display
     act = tile.get(f"{which}_action") or {"action": "none"}
     action = act.get("action")
     if action == "navigate":

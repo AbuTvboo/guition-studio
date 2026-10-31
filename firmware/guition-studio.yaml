@@ -10,7 +10,7 @@
 substitutions:
   name: guition-studio
   friendly_name: Guition Studio
-  fw_version: "0.5.3"
+  fw_version: "0.5.4"
 
 esphome:
   name: ${name}
@@ -113,7 +113,9 @@ api:
         url: string
         checksum: string
       then:
-        - lambda: 'id(studio).emit("ota", "{\"state\":\"start\"}");'
+        - lambda: |-
+            id(studio).emit("ota", "{\"state\":\"start\"}");
+            id(studio).ota_status(0, 0);
         - ota.http_request.flash:
             url: !lambda return url;
             md5: !lambda return checksum;
@@ -131,14 +133,19 @@ ota:
       - lambda: |-
           static int last = -10;
           int p = (int) x;
+          id(studio).ota_status(0, x);
           if (p - last >= 10 || p < last) {
             last = p;
             id(studio).emit("ota", "{\"state\":\"progress\",\"p\":" + to_string(p) + "}");
           }
     on_error:
-      - lambda: 'id(studio).emit("ota", "{\"state\":\"error\"}");'
+      - lambda: |-
+          id(studio).ota_status(2, 0);
+          id(studio).emit("ota", "{\"state\":\"error\"}");
     on_end:
-      - lambda: 'id(studio).emit("ota", "{\"state\":\"done\"}");'
+      - lambda: |-
+          id(studio).ota_status(1, 100);
+          id(studio).emit("ota", "{\"state\":\"done\"}");
 
 time:
   - platform: homeassistant
@@ -202,12 +209,6 @@ lvgl:
     - id: gs_page
       bg_color: 0x0B0F14
       widgets:
-        # Hidden probes: they make ESPHome compile the built-in fonts that the
-        # runtime layout engine uses (ESPHome only enables fonts referenced in YAML).
-        - label: { id: gs_font12, hidden: true, text: " ", text_font: montserrat_12 }
-        - label: { id: gs_font20, hidden: true, text: " ", text_font: montserrat_20 }
-        - label: { id: gs_font28, hidden: true, text: " ", text_font: montserrat_28 }
-        - label: { id: gs_font40, hidden: true, text: " ", text_font: montserrat_40 }
         # Enables LV_USE_SLIDER for the runtime dimmer tile.
         - slider: { id: gs_slider_probe, hidden: true, min_value: 0, max_value: 100 }
         # Enables LV_USE_IMAGE for the screensaver slideshow.

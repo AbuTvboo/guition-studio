@@ -275,6 +275,9 @@ export class GsTileProps extends LitElement {
           ? html`<p class="small">Tippen öffnet das Einstellungsmenü direkt am Display (Helligkeit, Timeout, Nachtmodus, Design, Startseite, Info, Neustart). Alternativ: 3 Sekunden auf die Uhr oben rechts drücken.</p>`
           : this.actionEditor("tap_action", "Beim Tippen")}
         ${this.actionEditor("hold_action", "Beim langen Tippen")}
+        ${t.type === "rgb" && ["none", "default"].includes(t.hold_action.action)
+          ? html`<p class="small">Langes Tippen öffnet am Display den <b>Farbwähler</b> (Farben, Weißtöne, Helligkeit).</p>`
+          : nothing}
         <p class="muted small">Aktionen werden in Home Assistant ausgeführt – das Display meldet nur, welche Kachel berührt wurde.</p>
       </section>
 

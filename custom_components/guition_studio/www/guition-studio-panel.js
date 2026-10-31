@@ -2425,6 +2425,7 @@ var ot = class {
         <h3>Aktionen</h3>
         ${e.type === "settings" ? c`<p class="small">Tippen öffnet das Einstellungsmenü direkt am Display (Helligkeit, Timeout, Nachtmodus, Design, Startseite, Info, Neustart). Alternativ: 3 Sekunden auf die Uhr oben rechts drücken.</p>` : this.actionEditor("tap_action", "Beim Tippen")}
         ${this.actionEditor("hold_action", "Beim langen Tippen")}
+        ${e.type === "rgb" && ["none", "default"].includes(e.hold_action.action) ? c`<p class="small">Langes Tippen öffnet am Display den <b>Farbwähler</b> (Farben, Weißtöne, Helligkeit).</p>` : a}
         <p class="muted small">Aktionen werden in Home Assistant ausgeführt – das Display meldet nur, welche Kachel berührt wurde.</p>
       </section>
 

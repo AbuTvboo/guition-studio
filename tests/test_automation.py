@@ -106,6 +106,12 @@ def test_rgb_and_graph_tiles():
     assert resolve_control(rgb, "btn", {"b": "c1"}, None)[2]["color_temp_kelvin"] == 2700
     assert resolve_control(rgb, "btn", {"b": "c9"}, None) is None
     assert resolve_control(rgb, "set", {"v": 60}, None)[2]["brightness_pct"] == 60
+    assert resolve_control(rgb, "color", {"h": 240, "s": 100}, None) == ("light", "turn_on", {"entity_id": "light.strip", "hs_color": [240, 100]})
+    assert resolve_control(rgb, "color", {"k": 2700}, None)[2] == {"entity_id": "light.strip", "color_temp_kelvin": 2700}
+    assert resolve_control(rgb, "color", {"h": 999, "s": 50}, None) is None
+    assert resolve_control(make_tile("dimmer", 0, 0, entity="light.d"), "color", {"h": 10, "s": 10}, None) is None
+    doc = json.loads(compile_device_layout(validate_layout({**default_layout(), "pages": [{"id": "p_1", "name": "A", "cols": 3, "rows": 3, "tiles": [rgb]}]}))[0])
+    assert doc["pages"][0]["t"][0]["ha"] == 8  # long press opens the colour picker
     layout = default_layout()
     graph = make_tile("graph", 0, 1, 2, 1, entity="sensor.power")
     graph["hours"] = 99

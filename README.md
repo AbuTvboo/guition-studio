@@ -12,7 +12,7 @@ Firmware einmal installieren → Seiten per Drag-and-Drop gestalten → „Auf D
 | Flash/OTA | ESP Web Tools (USB, Web Serial), HTTP-OTA über die verschlüsselte API | `firmware.py`, `views/installer.ts` |
 | Tests | pytest (Unit + HA-Integration), Vitest, ESPHome-Build | `tests/`, `frontend/test/` |
 
-## Funktionsumfang v0.3 (Phasen 1–3)
+## Funktionsumfang
 
 - Neu in 0.3: Seitenwechsel-Regeln, Nachtmodus, Bildschirmschoner, Verlaufsgraph, RGB-Kachel sowie Update- und Notify-Entitäten pro Display
 - Neu in 0.2: Dimmer-, Rollladen-, Thermostat-, Mediaplayer- und Wetter-Kacheln sowie 134 Material Design Icons

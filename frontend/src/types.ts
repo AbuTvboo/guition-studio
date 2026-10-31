@@ -113,6 +113,7 @@ export interface DisplaySettings {
   swipe: boolean;
   language: "de" | "en";
   rotation?: 0 | 90 | 180 | 270;
+  touch_mode?: 0 | 1 | 2 | 3;
   night?: NightSettings;
   screensaver?: ScreensaverSettings;
   rules?: PageRule[];

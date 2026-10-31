@@ -94,6 +94,8 @@ def test_rotation_setting():
     layout["settings"]["rotation"] = 270
     doc = json.loads(compile_device_layout(validate_layout(layout))[0])
     assert doc["set"]["rot"] == 270
+    layout["settings"]["touch_mode"] = 1
+    assert json.loads(compile_device_layout(validate_layout(layout))[0])["set"]["tch"] == 1
     layout["settings"]["rotation"] = 45  # invalid -> falls back to 0
     assert validate_layout(layout)["settings"]["rotation"] == 0
 

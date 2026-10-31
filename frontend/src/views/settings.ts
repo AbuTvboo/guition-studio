@@ -138,6 +138,15 @@ export class GsSettings extends StudioView {
                 </select>
               </label>
               <p class="small muted">Dreht Bild und Touch – praktisch, wenn das Display gedreht montiert ist. Auch direkt am Display im Einstellungsmenü änderbar (Firmware ≥ 0.5.2).</p>
+              <label class="field"><span>Touch-Ausrichtung</span>
+                <select @change=${(e: Event) => this.set({ touch_mode: +(e.target as HTMLSelectElement).value as 0 | 1 | 2 | 3 })}>
+                  <option value="0" ?selected=${(s.touch_mode ?? 0) === 0}>Standard</option>
+                  <option value="1" ?selected=${s.touch_mode === 1}>Um 180° gedreht (Tippen landet gegenüber)</option>
+                  <option value="2" ?selected=${s.touch_mode === 2}>Links/rechts gespiegelt</option>
+                  <option value="3" ?selected=${s.touch_mode === 3}>Oben/unten gespiegelt</option>
+                </select>
+              </label>
+              <p class="small muted">Nur ändern, wenn Berührungen an der falschen Stelle ankommen (z. B. ✕ oben rechts löst etwas unten links aus). Wirkt sofort nach „Speichern & auf Display übernehmen“ (Firmware ≥ 0.5.3).</p>
             </div>
           </div>
           <div class="card auto-card">

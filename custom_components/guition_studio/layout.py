@@ -86,6 +86,7 @@ def default_settings() -> dict[str, Any]:
         "swipe": True,
         "language": "de",
         "rotation": 0,
+        "touch_mode": 0,
         "night": default_night(),
         "screensaver": default_screensaver(),
         "rules": [],
@@ -249,6 +250,7 @@ def validate_layout(data: Any) -> dict[str, Any]:
         "swipe": _bool(raw_settings.get("swipe"), True),
         "language": raw_settings.get("language") if raw_settings.get("language") in ("de", "en") else "de",
         "rotation": raw_settings.get("rotation") if raw_settings.get("rotation") in (0, 90, 180, 270) else 0,
+        "touch_mode": _int(raw_settings.get("touch_mode"), 0, 0, 3),
         "night": _validate_night(raw_settings.get("night"), errors),
         "screensaver": _validate_screensaver(raw_settings.get("screensaver"), errors),
         "rules": _validate_rules(raw_settings.get("rules"), errors),
@@ -736,6 +738,7 @@ def compile_device_layout(layout: dict[str, Any], slide_url: str | None = None) 
             "na": lang_na,
             # on-device settings menu: night values for manual toggle, theme choices, current theme
             "rot": settings.get("rotation", 0),
+            "tch": settings.get("touch_mode", 0),
             "nb": (settings.get("night") or {}).get("brightness", 15),
             "nd": (settings.get("night") or {}).get("dim", 30),
             "th": settings["theme"],

@@ -10,7 +10,7 @@
 substitutions:
   name: guition-studio
   friendly_name: Guition Studio
-  fw_version: "0.5.2"
+  fw_version: "0.5.3"
 
 esphome:
   name: ${name}
@@ -185,6 +185,11 @@ touchscreen:
     id: main_touch
     i2c_id: touch_bus
     display: main_display
+    # The GUITION-4848S040 display model mirrors X and Y (180 deg); the touch must match.
+    # Other board revisions can be corrected in Guition Studio (Einstellungen -> Touch-Ausrichtung).
+    transform:
+      mirror_x: true
+      mirror_y: true
 
 lvgl:
   displays: [main_display]
@@ -224,6 +229,7 @@ guition_studio:
   id: studio
   backlight: backlight
   slideshow_image: gs_slide
+  touchscreen_id: main_touch
   time_id: ha_time
   hardware: guition-4848s040
   max_layout_size: 32768

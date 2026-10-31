@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.3 – Touch an der richtigen Stelle
+- **Behoben:** Berührungen kamen punktgespiegelt an (✕ oben rechts löste z. B. „Nachtmodus“ aus). Das ESPHome-Displaymodell `GUITION-4848S040` dreht das Bild per `mirror_x`/`mirror_y` um 180°, der Touch-Controller GT911 wurde nicht mitgedreht. Die Firmware spiegelt den Touch jetzt passend.
+- Neu: **Touch-Ausrichtung** unter *Einstellungen* (Standard / 180° / links-rechts / oben-unten), um abweichende Board-Revisionen ohne Neu-Flashen zu korrigieren
+
 ## 0.5.2 – Bildschirmdrehung & leichteres Öffnen der Einstellungen
 - **Bildschirmdrehung 0° / 90° / 180° / 270°:** Bild und Touch drehen sich gemeinsam, ohne neu zu flashen. Einstellbar unter *Einstellungen*, im Designer (*Displayeinstellungen*) und direkt im Display-Menü. Die Drehung bleibt nach einem Neustart erhalten.
 - **Einstellungen am Display öffnen:** 3 Sekunden auf die **Kopfzeile oder eine beliebige leere Fläche** drücken. Die Bildschirmränder leuchten dabei zunehmend **gelb**, nach 3 Sekunden öffnet sich das Menü. Loslassen bricht ab. Die Zeit misst die Firmware selbst, unabhängig davon, wie oft der Touch-Controller beim Halten meldet.

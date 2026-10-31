@@ -9,6 +9,7 @@ from esphome import automation
 import esphome.codegen as cg
 from esphome.components import light
 from esphome.components import time as time_
+from esphome.components import touchscreen
 import esphome.config_validation as cv
 from esphome.const import CONF_ID, CONF_TIME_ID, CONF_TRIGGER_ID
 
@@ -22,6 +23,7 @@ CONF_MAX_LAYOUT_SIZE = "max_layout_size"
 CONF_HARDWARE = "hardware"
 CONF_SLIDESHOW_IMAGE = "slideshow_image"
 CONF_LVGL_ID = "lvgl_id"
+CONF_TOUCHSCREEN_ID = "touchscreen_id"
 
 gs_ns = cg.esphome_ns.namespace("guition_studio")
 OnlineImage = cg.esphome_ns.namespace("online_image").class_("OnlineImage")
@@ -36,6 +38,8 @@ CONFIG_SCHEMA = cv.Schema(
         cv.GenerateID(): cv.declare_id(GuitionStudio),
         # runtime screen rotation (requires `rotation:` in the lvgl config)
         cv.GenerateID(CONF_LVGL_ID): cv.use_id(LvglComponent),
+        # touch orientation correction selectable in Guition Studio (no re-flash)
+        cv.Optional(CONF_TOUCHSCREEN_ID): cv.use_id(touchscreen.Touchscreen),
         cv.Optional(CONF_BACKLIGHT): cv.use_id(light.LightState),
         cv.Optional(CONF_TIME_ID): cv.use_id(time_.RealTimeClock),
         # online_image used to stream screensaver slideshow pictures from Home Assistant
@@ -57,6 +61,9 @@ async def to_code(config):
     cg.add(var.set_hardware(config[CONF_HARDWARE]))
     lv_comp = await cg.get_variable(config[CONF_LVGL_ID])
     cg.add(var.set_lvgl(lv_comp))
+    if CONF_TOUCHSCREEN_ID in config:
+        ts = await cg.get_variable(config[CONF_TOUCHSCREEN_ID])
+        cg.add(var.set_touchscreen(ts))
     cg.add(var.set_max_layout_size(config[CONF_MAX_LAYOUT_SIZE]))
     if CONF_BACKLIGHT in config:
         bl = await cg.get_variable(config[CONF_BACKLIGHT])

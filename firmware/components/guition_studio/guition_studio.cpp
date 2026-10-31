@@ -295,6 +295,7 @@ void GuitionStudio::loop() {
     this->hide_screensaver_();
     this->close_settings_();
     this->apply_rotation_();
+    this->apply_touch_mode_();
     this->set_backlight_(this->dimmed_ ? std::min(this->standby_(), this->effective_brightness_())
                                        : this->effective_brightness_());
   }
@@ -499,6 +500,7 @@ bool GuitionStudio::parse_layout_(const char *data, size_t len, LayoutCfg &out, 
     int rot = set["rot"] | 0;
     out.rotation = (rot == 90 || rot == 180 || rot == 270) ? rot : 0;
   }
+  out.touch_mode = clampi(set["tch"] | 0, 0, 3);
   out.night_dim = clampi(set["nd"] | 30, 0, 80);
   out.theme = std::string(set["th"] | "").substr(0, 24);
   out.slideshow = (set["ssm"] | 0) == 1;
@@ -1683,6 +1685,27 @@ void GuitionStudio::apply_rotation_() {
   lv_obj_invalidate(GS_SCREEN_ACTIVE());
   lv_obj_invalidate(lv_layer_top());
   ESP_LOGI(TAG, "Screen rotation %d degrees", rot);
+}
+
+void GuitionStudio::apply_touch_mode_() {
+  if (this->touch_ == nullptr || this->layout_.touch_mode == this->applied_touch_mode_)
+    return;
+  int mode = this->layout_.touch_mode;
+  this->applied_touch_mode_ = mode;
+  // Guition 4848S040: the GUITION-4848S040 display model mirrors X and Y (180 degrees),
+  // so the GT911 must be mirrored as well. Modes correct other board revisions.
+  bool mx = true, my = true;
+  if (mode == 1) {
+    mx = false;
+    my = false;
+  } else if (mode == 2) {
+    mx = false;
+  } else if (mode == 3) {
+    my = false;
+  }
+  this->touch_->set_mirror_x(mx);
+  this->touch_->set_mirror_y(my);
+  ESP_LOGI(TAG, "Touch orientation mode %d (mirror_x=%d, mirror_y=%d)", mode, mx, my);
 }
 
 int GuitionStudio::screensaver_s_() const {

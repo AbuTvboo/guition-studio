@@ -22,6 +22,7 @@
 #endif
 
 #include "esphome/components/lvgl/lvgl_esphome.h"
+#include "esphome/components/touchscreen/touchscreen.h"
 #include <lvgl.h>
 
 #if LVGL_VERSION_MAJOR < 9
@@ -97,6 +98,7 @@ struct LayoutCfg {
   std::vector<std::string> ss_titles;
   int night_brightness{15}, night_dim{30};
   int rotation{0};  // 0, 90, 180, 270 degrees
+  int touch_mode{0};  // 0 standard, 1 rotated 180, 2 mirrored left/right, 3 mirrored up/down
   bool slideshow{false};       // screensaver shows pictures streamed from HA
   std::string slide_url;       // base URL incl. per-display token (no query string)
   int slide_interval{15};      // seconds
@@ -159,6 +161,7 @@ class GuitionStudio : public Component {
   void set_hardware(const std::string &hw) { this->hardware_ = hw; }
   void set_max_layout_size(uint32_t size) { this->max_layout_size_ = size; }
   void set_lvgl(lvgl::LvglComponent *lv) { this->lvgl_ = lv; }
+  void set_touchscreen(touchscreen::Touchscreen *ts) { this->touch_ = ts; }
 #ifdef USE_LIGHT
   void set_backlight(light::LightState *bl) { this->backlight_ = bl; }
 #endif
@@ -219,6 +222,7 @@ class GuitionStudio : public Component {
   int screensaver_s_() const;
   int rotation_() const { return this->ovr_rot_ >= 0 ? this->ovr_rot_ : this->layout_.rotation; }
   void apply_rotation_();
+  void apply_touch_mode_();
   void load_overrides_();
   void save_overrides_();
   void clear_overrides_();
@@ -308,6 +312,8 @@ class GuitionStudio : public Component {
   int ovr_br_{-1}, ovr_sb_{-1}, ovr_to_{-1}, ovr_ss_{-1}, ovr_rot_{-1};
   int applied_rotation_{-1};
   lvgl::LvglComponent *lvgl_{nullptr};
+  touchscreen::Touchscreen *touch_{nullptr};
+  int applied_touch_mode_{-1};
 
   // on-device settings menu
   lv_obj_t *header_hit_{nullptr};

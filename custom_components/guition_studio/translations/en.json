@@ -1,0 +1,47 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Guition Studio",
+        "description": "Guition Studio adds a designer for Guition ESP32-S3 touch displays to the sidebar. The firmware source is the GitHub repository verified firmware releases are downloaded from.",
+        "data": { "firmware_repo": "Firmware source (GitHub: owner/repository)" }
+      }
+    },
+    "error": { "invalid_repo": "Use the format owner/repository." },
+    "abort": { "already_configured": "Guition Studio is already configured.", "single_instance_allowed": "Guition Studio is already configured." }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Guition Studio options",
+        "data": { "firmware_repo": "Firmware source (GitHub: owner/repository)" }
+      }
+    },
+    "error": { "invalid_repo": "Use the format owner/repository." }
+  },
+  "services": {
+    "notify": {
+      "name": "Show notification",
+      "description": "Shows a pop-up notification on a Guition display.",
+      "fields": {
+        "display": { "name": "Display", "description": "Display name or id." },
+        "title": { "name": "Title", "description": "Notification title." },
+        "message": { "name": "Message", "description": "Notification text." },
+        "seconds": { "name": "Duration", "description": "Seconds until it closes (0 = until tapped)." }
+      }
+    },
+    "show_page": {
+      "name": "Show page",
+      "description": "Switches a display to a specific page.",
+      "fields": {
+        "display": { "name": "Display", "description": "Display name or id." },
+        "page": { "name": "Page", "description": "Page name, page id or page number (from 1)." }
+      }
+    },
+    "push_layout": {
+      "name": "Push layout",
+      "description": "Transfers the current draft of a display.",
+      "fields": { "display": { "name": "Display", "description": "Display name or id." } }
+    }
+  }
+}

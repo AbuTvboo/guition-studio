@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+node_modules/
+dist/
+firmware/.esphome/
+firmware/secrets.yaml
+*.local.yaml
+.DS_Store

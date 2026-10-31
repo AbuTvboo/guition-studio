@@ -1,0 +1,26 @@
+{
+    "name":  "guition-studio-frontend",
+    "version": "0.3.0",
+    "private":  true,
+    "type":  "module",
+    "description":  "Guition Studio panel for Home Assistant",
+    "license":  "MIT",
+    "scripts":  {
+                    "dev":  "vite",
+                    "build":  "tsc --noEmit \u0026\u0026 vite build",
+                    "typecheck":  "tsc --noEmit",
+                    "test":  "vitest run"
+                },
+    "dependencies":  {
+                         "esp-web-tools":  "10.4.0",
+                         "lit":  "3.3.3"
+                     },
+    "devDependencies":  {
+                            "typescript":  "5.9.3",
+                            "vite":  "8.3.5",
+                            "vitest":  "5.0.5"
+                        },
+    "overrides":  {
+                      "@material/web":  "2.4.1"
+                  }
+}

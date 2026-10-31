@@ -1,0 +1,50 @@
+# Changelog
+
+## 0.3.0 – Phase 3 „Erweiterte Funktionen“
+
+**Intelligente Automatisierung (ohne YAML, Reiter „Automatik“ im Designer)**
+- Seitenwechsel-Regeln: „Um HH:MM → Seite“ oder „Wenn Entität wird / größer / kleiner … → Seite“. Flankengetriggert, weckt das Display. Bis zu 20 Regeln.
+- Nachtmodus nach Uhrzeit oder Sonnenstand (`sun.sun`): maximale Helligkeit, zusätzlicher Abdunklungsfilter (0–80 %), optionaler Seitenwechsel bei Beginn
+- Bildschirmschoner: Uhr, Datum und bis zu zwei Werte nach einstellbarer Inaktivität; das erste Antippen beendet ihn ohne Aktion
+
+**Erweiterte Widgets**
+- Verlaufsgraph (`graph`): 1–48 h aus dem Recorder, 48 Säulen, Min/Max-Anzeige, Aktualisierung alle 10 Minuten
+- RGB-Licht (`rgb`): Helligkeitsregler und fünf Farbfelder (Warmweiß, Rot, Grün, Blau, Violett)
+- Kamera bleibt bewusst gesperrt: Ein Videostream über die ESPHome-API auf einem ESP32-Panel ist technisch nicht sinnvoll.
+
+**Home-Assistant-Entitäten pro Display**
+- `update.*`: Firmware-Version, Update-Hinweis unter *Einstellungen → Updates*, Installation per Klick (lädt die Firmware bei Bedarf herunter, prüft sie und installiert per OTA mit Fortschritt)
+- `notify.*`: Display als Ziel für `notify.send_message` in Automationen
+- Die Entitäten hängen am verknüpften ESPHome-Gerät und werden beim Entfernen eines Displays aufgeräumt.
+
+**Überwachung und Stabilität**
+- Heartbeat des Displays alle 5 Minuten (Laufzeit, freier RAM/PSRAM), Erkennung von Neustarts, Minimum des freien RAM, Anzeige in der Diagnose
+- Ein Seitenwechsel aus HA weckt das Display und beendet den Bildschirmschoner
+- Protokoll 3 (neue Aktion `gs_mode`, Event `hb`, Graphdaten `g`/`gr`); ältere Firmware wird als inkompatibel gemeldet
+
+## 0.2.0 – Phase 2 „Bedienkomfort“
+
+**Neue Kacheltypen (Firmware + Editor + Home Assistant)**
+- **Licht mit Helligkeitsregler** (`dimmer`): Schieberegler auf dem Display, Tippen schaltet um
+- **Rollladen** (`cover`): ▲ ■ ▼ und Position
+- **Thermostat** (`thermostat`): aktuelle Temperatur, Zieltemperatur, − / + in der Schrittweite des Geräts (begrenzt auf min/max)
+- **Mediaplayer** (`media`): Interpret – Titel, Status, ⏮ ⏯ ⏭, ab 2 Spalten zusätzlich Lautstärke − / +
+- **Wetter** (`weather`): Temperatur, Zustand und Luftfeuchte, Icon passend zum Wetter
+- Der Editor wählt den Kacheltyp automatisch passend zur Entität (z. B. dimmbare Lampe → Dimmer, `climate` → Thermostat) und prüft, ob die Domain zum Typ passt
+
+**Material Design Icons auf dem Display**
+- 134 MDI-Icons (u. a. Glühbirne, Deckenlampe, Rollladen, Heizkörper, Wetter) als LVGL-Schrift in 20/28/40 px
+- Icon-Auswahl im Editor mit Suche
+- Eine einzige Quelle (`scripts/icons.json`) erzeugt Firmware-Schrift, C++-Tabelle, Python- und TypeScript-Liste (`scripts/gen-icons.mjs`)
+- Alte Icon-Namen aus 0.1 werden automatisch umgesetzt (z. B. `charge` → `flash`)
+
+**Protokoll 2**
+- Neue Gerätemeldungen `set` (Regler) und `btn` (Taste in einer Kachel)
+- Zustände enthalten zusätzlich `n` (0–100), `s` (Zweitzeile) und `i` (Icon)
+- Sicherheit: Home Assistant akzeptiert nur Bedienungen, die zum Kacheltyp passen, prüft Wertebereiche und steuert ausschließlich die Entität der Kachel
+- Firmware 0.1 wird als inkompatibel erkannt („bitte Firmware aktualisieren“)
+
+**Vorlagen** auf neue Kacheln und Icons umgestellt (Wohnzimmer mit Wetter/Dimmer/Rollladen, Heizung mit Thermostaten, Mediensteuerung mit Mediaplayer-Kachel).
+
+## 0.1.0 – Phase 1 MVP
+Erste Version: HACS-Integration, Designer, Laufzeit-Layout-Engine, Übertragung mit ACK/Retry/Rollback, USB-Installation, OTA, Vorlagen, Backups.

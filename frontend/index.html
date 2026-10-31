@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Guition Studio – Entwicklungsumgebung (Mock)</title>
+    <style>
+      body { margin: 0; background: #f4f6f9; }
+    </style>
+  </head>
+  <body>
+    <!-- DEVELOPMENT ONLY: in-memory mock of the Home Assistant backend -->
+    <script type="module">
+      import "./src/main.ts";
+      import { createMockHass } from "./dev/mock-hass.ts";
+      const el = document.createElement("guition-studio-panel");
+      el.hass = createMockHass();
+      document.body.appendChild(el);
+    </script>
+  </body>
+</html>

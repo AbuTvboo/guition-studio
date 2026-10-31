@@ -1,0 +1,41 @@
+notify:
+  fields:
+    display:
+      required: true
+      example: "Wohnzimmer-Display"
+      selector:
+        text:
+    title:
+      example: "Waschmaschine"
+      selector:
+        text:
+    message:
+      required: true
+      example: "Die Wäsche ist fertig."
+      selector:
+        text:
+          multiline: true
+    seconds:
+      default: 10
+      selector:
+        number:
+          min: 0
+          max: 3600
+          unit_of_measurement: s
+show_page:
+  fields:
+    display:
+      required: true
+      selector:
+        text:
+    page:
+      required: true
+      example: "Licht"
+      selector:
+        text:
+push_layout:
+  fields:
+    display:
+      required: true
+      selector:
+        text:

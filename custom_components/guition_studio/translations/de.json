@@ -1,0 +1,47 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Guition Studio einrichten",
+        "description": "Guition Studio fügt der Seitenleiste einen Designer für Guition-ESP32-S3-Touchdisplays hinzu. Die Firmware-Quelle ist das GitHub-Repository, aus dem geprüfte Firmware-Versionen geladen werden.",
+        "data": { "firmware_repo": "Firmware-Quelle (GitHub: besitzer/repository)" }
+      }
+    },
+    "error": { "invalid_repo": "Bitte im Format besitzer/repository angeben." },
+    "abort": { "already_configured": "Guition Studio ist bereits eingerichtet.", "single_instance_allowed": "Guition Studio ist bereits eingerichtet." }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Guition Studio – Optionen",
+        "data": { "firmware_repo": "Firmware-Quelle (GitHub: besitzer/repository)" }
+      }
+    },
+    "error": { "invalid_repo": "Bitte im Format besitzer/repository angeben." }
+  },
+  "services": {
+    "notify": {
+      "name": "Benachrichtigung anzeigen",
+      "description": "Zeigt eine Pop-up-Benachrichtigung auf einem Guition-Display an.",
+      "fields": {
+        "display": { "name": "Display", "description": "Name oder ID des Displays." },
+        "title": { "name": "Titel", "description": "Überschrift der Benachrichtigung." },
+        "message": { "name": "Nachricht", "description": "Text der Benachrichtigung." },
+        "seconds": { "name": "Anzeigedauer", "description": "Sekunden bis zum automatischen Schließen (0 = bis zum Antippen)." }
+      }
+    },
+    "show_page": {
+      "name": "Seite anzeigen",
+      "description": "Wechselt auf dem Display zu einer bestimmten Seite (z. B. für intelligenten Seitenwechsel per Automation).",
+      "fields": {
+        "display": { "name": "Display", "description": "Name oder ID des Displays." },
+        "page": { "name": "Seite", "description": "Seitenname, Seiten-ID oder Seitennummer (ab 1)." }
+      }
+    },
+    "push_layout": {
+      "name": "Layout übertragen",
+      "description": "Überträgt den aktuellen Entwurf eines Displays.",
+      "fields": { "display": { "name": "Display", "description": "Name oder ID des Displays." } }
+    }
+  }
+}

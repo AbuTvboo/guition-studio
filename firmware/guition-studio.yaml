@@ -1,0 +1,243 @@
+# Guition Studio firmware for Guition ESP32-S3-4848S040 (4", 480x480, ST7701S + GT911)
+#
+# This is the configuration used for the pre-built release firmware.
+# It contains NO secrets: Wi-Fi is provisioned via Improv Serial (ESP Web Tools),
+# the native API encryption key is generated and provisioned by Home Assistant
+# on first connection (dynamic encryption key).
+#
+# Pinned & tested toolchain: ESPHome 2026.10.1 (see docs/FIRMWARE.md)
+
+substitutions:
+  name: guition-studio
+  friendly_name: Guition Studio
+  fw_version: "0.3.0"
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  name_add_mac_suffix: true
+  min_version: 2026.10.0
+  project:
+    name: guition.studio
+    version: ${fw_version}
+
+esp32:
+  variant: esp32s3
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+external_components:
+  - source:
+      type: local
+      path: components
+    components: [guition_studio]
+
+logger:
+  level: INFO
+  # The board's USB-C port is wired to a USB-UART bridge (UART0). GPIO19/20
+  # (native USB) are used by the touch I2C bus and the RGB data bus.
+  hardware_uart: UART0
+
+wifi:
+  # No credentials: provisioned via Improv Serial during USB installation.
+  # Deliberately no fallback AP / captive portal, because the captive portal
+  # would expose an unauthenticated firmware upload page.
+  power_save_mode: none
+
+improv_serial:
+
+api:
+  # Key is provisioned by Home Assistant on first connection and stored on the device.
+  encryption: {}
+  reboot_timeout: 0s
+  on_client_connected:
+    - delay: 2s
+    - lambda: id(studio).send_hello();
+  actions:
+    - action: gs_layout_begin
+      variables:
+        session: int
+        total: int
+        crc: int
+      then:
+        - lambda: id(studio).layout_begin(session, total, crc);
+    - action: gs_layout_chunk
+      variables:
+        session: int
+        index: int
+        data: string
+      then:
+        - lambda: id(studio).layout_chunk(session, index, data);
+    - action: gs_layout_commit
+      variables:
+        session: int
+      then:
+        - lambda: id(studio).layout_commit(session);
+    - action: gs_states
+      variables:
+        data: string
+      then:
+        - lambda: id(studio).set_states(data);
+    - action: gs_page
+      variables:
+        page: int
+      then:
+        - lambda: id(studio).show_page(page);
+    - action: gs_notify
+      variables:
+        title: string
+        message: string
+        seconds: int
+      then:
+        - lambda: id(studio).notify(title, message, seconds);
+    - action: gs_mode
+      variables:
+        night: int
+        brightness: int
+        dim: int
+      then:
+        - lambda: id(studio).set_mode(night, brightness, dim);
+    - action: gs_rollback
+      then:
+        - lambda: id(studio).rollback();
+    - action: gs_hello
+      then:
+        - lambda: id(studio).send_hello();
+    - action: gs_ota
+      variables:
+        url: string
+        checksum: string
+      then:
+        - lambda: 'id(studio).emit("ota", "{\"state\":\"start\"}");'
+        - ota.http_request.flash:
+            url: !lambda return url;
+            md5: !lambda return checksum;
+
+http_request:
+  timeout: 60s
+  verify_ssl: false
+
+ota:
+  # Only reachable through the encrypted native API action gs_ota (triggered by
+  # the Guition Studio integration). No unauthenticated OTA port is opened.
+  - platform: http_request
+    id: gs_ota_platform
+    on_progress:
+      - lambda: |-
+          static int last = -10;
+          int p = (int) x;
+          if (p - last >= 10 || p < last) {
+            last = p;
+            id(studio).emit("ota", "{\"state\":\"progress\",\"p\":" + to_string(p) + "}");
+          }
+    on_error:
+      - lambda: 'id(studio).emit("ota", "{\"state\":\"error\"}");'
+    on_end:
+      - lambda: 'id(studio).emit("ota", "{\"state\":\"done\"}");'
+
+time:
+  - platform: homeassistant
+    id: ha_time
+
+spi:
+  - id: lcd_spi
+    clk_pin: GPIO48
+    mosi_pin: GPIO47
+
+i2c:
+  - id: touch_bus
+    sda: GPIO19
+    scl:
+      number: GPIO45
+      ignore_strapping_warning: true
+
+output:
+  - platform: ledc
+    id: backlight_output
+    pin: GPIO38
+    frequency: 150Hz
+    min_power: 0.01
+    zero_means_zero: true
+
+light:
+  - platform: monochromatic
+    id: backlight
+    name: Hintergrundbeleuchtung
+    output: backlight_output
+    restore_mode: ALWAYS_ON
+    default_transition_length: 300ms
+
+display:
+  - platform: mipi_rgb
+    model: GUITION-4848S040
+    id: main_display
+    spi_id: lcd_spi
+    update_interval: never
+    auto_clear_enabled: false
+
+touchscreen:
+  - platform: gt911
+    id: main_touch
+    i2c_id: touch_bus
+    display: main_display
+
+lvgl:
+  displays: [main_display]
+  touchscreens: [main_touch]
+  buffer_size: 25%
+  default_font: montserrat_16
+  pages:
+    - id: gs_page
+      bg_color: 0x0B0F14
+      widgets:
+        # Hidden probes: they make ESPHome compile the built-in fonts that the
+        # runtime layout engine uses (ESPHome only enables fonts referenced in YAML).
+        - label: { id: gs_font12, hidden: true, text: " ", text_font: montserrat_12 }
+        - label: { id: gs_font20, hidden: true, text: " ", text_font: montserrat_20 }
+        - label: { id: gs_font28, hidden: true, text: " ", text_font: montserrat_28 }
+        - label: { id: gs_font40, hidden: true, text: " ", text_font: montserrat_40 }
+        # Enables LV_USE_SLIDER for the runtime dimmer tile.
+        - slider: { id: gs_slider_probe, hidden: true, min_value: 0, max_value: 100 }
+
+guition_studio:
+  id: studio
+  backlight: backlight
+  time_id: ha_time
+  hardware: guition-4848s040
+  max_layout_size: 32768
+  on_event:
+    - homeassistant.event:
+        event: esphome.guition_studio
+        data:
+          type: !lambda return type;
+          payload: !lambda return payload;
+          node: !lambda return App.get_name();
+
+sensor:
+  - platform: wifi_signal
+    name: WLAN-Signal
+    update_interval: 60s
+    entity_category: diagnostic
+  - platform: uptime
+    name: Betriebszeit
+    update_interval: 60s
+    entity_category: diagnostic
+
+text_sensor:
+  - platform: version
+    name: ESPHome-Version
+    hide_timestamp: true
+  - platform: wifi_info
+    ip_address:
+      name: IP-Adresse
+
+button:
+  - platform: restart
+    name: Neustart
+    entity_category: config
+

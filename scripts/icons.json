@@ -1,0 +1,31 @@
+{
+  "_comment": "Single source of truth for device icons. Run: node scripts/gen-icons.mjs <path-to-@mdi/font> <path-to-lv_font_conv>",
+  "sizes": [20, 28, 40],
+  "icons": [
+    "lightbulb", "lightbulb-outline", "lightbulb-group", "ceiling-light", "floor-lamp", "desk-lamp", "lamp", "led-strip-variant", "string-lights",
+    "power", "power-plug", "power-socket-de", "toggle-switch", "fan", "air-conditioner", "radiator", "heat-wave", "snowflake", "fire",
+    "thermometer", "water-percent", "water", "home-thermometer",
+    "window-shutter", "window-shutter-open", "blinds", "curtains", "garage", "door", "door-open", "window-closed", "window-open",
+    "lock", "lock-open", "gate",
+    "television", "speaker", "music", "play", "pause", "play-pause", "stop", "skip-next", "skip-previous",
+    "volume-high", "volume-off", "volume-minus", "volume-plus", "cast",
+    "weather-sunny", "weather-night", "weather-cloudy", "weather-partly-cloudy", "weather-rainy", "weather-pouring", "weather-snowy",
+    "weather-snowy-rainy", "weather-fog", "weather-hail", "weather-lightning", "weather-lightning-rainy", "weather-windy",
+    "motion-sensor", "run", "account", "home", "home-outline", "sofa", "bed", "silverware-fork-knife", "shower", "washing-machine",
+    "dishwasher", "coffee", "robot-vacuum", "car", "bike",
+    "flash", "lightning-bolt", "solar-power", "battery", "battery-charging", "gauge", "chart-line",
+    "wifi", "bell", "cog", "information", "alert", "check", "close", "plus", "minus",
+    "arrow-up", "arrow-down", "arrow-left", "arrow-right", "chevron-left", "chevron-right", "menu",
+    "palette", "script-text", "robot", "movie-open", "star", "heart", "clock-outline", "calendar", "shield-home", "cctv",
+    "leaf", "flower", "sprinkler", "pool", "trash-can", "package-variant", "phone", "email",
+    "refresh", "image", "map-marker", "pencil", "bluetooth", "usb", "content-save", "file", "folder", "keyboard",
+    "repeat", "shuffle", "eject", "upload", "download", "harddisk"
+  ],
+  "legacy": {
+    "settings": "cog", "next": "skip-next", "prev": "skip-previous", "volume": "volume-high", "mute": "volume-off",
+    "up": "arrow-up", "down": "arrow-down", "left": "arrow-left", "right": "arrow-right", "ok": "check", "warning": "alert",
+    "charge": "flash", "eye": "motion-sensor", "tint": "water-percent", "audio": "music", "video": "television", "list": "menu",
+    "gps": "map-marker", "edit": "pencil", "trash": "trash-can", "envelope": "email", "call": "phone", "save": "content-save",
+    "loop": "repeat", "bars": "menu", "drive": "harddisk"
+  }
+}

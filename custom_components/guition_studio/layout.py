@@ -32,6 +32,7 @@ from .const import (
     ICONS,
     LAYOUT_SCHEMA,
     LEGACY_ICONS,
+    MAX_SWIPE_ITEMS,
     MAX_GRID,
     MAX_LAYOUT_BYTES,
     MAX_PAGES,
@@ -188,7 +189,22 @@ def make_tile(
         "visibility": [],
         "hours": 24,
         "weather": dict(WEATHER_OPTIONS),
+        "items": [],
     }
+
+
+def swipe_items(tile: dict[str, Any]) -> list[dict[str, Any]]:
+    """Entities of a swipe tile (empty for every other tile type)."""
+    return (tile.get("items") or []) if tile.get("type") == "swipe" else []
+
+
+def swipe_item_tile(tile: dict[str, Any], index: Any) -> dict[str, Any] | None:
+    """The tile as seen for one swipe item: same actions, entity/title of that item."""
+    items = swipe_items(tile)
+    if not isinstance(index, int) or isinstance(index, bool) or not 0 <= index < len(items):
+        return None
+    item = items[index]
+    return {**tile, "entity": item["entity"], "title": item.get("title") or tile.get("title", "")}
 
 
 # --------------------------------------------------------------------------- validation
@@ -496,6 +512,29 @@ def _validate_tile(
     if entity is not None and (not isinstance(entity, str) or not ENTITY_RE.match(entity)):
         errors.append(f"{where}: ungültige Entity-ID „{entity}“.")
         entity = None
+    items: list[dict[str, Any]] = []
+    if ttype == "swipe":
+        raw_items = tile.get("items") if isinstance(tile.get("items"), list) else []
+        if len(raw_items) > MAX_SWIPE_ITEMS:
+            errors.append(f"{where}: Eine Wisch-Kachel hat höchstens {MAX_SWIPE_ITEMS} Entitäten.")
+        for item in raw_items[:MAX_SWIPE_ITEMS]:
+            if not isinstance(item, dict):
+                continue
+            ient = item.get("entity")
+            if not ient:
+                continue
+            if not isinstance(ient, str) or not ENTITY_RE.match(ient):
+                errors.append(f"{where}: ungültige Entity-ID „{ient}“.")
+                continue
+            iicon = item.get("icon") or None
+            iicon = LEGACY_ICONS.get(iicon, iicon) if iicon else None
+            if iicon is not None and iicon not in ICONS:
+                errors.append(f"{where}: Unbekanntes Icon „{iicon}“.")
+                iicon = None
+            items.append({"entity": ient, "title": str(item.get("title") or "")[:MAX_TITLE_LEN], "icon": iicon})
+        if not items:
+            errors.append(f"{where}: Bitte mindestens eine Entität für die Wisch-Kachel auswählen.")
+        entity = items[0]["entity"] if items else None
     if ttype in TILE_ENTITY_DOMAINS:
         domains = TILE_ENTITY_DOMAINS[ttype]
         if not entity:
@@ -552,6 +591,7 @@ def _validate_tile(
         "visibility": visibility,
         "hours": _int(tile.get("hours"), 24, 1, 48),
         "weather": _weather_options(tile.get("weather")),
+        "items": items,
     }
 
 
@@ -676,6 +716,10 @@ def _device_action(tile: dict[str, Any], which: str, page_index: dict[str, int])
         return DEV_ACTION_COLOR, -1  # long press opens the colour picker on the display
     act = tile.get(f"{which}_action") or {"action": "none"}
     action = act.get("action")
+    if tile.get("type") == "swipe" and action not in ("navigate", "home", "back", "next", "prev"):
+        # remote if the action does something for at least one of the entities
+        views = (swipe_item_tile(tile, i) for i in range(len(swipe_items(tile))))
+        return (DEV_ACTION_REMOTE if any(v and resolve_action(v, which) for v in views) else DEV_ACTION_NONE), -1
     if action == "navigate":
         return DEV_ACTION_NAVIGATE, page_index.get(act.get("page"), -1)
     if action == "home":
@@ -728,6 +772,16 @@ def compile_device_layout(layout: dict[str, Any], slide_url: str | None = None) 
                 dev["ic"] = t["icon"]
             if t.get("format"):
                 dev["fmt"] = t["format"]
+            if t["type"] == "swipe":
+                # [entity, title, icon] per item; title falls back to a readable object id
+                dev["it"] = [
+                    [
+                        it["entity"],
+                        (it.get("title") or it["entity"].split(".", 1)[1].replace("_", " ").title())[:MAX_TITLE_LEN],
+                        it.get("icon") or "",
+                    ]
+                    for it in swipe_items(t)
+                ]
             if t["type"] == "weather":
                 opts = t.get("weather") or WEATHER_OPTIONS
                 dev["wo"] = sum(bit for key, bit in WEATHER_BITS.items() if opts.get(key, WEATHER_OPTIONS[key]))
@@ -851,6 +905,7 @@ def layout_entities(layout: dict[str, Any]) -> set[str]:
         for tile in page.get("tiles", []):
             if tile.get("entity"):
                 out.add(tile["entity"])
+            out.update(it["entity"] for it in swipe_items(tile))
             for cond in tile.get("visibility", []):
                 out.add(cond["entity"])
     return out

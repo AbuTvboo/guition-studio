@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.8 – Wisch-Kachel
+- **Neue Wisch-Kachel:** bis zu 4 Entitäten in **einer** Kachel. Wischst du auf dem Display über die Kachel nach links oder rechts, zeigt sie die nächste bzw. vorige Entität. Die neue Anzeige gleitet von der Seite herein. Die Seite wechselt dabei nicht. Punkte oben rechts zeigen, welche Entität gerade zu sehen ist.
+- Tippen bedient immer die **gerade angezeigte** Entität (z. B. Licht umschalten). Leuchtet die angezeigte Entität, färbt sich die Kachel ein, wie bei normalen Licht- und Schalterkacheln.
+- Im Designer liegt sie in der Bibliothek unter **System → „Wisch-Kachel (bis 4 Entitäten)“**. Titel und Icon werden beim Auswählen automatisch vorgeschlagen, die Reihenfolge lässt sich ändern.
+
 ## 0.5.7 – Gebetszeiten & kein Flackern mehr beim Update
 - **Neuer Bildschirmschoner „Islamische Gebetszeiten“:** Uhrzeit und Datum, darunter Fajr, Sonnenaufgang, Dhuhr, Asr, Maghrib und Isha. Das **nächste Gebet** ist farbig hervorgehoben, darüber steht ein Countdown („Nächstes Gebet: Asr in 1 h 23 min“). Zur Gebetszeit steht 15 Minuten lang „Jetzt: …“. Die Zeiten kommen aus der Home-Assistant-Integration **Islamic Prayer Times**, dort stellst du auch die Berechnungsmethode ein. Im Designer werden die Sensoren automatisch erkannt, du kannst sie aber auch von Hand wählen.
 - Zeitstempel-Sensoren werden jetzt in der **Zeitzone von Home Assistant** angezeigt. Vorher galt die Zeitzone des Betriebssystems, und in Docker ohne `TZ` lagen die Zeiten dadurch um eine Stunde daneben.

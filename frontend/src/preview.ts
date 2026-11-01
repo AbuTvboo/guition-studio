@@ -114,7 +114,7 @@ export function previewState(hass: Hass | undefined, tile: Tile): PreviewState {
 }
 
 export function tileColors(tile: Tile, theme: Theme, ps: PreviewState) {
-  const stateful = ["light", "switch", "dimmer", "rgb"].includes(tile.type);
+  const stateful = ["light", "switch", "dimmer", "rgb", "swipe"].includes(tile.type);
   const on = stateful && ps.on && ps.available;
   const s = tile.style;
   return {

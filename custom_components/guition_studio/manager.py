@@ -71,6 +71,7 @@ from .layout import (
     layout_entities,
     resolve_action,
     resolve_control,
+    swipe_item_tile,
     validate_layout,
 )
 from .protocol import (
@@ -781,6 +782,13 @@ class StudioManager:
         if tile is None:
             self.add_log("warning", f"Unbekannte Kachel {payload.get('t')} berührt", display_id)
             return
+        if tile.get("type") == "swipe":
+            # the display reports which of the entities is currently shown
+            item_tile = swipe_item_tile(tile, payload.get("i", 0))
+            if item_tile is None:
+                self.add_log("warning", f"Ungültiger Eintrag {payload.get('i')} der Wisch-Kachel {tile['id']}", display_id)
+                return
+            tile = item_tile
         if etype in ("set", "btn", "color"):
             state = self.hass.states.get(tile.get("entity") or "")
             resolved = resolve_control(tile, etype, payload, dict(state.attributes) if state else None)

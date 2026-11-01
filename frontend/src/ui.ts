@@ -361,7 +361,13 @@ export function formatBytes(n: number | null | undefined): string {
 const FONT_PX: Record<string, number> = { s: 12, m: 16, l: 20, xl: 28, xxl: 40 };
 
 /** Inner content of a tile, laid out like the firmware does. */
-export function renderTileContent(tile: Tile, theme: Theme, hass: Hass | undefined, pw: number, ph: number, now = new Date()): TemplateResult {
+export function renderTileContent(tile: Tile, theme: Theme, hass: Hass | undefined, pw: number, ph: number, now = new Date(), item = 0): TemplateResult {
+  const items = tile.type === "swipe" ? tile.items ?? [] : [];
+  if (items.length) {
+    // swipe tile: shown like an entity tile for the current item
+    const it = items[Math.min(item, items.length - 1)];
+    tile = { ...tile, entity: it.entity, title: it.title, icon: it.icon ?? tile.icon };
+  }
   const ps = previewState(hass, tile);
   const c = tileColors(tile, theme, ps);
   const big = pw >= 200 && ph >= 200;
@@ -496,6 +502,11 @@ export function renderTileContent(tile: Tile, theme: Theme, hass: Hass | undefin
         ${rgb
           ? html`<div class="t-buttons" style="left:${pad}px;right:${pad}px;bottom:${pad + sliderH + 10}px;height:${swatchH}px">
               ${["#FFB46B", "#FF3B30", "#34C759", "#0A84FF", "#BF5AF2"].map((col) => html`<span style="border-radius:${swatchH}px;background:${col}"></span>`)}
+            </div>`
+          : nothing}
+        ${items.length > 1
+          ? html`<div style="position:absolute;right:${pad}px;top:${pad + 4}px;display:flex;gap:5px">
+              ${items.map((_, i) => html`<span style="width:7px;height:7px;border-radius:4px;background:${c.fg};opacity:${i === Math.min(item, items.length - 1) ? 1 : 0.4}"></span>`)}
             </div>`
           : nothing}`;
     }

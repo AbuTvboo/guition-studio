@@ -16,7 +16,8 @@ export type TileType =
   | "cover"
   | "thermostat"
   | "media"
-  | "weather";
+  | "weather"
+  | "swipe";
 
 /** Tile types that need an entity; value = allowed domains (null = any). Mirrors const.py. */
 export const TILE_ENTITY_DOMAINS: Partial<Record<TileType, string[] | null>> = {
@@ -30,6 +31,8 @@ export const TILE_ENTITY_DOMAINS: Partial<Record<TileType, string[] | null>> = {
   thermostat: ["climate", "water_heater"],
   media: ["media_player"],
   weather: ["weather"],
+  // entities are chosen per item (tile.items), tile.entity mirrors the first one
+  swipe: null,
 };
 export type ActionType =
   | "none"
@@ -91,7 +94,17 @@ export interface Tile {
   visibility: Condition[];
   hours?: number;
   weather?: WeatherOptions;
+  /** swipe tile: up to 4 entities, one shown at a time */
+  items?: SwipeItem[];
 }
+
+export interface SwipeItem {
+  entity: string;
+  title: string;
+  icon: string | null;
+}
+
+export const MAX_SWIPE_ITEMS = 4;
 
 export interface WeatherOptions {
   condition: boolean;

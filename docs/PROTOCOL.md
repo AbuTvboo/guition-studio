@@ -34,7 +34,8 @@ Das Display ruft **niemals** selbst HA-Dienste auf. Es meldet nur `tap`/`hold`/`
 |---|---|
 | `hello` | `{"proto":2,"fw":"0.2.0","hw":"guition-4848s040","rev":3,"crc":…,"page":0,"heap":…,"psram":…,"up":…,"max":32768,"layout":true}` |
 | `ack` | `{"s":session,"ok":true,"rev":3,"crc":…,"err":""}`, Fehlercodes: `crc, size, oom, sequence, overflow, incomplete, session, nvs, version, json:*, schema:*` |
-| `tap` / `hold` | `{"t":"t_ab12cd34","p":"p_…"}` |
+| `tap` / `hold` | `{"t":"t_ab12cd34","p":"p_…"}`; bei der Wisch-Kachel zusätzlich `"i":1` = Index der gerade angezeigten Entität (HA bedient genau diese) |
+| *(Layout, Kachel `swipe`)* | `"it":[[entity, titel, icon], …]`: bis zu 4 Entitäten; `e` = erste Entität |
 | `set` | `{"t":"t_…","p":"p_…","v":35}`: Schieberegler losgelassen (nur `dimmer`, 0–100; 0 = aus) |
 | `btn` | `{"t":"t_…","p":"p_…","b":"down"}`: Taste in einer Kachel. `cover`: up/stop/down · `thermostat`: minus/plus · `media`: prev/play/next/vol_down/vol_up |
 | `page` | `{"page":1,"id":"p_…"}` |

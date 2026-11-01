@@ -49,6 +49,7 @@ export function makeTile(type: TileType, x = 0, y = 0, w = 1, h = 1, extra: Part
     visibility: [],
     hours: 24,
     weather: { ...DEFAULT_WEATHER_OPTIONS },
+    items: [],
     ...extra,
   };
 }

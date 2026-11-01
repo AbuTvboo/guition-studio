@@ -633,6 +633,21 @@ bool GuitionStudio::parse_layout_(const char *data, size_t len, LayoutCfg &out, 
       tile.tap_page = t["tp"] | -1;
       tile.hold_page = t["hp"] | -1;
       tile.wopts = static_cast<uint8_t>(clampi(t["wo"] | 0x2F, 0, 63));
+      if (tile.kind == "swipe") {
+        for (JsonArrayConst it : t["it"].as<JsonArrayConst>()) {
+          if (tile.items.size() >= static_cast<size_t>(MAX_SWIPE_ITEMS))
+            break;
+          SwipeItem item{std::string(it[0] | "").substr(0, 96), std::string(it[1] | "").substr(0, 64),
+                         std::string(it[2] | "").substr(0, 16)};
+          if (!item.entity.empty())
+            tile.items.push_back(std::move(item));
+        }
+        if (tile.items.empty()) {
+          err = "schema:swipe:" + tile.id;
+          return false;
+        }
+        tile.entity = tile.items[0].entity;
+      }
       page.tiles.push_back(std::move(tile));
     }
     out.pages.push_back(std::move(page));
@@ -1120,6 +1135,47 @@ void GuitionStudio::build_tile_(int page_index, lv_obj_t *parent, const TileCfg 
     view.graph_area = make_plain(o);
     lv_obj_set_pos(view.graph_area, pad, top);
     lv_obj_set_size(view.graph_area, inner_w, ph - top - bottom);
+  } else if (t.kind == "swipe") {
+    // Several entities in one tile: the labels live in a container that slides when the
+    // item changes (horizontal swipe on the tile), dots in the top right show the position.
+    const SwipeItem &first = t.items[0];
+    const char *isym = icon_symbol(first.icon);
+    if (isym == nullptr)
+      isym = sym;
+    lv_obj_t *c = make_plain(o);
+    view.content = c;
+    lv_obj_set_pos(c, 0, 0);
+    lv_obj_set_size(c, pw, ph);
+    if (t.show_icon && isym != nullptr) {
+      view.icon = make_label(c, icon_font(big ? 40 : 28), t.icon_color, isym);
+      lv_obj_align(view.icon, LV_ALIGN_TOP_LEFT, pad, pad - 2);
+    }
+    if (t.show_state) {
+      view.value = make_label(c, font_px(big ? 28 : (t.font == 0 ? 12 : 16)), t.fg, "");
+      lv_obj_set_width(view.value, inner_w);
+      lv_label_set_long_mode(view.value, LABEL_LONG_DOTS);
+      lv_obj_align(view.value, LV_ALIGN_BOTTOM_LEFT, pad, -pad);
+    }
+    if (t.show_title) {
+      view.title = make_label(c, title_font, t.fg, first.title.c_str());
+      lv_obj_set_width(view.title, inner_w);
+      lv_label_set_long_mode(view.title, LABEL_LONG_DOTS);
+      lv_obj_align(view.title, LV_ALIGN_BOTTOM_LEFT, pad, t.show_state ? -(pad + (big ? 32 : 20)) : -pad);
+    }
+    int n = static_cast<int>(t.items.size());
+    if (n > 1) {
+      for (int i = 0; i < n; i++) {
+        lv_obj_t *d = make_plain(o);
+        lv_obj_set_size(d, 7, 7);
+        lv_obj_set_style_radius(d, 4, 0);
+        lv_obj_set_style_bg_color(d, lv_color_hex(t.fg), 0);
+        lv_obj_set_style_bg_opa(d, i == 0 ? LV_OPA_COVER : LV_OPA_40, 0);
+        lv_obj_set_pos(d, pw - pad - (n - i) * 12 + 5, pad + 4);
+        view.dots[i] = d;
+      }
+      // the tile handles horizontal swipes itself, they must not switch the page
+      GS_REMOVE_FLAG(o, LV_OBJ_FLAG_GESTURE_BUBBLE);
+    }
   } else {  // light, dimmer, rgb, switch and generic entity tiles
     bool rgb = t.kind == "rgb";
     bool dimmer = t.kind == "dimmer" || rgb;
@@ -1162,8 +1218,46 @@ void GuitionStudio::build_tile_(int page_index, lv_obj_t *parent, const TileCfg 
 
   this->views_.push_back(view);
   this->tile_index_[t.id] = index;
-  if (!t.entity.empty())
+  if (t.kind == "swipe") {
+    for (const auto &it : t.items) {
+      auto &list = this->entity_views_[it.entity];
+      if (std::find(list.begin(), list.end(), index) == list.end())
+        list.push_back(index);
+    }
+  } else if (!t.entity.empty()) {
     this->entity_views_[t.entity].push_back(index);
+  }
+}
+
+static void anim_translate_x(void *obj, int32_t v) {
+  lv_obj_set_style_translate_x(static_cast<lv_obj_t *>(obj), v, 0);
+}
+
+void GuitionStudio::swipe_item_(int index, int step) {
+  TileView &view = this->views_[index];
+  const TileCfg &t = *view.cfg;
+  int n = static_cast<int>(t.items.size());
+  if (n < 2)
+    return;
+  view.item = (view.item + step + n) % n;
+  if (view.title != nullptr)
+    lv_label_set_text(view.title, t.items[view.item].title.c_str());
+  this->update_tile_(view);
+  if (view.content != nullptr) {
+    // new content slides in from the side the finger came from
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, view.content);
+    lv_anim_set_values(&a, step * lv_obj_get_width(view.obj) / 3, 0);
+    lv_anim_set_exec_cb(&a, anim_translate_x);
+    lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
+#if LVGL_VERSION_MAJOR >= 9
+    lv_anim_set_duration(&a, 220);
+#else
+    lv_anim_set_time(&a, 220);
+#endif
+    lv_anim_start(&a);
+  }
 }
 
 void GuitionStudio::add_buttons_(int index, lv_obj_t *tile, const TileCfg &t, const uint8_t *codes, int count, int pad,
@@ -1256,13 +1350,17 @@ void GuitionStudio::update_tile_(TileView &view) {
   const TileCfg &t = *view.cfg;
   if (t.kind == "clock" || t.kind == "text" || t.kind == "nav" || t.kind == "status" || t.kind == "settings")
     return;  // updated by update_status_ or static
-  if (t.entity.empty())
+  bool swipe = t.kind == "swipe" && !t.items.empty();
+  const SwipeItem *item = swipe ? &t.items[view.item % t.items.size()] : nullptr;
+  const std::string &entity = item ? item->entity : t.entity;
+  const std::string &icon_key = (item && !item->icon.empty()) ? item->icon : t.icon;
+  if (entity.empty())
     return;
-  auto it = this->states_.find(t.entity);
+  auto it = this->states_.find(entity);
   bool known = it != this->states_.end() && it->second.known;
   bool available = known && it->second.available;
   bool on = available && it->second.on;
-  bool stateful = t.kind == "light" || t.kind == "switch" || t.kind == "dimmer" || t.kind == "rgb";
+  bool stateful = t.kind == "light" || t.kind == "switch" || t.kind == "dimmer" || t.kind == "rgb" || swipe;
   const EntityState *st = known ? &it->second : nullptr;
 
   uint32_t bg = (on && stateful) ? t.on_bg : t.bg;
@@ -1279,8 +1377,14 @@ void GuitionStudio::update_tile_(TileView &view) {
     lv_obj_set_style_text_color(view.icon, lv_color_hex(ic), 0);
     const char *sym = (st && !st->icon.empty()) ? icon_symbol(st->icon) : nullptr;
     if (sym == nullptr)
-      sym = icon_symbol(t.icon);
+      sym = icon_symbol(icon_key);
     lv_label_set_text(view.icon, !known || available ? (sym ? sym : "") : icon_symbol("alert"));
+  }
+  for (int i = 0; swipe && i < MAX_SWIPE_ITEMS; i++) {
+    if (view.dots[i] == nullptr)
+      continue;
+    lv_obj_set_style_bg_color(view.dots[i], lv_color_hex(fg), 0);
+    lv_obj_set_style_bg_opa(view.dots[i], i == view.item ? LV_OPA_COVER : LV_OPA_40, 0);
   }
 
   const char *main_text = !known ? "…" : (!available ? this->layout_.txt_unavailable.c_str() : st->display.c_str());
@@ -1472,6 +1576,16 @@ void GuitionStudio::on_tile_event(int index, lv_event_code_t code) {
         lv_obj_set_style_opa(view.obj, static_cast<lv_opa_t>(t.opacity * 255 / 100), 0);
       break;
     case LV_EVENT_GESTURE:
+      if (t.kind == "swipe" && t.items.size() > 1) {
+        // horizontal swipe = next/previous entity of this tile, never a page change
+        lv_indev_t *indev = GS_INDEV_ACTIVE();
+        lv_dir_t dir = indev != nullptr ? lv_indev_get_gesture_dir(indev) : LV_DIR_NONE;
+        if (!this->gesture_ && !this->swallow_ && (dir == LV_DIR_LEFT || dir == LV_DIR_RIGHT)) {
+          this->gesture_ = true;
+          this->swipe_item_(index, dir == LV_DIR_LEFT ? 1 : -1);
+        }
+        break;
+      }
       if (!this->gesture_ && !this->swallow_) {
         this->gesture_ = true;
         this->handle_gesture_();
@@ -1568,9 +1682,13 @@ void GuitionStudio::do_action_(TileView &view, uint8_t action, int page, bool ho
   int count = static_cast<int>(this->page_objs_.size());
   switch (action) {
     case ACTION_REMOTE: {
-      char payload[96];
-      snprintf(payload, sizeof(payload), "{\"t\":\"%s\",\"p\":\"%s\"}", t.id.c_str(),
-               this->layout_.pages[view.page].id.c_str());
+      char payload[112];
+      if (t.kind == "swipe")
+        snprintf(payload, sizeof(payload), "{\"t\":\"%s\",\"p\":\"%s\",\"i\":%d}", t.id.c_str(),
+                 this->layout_.pages[view.page].id.c_str(), view.item);
+      else
+        snprintf(payload, sizeof(payload), "{\"t\":\"%s\",\"p\":\"%s\"}", t.id.c_str(),
+                 this->layout_.pages[view.page].id.c_str());
       this->emit(hold ? "hold" : "tap", payload);
       break;
     }

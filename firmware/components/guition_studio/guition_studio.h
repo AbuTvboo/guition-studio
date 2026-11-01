@@ -58,6 +58,14 @@ enum TileAction : uint8_t {
   ACTION_COLOR = 8,     // local: open the colour picker of an RGB tile
 };
 
+// One entity of a swipe tile.
+struct SwipeItem {
+  std::string entity;
+  std::string title;
+  std::string icon;
+};
+static constexpr int MAX_SWIPE_ITEMS = 4;
+
 struct TileCfg {
   std::string id;
   std::string kind;
@@ -73,6 +81,7 @@ struct TileCfg {
   uint8_t tap{ACTION_NONE}, hold{ACTION_NONE};
   int tap_page{-1}, hold_page{-1};
   uint8_t wopts{0x2F};  // weather: 1 condition, 2 high/low, 4 humidity, 8 wind, 16 pressure, 32 forecast
+  std::vector<SwipeItem> items;  // swipe tile: entities shown one at a time
 };
 
 struct PageCfg {
@@ -159,6 +168,10 @@ struct TileView {
   lv_obj_t *detail{nullptr};
   lv_obj_t *fc_day[3]{nullptr, nullptr, nullptr}, *fc_icon[3]{nullptr, nullptr, nullptr}, *fc_temp[3]{nullptr, nullptr, nullptr};
   std::vector<lv_obj_t *> bars;
+  // swipe tile: shown item, sliding content container, position dots
+  int item{0};
+  lv_obj_t *content{nullptr};
+  lv_obj_t *dots[MAX_SWIPE_ITEMS]{};
   bool dragging{false};
   bool visible{true};
 };
@@ -254,6 +267,7 @@ class GuitionStudio : public Component {
   void hold_cancel_();
   void hold_update_(uint32_t now);
   void update_tile_(TileView &view);
+  void swipe_item_(int index, int step);
   void update_status_();
   void show_page_(int index, bool remember);
   void handle_gesture_();

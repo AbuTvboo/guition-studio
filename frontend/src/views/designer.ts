@@ -609,6 +609,7 @@ export class GsDesigner extends LitElement {
       { key: "clock", label: "Uhrzeit", icon: "mdi:clock-outline", glyph: "🕒", category: "system", make: () => makeTile("clock", 0, 0, 2, 1) },
       { key: "text", label: "Text", icon: "mdi:format-text", glyph: "T", category: "system", make: () => makeTile("text", 0, 0, 1, 1, { title: "Text", tap_action: { action: "none" } }) },
       { key: "status", label: "WLAN/HA-Status", icon: "mdi:wifi-check", glyph: "📶", category: "system", make: () => makeTile("status", 0, 0, 1, 1, { title: "Status", tap_action: { action: "none" } }) },
+      { key: "swipe", label: "Wisch-Kachel (bis 4 Entitäten)", icon: "mdi:gesture-swipe-horizontal", glyph: "⇆", category: "system", make: () => makeTile("swipe", 0, 0, 1, 1) },
       { key: "settings", label: "Einstellungen (am Display)", icon: "mdi:cog", glyph: "⚙", category: "system", make: () => makeTile("settings", 0, 0, 1, 1, { title: "Einstellungen", icon: "cog", tap_action: { action: "none" } }) },
       { key: "home", label: "Startseite", icon: "mdi:home", glyph: "⌂", category: "navigation", make: () => makeTile("nav", 0, 0, 1, 1, { title: "Start", icon: "home", tap_action: { action: "home" } }) },
       { key: "back", label: "Zurück", icon: "mdi:arrow-left", glyph: "◀", category: "navigation", make: () => makeTile("nav", 0, 0, 1, 1, { title: "Zurück", icon: "arrow-left", tap_action: { action: "back" } }) },

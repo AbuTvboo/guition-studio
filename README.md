@@ -28,7 +28,7 @@ Details stehen im [CHANGELOG](CHANGELOG.md).
 - Designer: alle Seiten nebeneinander im Maßstab 1:1 (480 × 480 px), Zoom, Raster und Drop-Zonen, Kollisionserkennung, Einrasten, Mehrfachauswahl, Verschieben zwischen Seiten, Größe ziehen, Undo/Redo, automatisches Speichern als Entwurf, vollständige Tastaturbedienung, Touch-Bedienung
 - Elementbibliothek mit Suche nach Name, Entity-ID, Gerät, Bereich und Domain, mit 13 Kategorien und Favoriten
 - Eigenschaftsleiste: Titel, Entität, Icon, Farben, Zustandsfarben, Schriftgröße, Radius, Rahmen, Deckkraft, Größe/Position, Tippen- und Lange-Tippen-Aktion, Sichtbarkeitsbedingungen
-- Kacheltypen in der Firmware: Licht, Licht mit Helligkeitsregler, Schalter, Sensorwert, Uhrzeit, Navigation, Text, Aktion (Szene/Skript/Taste), WLAN-/HA-Status, Rollladen, Thermostat, Mediaplayer, Wetter
+- Kacheltypen in der Firmware: Licht, Licht mit Helligkeitsregler, Schalter, Sensorwert, Uhrzeit, Navigation, Text, Aktion (Szene/Skript/Taste), WLAN-/HA-Status, Rollladen, Thermostat, Mediaplayer, Wetter, **Wisch-Kachel** (bis zu 4 Entitäten in einer Kachel, per Wischen durchblättern)
 - 134 Material Design Icons auf dem Display, Icon-Auswahl mit Suche im Editor
 - Navigation: Seitenpunkte, Wischen, Zurück, Startseite, „gehe zu Seite“, automatische Rückkehr zur Startseite
 - Echte Synchronisation: versioniertes JSON-Layout, Übertragung in Paketen mit CRC32, Bestätigung durch das Gerät, 3 Wiederholversuche, atomare Speicherung im Flash mit Rollback, Wiederherstellung nach Neustart

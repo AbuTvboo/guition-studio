@@ -1,11 +1,11 @@
 import { LitElement, css, html, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { friendlyName } from "../entities";
+import { defaultIcon, friendlyName } from "../entities";
 import { TILE_ENTITY_DOMAINS } from "../types";
 import "./entity-picker";
 import { formatState } from "../preview";
 import { clone, entityDomainProblem, needsEntity, setGrid } from "../model";
-import { DEFAULT_WEATHER_OPTIONS, type ActionType, type Condition, type Hass, type Layout, type Page, type StudioInfo, type Tile, type TileAction, type TileStyle, type WeatherOptions } from "../types";
+import { DEFAULT_WEATHER_OPTIONS, MAX_SWIPE_ITEMS, type ActionType, type SwipeItem, type Condition, type Hass, type Layout, type Page, type StudioInfo, type Tile, type TileAction, type TileStyle, type WeatherOptions } from "../types";
 import { deviceIcon, fireEvent, sharedStyles, toast } from "../ui";
 
 export const TYPE_LABELS: Record<string, string> = {
@@ -25,6 +25,7 @@ export const TYPE_LABELS: Record<string, string> = {
   thermostat: "Thermostat (− +)",
   media: "Mediaplayer",
   weather: "Wetter",
+  swipe: "Wisch-Kachel (bis 4 Entitäten)",
   camera: "Kameravorschau (Stream auf ESP32 nicht sinnvoll)",
 };
 
@@ -160,6 +161,63 @@ export class GsTileProps extends LitElement {
     </div>`;
   }
 
+  /** Swipe tile: up to 4 entities; tile.entity always mirrors the first one. */
+  private swipeItems() {
+    const items = this.tile.items ?? [];
+    const set = (next: SwipeItem[]) => this.patch({ items: next, entity: next[0]?.entity ?? null });
+    return html`<div class="field-like">
+      <span class="muted small">Entitäten (bis ${MAX_SWIPE_ITEMS}). Auf dem Display nach links/rechts über die Kachel wischen, um zur nächsten zu wechseln. Tippen bedient die gerade angezeigte Entität.</span>
+      ${items.map(
+        (it, i) => html`<div class="swipe-item">
+          <span class="swipe-no">${i + 1}</span>
+          <div style="flex:1;min-width:0;display:grid;gap:4px">
+            <gs-entity-picker
+              .hass=${this.hass}
+              .value=${it.entity}
+              ?invalid=${!it.entity || !this.hass.states[it.entity]}
+              @gs-entity=${(e: CustomEvent<string | null>) => {
+                const next = [...items];
+                if (!e.detail) {
+                  next.splice(i, 1);
+                } else {
+                  const st = this.hass.states[e.detail];
+                  next[i] = { entity: e.detail, title: st ? friendlyName(st).slice(0, 64) : it.title, icon: defaultIcon(st, e.detail) };
+                }
+                set(next);
+              }}
+            ></gs-entity-picker>
+            <input maxlength="64" placeholder="Titel" .value=${it.title} @input=${(e: Event) => {
+              const next = [...items];
+              next[i] = { ...it, title: (e.target as HTMLInputElement).value };
+              set(next);
+            }} />
+          </div>
+          <div style="display:grid;gap:4px">
+            <button class="icon ghost" title="Nach oben" ?disabled=${i === 0} @click=${() => {
+              const next = [...items];
+              [next[i - 1], next[i]] = [next[i], next[i - 1]];
+              set(next);
+            }}>↑</button>
+            <button class="icon ghost danger" title="Entfernen" @click=${() => set(items.filter((_, j) => j !== i))}>✕</button>
+          </div>
+        </div>`
+      )}
+      ${items.length < MAX_SWIPE_ITEMS
+        ? html`<gs-entity-picker
+            .hass=${this.hass}
+            .value=${null}
+            ?invalid=${items.length === 0}
+            placeholder="＋ Entität hinzufügen (z. B. licht, temperatur) …"
+            @gs-entity=${(e: CustomEvent<string | null>) => {
+              if (!e.detail) return;
+              const st = this.hass.states[e.detail];
+              set([...items, { entity: e.detail, title: st ? friendlyName(st).slice(0, 64) : "", icon: defaultIcon(st, e.detail) }]);
+            }}
+          ></gs-entity-picker>`
+        : nothing}
+    </div>`;
+  }
+
   render() {
     const t = this.tile;
     const theme = this.theme;
@@ -180,17 +238,24 @@ export class GsTileProps extends LitElement {
       <section>
         <h3>Inhalt</h3>
         <label class="field"><span>Kacheltyp</span>
-          <select @change=${(e: Event) => this.patch({ type: (e.target as HTMLSelectElement).value as Tile["type"] })}>
+          <select @change=${(e: Event) => {
+            const type = (e.target as HTMLSelectElement).value as Tile["type"];
+            const seed = type === "swipe" && !(t.items ?? []).length && t.entity ? { items: [{ entity: t.entity, title: t.title, icon: t.icon }] } : {};
+            this.patch({ type, ...seed });
+          }}>
             ${this.info.tile_types.map((k) => html`<option value=${k} ?selected=${t.type === k}>${TYPE_LABELS[k] ?? k}</option>`)}
             <optgroup label="Geplant (noch nicht in Firmware v1)">
               ${this.info.planned_tile_types.map((k) => html`<option disabled>${TYPE_LABELS[k] ?? k} – nicht verfügbar</option>`)}
             </optgroup>
           </select>
         </label>
-        <label class="field"><span>${t.type === "text" ? "Text" : t.type === "clock" ? "Untertitel (leer = Datum)" : "Titel"}</span>
-          <input maxlength="64" .value=${t.title} @input=${(e: Event) => this.patch({ title: (e.target as HTMLInputElement).value })} />
-        </label>
-        ${t.type !== "clock" && t.type !== "text" && t.type !== "status"
+        ${t.type === "swipe"
+          ? nothing
+          : html`<label class="field"><span>${t.type === "text" ? "Text" : t.type === "clock" ? "Untertitel (leer = Datum)" : "Titel"}</span>
+              <input maxlength="64" .value=${t.title} @input=${(e: Event) => this.patch({ title: (e.target as HTMLInputElement).value })} />
+            </label>`}
+        ${t.type === "swipe" ? this.swipeItems() : nothing}
+        ${t.type !== "clock" && t.type !== "text" && t.type !== "status" && t.type !== "swipe"
           ? html`<label class="field"><span>Entität ${requiresEntity ? "(erforderlich)" : "(optional)"}</span>
               <gs-entity-picker
                 .hass=${this.hass}
@@ -325,6 +390,29 @@ export class GsTileProps extends LitElement {
     css`
       :host {
         display: block;
+      }
+      .swipe-item {
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+        padding: 8px;
+        margin: 6px 0;
+        border: 1px solid var(--gs-border);
+        border-radius: 10px;
+        background: var(--gs-surface-2);
+      }
+      .swipe-no {
+        display: grid;
+        place-items: center;
+        width: 22px;
+        height: 22px;
+        margin-top: 7px;
+        border-radius: 50%;
+        background: var(--gs-primary);
+        color: var(--gs-on-primary);
+        font-size: 12px;
+        font-weight: 600;
+        flex-shrink: 0;
       }
       .head {
         margin-bottom: 12px;

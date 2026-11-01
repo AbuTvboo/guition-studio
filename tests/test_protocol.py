@@ -76,7 +76,7 @@ def test_weather_forecast_payload():
     out = weather_forecast_payload(fc, now)
     assert out["hl"] == "↑18° ↓9°"
     assert out["f"] == [["So", "weather-rainy", "14,5°/8°"], ["Mo", "weather-cloudy", "12°/6°"], ["Di", "weather-snowy", "2°/-3°"]]
-    full = entity_payload("weather", "sunny", {"temperature": 17, "humidity": 50}, fc)
+    full = entity_payload("weather", "sunny", {"temperature": 17, "humidity": 50}, fc, now)
     assert full["w"].startswith("↑18° ↓9° · Feuchte 50 %")
     assert weather_forecast_payload(None) == {}
 

@@ -5,7 +5,7 @@ See docs/PROTOCOL.md for the full description.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, tzinfo
 import json
 from typing import Any, Callable, Iterable
 
@@ -107,6 +107,16 @@ def parse_event_payload(raw: Any) -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
+# Home Assistant's configured time zone (set by the manager); the OS zone of the HA
+# container may differ (e.g. UTC in Docker without TZ), which would shift timestamps.
+_local_tz: tzinfo | None = None
+
+
+def set_local_timezone(tz: tzinfo | None) -> None:
+    global _local_tz  # noqa: PLW0603
+    _local_tz = tz
+
+
 def _fmt_number(value: Any) -> str | None:
     try:
         num = float(value)
@@ -130,7 +140,7 @@ def format_state(domain: str, state: str, attributes: dict[str, Any]) -> str:
     if domain in ("sensor", "number", "input_number"):
         if device_class == "timestamp":
             try:
-                return datetime.fromisoformat(state).astimezone().strftime("%H:%M")
+                return datetime.fromisoformat(state).astimezone(_local_tz).strftime("%H:%M")
             except ValueError:
                 return state[:16]
         num = _fmt_number(state)
@@ -234,7 +244,7 @@ def weather_forecast_payload(forecast: list[dict[str, Any]] | None, now: datetim
     """Today's high/low and a 3-day forecast from weather.get_forecasts (daily)."""
     if not forecast:
         return {}
-    now = now or datetime.now().astimezone()
+    now = now or datetime.now(_local_tz).astimezone(_local_tz)
     out: dict[str, Any] = {}
     days = []
     for item in forecast:
@@ -263,7 +273,11 @@ def weather_forecast_payload(forecast: list[dict[str, Any]] | None, now: datetim
 
 
 def entity_payload(
-    domain: str, state: str | None, attributes: dict[str, Any] | None, forecast: list[dict[str, Any]] | None = None
+    domain: str,
+    state: str | None,
+    attributes: dict[str, Any] | None,
+    forecast: list[dict[str, Any]] | None = None,
+    now: datetime | None = None,
 ) -> dict[str, Any]:
     """Compact per-entity state for the device: o=on, a=available, d=display text (+ extras)."""
     if state is None:
@@ -278,7 +292,7 @@ def entity_payload(
     if available:
         payload.update(_extras(domain, state, attrs))
         if domain == "weather" and forecast:
-            payload.update(weather_forecast_payload(forecast))
+            payload.update(weather_forecast_payload(forecast, now))
             if payload.get("hl"):
                 payload["w"] = " · ".join(x for x in (payload["hl"], payload.get("w")) if x)
     return payload

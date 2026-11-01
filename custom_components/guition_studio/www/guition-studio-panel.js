@@ -376,23 +376,28 @@ var ge = {
 	pressure: !1,
 	forecast: !0
 }, w = r`
+  /* Palette: --gsp-* is set once on the panel (light/dark), every component maps it here. */
   :host {
-    --gs-bg: var(--primary-background-color, #f4f6f9);
-    --gs-surface: var(--card-background-color, #ffffff);
-    --gs-surface-2: var(--secondary-background-color, #eef1f5);
-    --gs-text: var(--primary-text-color, #1f2937);
-    --gs-muted: var(--secondary-text-color, #6b7280);
-    --gs-border: var(--divider-color, rgba(0, 0, 0, 0.12));
-    --gs-primary: var(--primary-color, #2563eb);
-    --gs-on-primary: var(--text-primary-color, #ffffff);
-    --gs-ok: var(--success-color, #16a34a);
-    --gs-warn: var(--warning-color, #d97706);
-    --gs-error: var(--error-color, #dc2626);
-    --gs-radius: 14px;
-    --gs-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.06);
+    --gs-bg: var(--gsp-bg, #f3f6f9);
+    --gs-surface: var(--gsp-surface, #ffffff);
+    --gs-surface-2: var(--gsp-surface-2, #eef2f6);
+    --gs-text: var(--gsp-text, #0f1c2a);
+    --gs-muted: var(--gsp-muted, #5b6b7c);
+    --gs-border: var(--gsp-border, #dfe5ec);
+    --gs-primary: var(--gsp-primary, #0e7490);
+    --gs-primary-strong: var(--gsp-primary-strong, #155e75);
+    --gs-on-primary: var(--gsp-on-primary, #ffffff);
+    --gs-accent: var(--gsp-accent, #f59e0b);
+    --gs-ok: var(--gsp-ok, #15803d);
+    --gs-warn: var(--gsp-warn, #b45309);
+    --gs-error: var(--gsp-error, #b91c1c);
+    --gs-radius: 12px;
+    --gs-shadow: var(--gsp-shadow, 0 1px 2px rgba(15, 28, 42, 0.05), 0 2px 8px rgba(15, 28, 42, 0.04));
+    --gs-shadow-lg: var(--gsp-shadow-lg, 0 12px 32px rgba(15, 28, 42, 0.18));
     color: var(--gs-text);
-    font-family: var(--paper-font-body1_-_font-family, "Roboto", "Segoe UI", system-ui, sans-serif);
+    font-family: "Inter", "Segoe UI", var(--paper-font-body1_-_font-family, "Roboto"), system-ui, sans-serif;
     font-size: 14px;
+    -webkit-font-smoothing: antialiased;
   }
   * {
     box-sizing: border-box;
@@ -405,14 +410,17 @@ var ge = {
   }
   h1 {
     font-size: 22px;
+    letter-spacing: -0.01em;
   }
   h2 {
-    font-size: 17px;
+    font-size: 16px;
+    letter-spacing: -0.005em;
   }
   h3 {
-    font-size: 14px;
+    font-size: 11.5px;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.08em;
     color: var(--gs-muted);
   }
   p {
@@ -455,17 +463,19 @@ var ge = {
     gap: 6px;
     min-height: 36px;
     padding: 0 14px;
-    border-radius: 10px;
+    border-radius: 8px;
     border: 1px solid var(--gs-border);
     background: var(--gs-surface);
     color: var(--gs-text);
+    font-weight: 500;
     cursor: pointer;
     text-decoration: none;
     white-space: nowrap;
-    transition: background 0.15s, border-color 0.15s, transform 0.05s;
+    transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.05s;
   }
   button:hover:not(:disabled) {
     background: var(--gs-surface-2);
+    border-color: color-mix(in srgb, var(--gs-text) 18%, var(--gs-border));
   }
   button:active:not(:disabled) {
     transform: translateY(1px);
@@ -485,10 +495,11 @@ var ge = {
     background: var(--gs-primary);
     border-color: var(--gs-primary);
     color: var(--gs-on-primary);
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--gs-primary) 35%, transparent);
   }
   button.primary:hover:not(:disabled) {
-    filter: brightness(1.08);
-    background: var(--gs-primary);
+    background: var(--gs-primary-strong);
+    border-color: var(--gs-primary-strong);
   }
   button.danger {
     color: var(--gs-error);
@@ -502,6 +513,9 @@ var ge = {
     border-color: transparent;
     background: transparent;
   }
+  button.ghost:hover:not(:disabled) {
+    border-color: transparent;
+  }
   input,
   select,
   textarea {
@@ -509,10 +523,18 @@ var ge = {
     color: var(--gs-text);
     background: var(--gs-surface);
     border: 1px solid var(--gs-border);
-    border-radius: 10px;
+    border-radius: 8px;
     min-height: 36px;
     padding: 6px 10px;
     width: 100%;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  input:focus,
+  select:focus,
+  textarea:focus {
+    outline: none;
+    border-color: var(--gs-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--gs-primary) 20%, transparent);
   }
   textarea {
     min-height: 70px;
@@ -576,20 +598,27 @@ var ge = {
   }
   .notice {
     padding: 12px 14px;
-    border-radius: 12px;
-    background: var(--gs-surface-2);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--gs-primary) 7%, var(--gs-surface));
+    border: 1px solid color-mix(in srgb, var(--gs-primary) 22%, transparent);
     border-left: 4px solid var(--gs-primary);
     margin: 8px 0;
     line-height: 1.5;
   }
   .notice.warn {
-    border-color: var(--gs-warn);
+    background: color-mix(in srgb, var(--gs-warn) 8%, var(--gs-surface));
+    border-color: color-mix(in srgb, var(--gs-warn) 28%, transparent);
+    border-left-color: var(--gs-warn);
   }
   .notice.error {
-    border-color: var(--gs-error);
+    background: color-mix(in srgb, var(--gs-error) 7%, var(--gs-surface));
+    border-color: color-mix(in srgb, var(--gs-error) 28%, transparent);
+    border-left-color: var(--gs-error);
   }
   .notice.ok {
-    border-color: var(--gs-ok);
+    background: color-mix(in srgb, var(--gs-ok) 7%, var(--gs-surface));
+    border-color: color-mix(in srgb, var(--gs-ok) 28%, transparent);
+    border-left-color: var(--gs-ok);
   }
   .progress {
     height: 8px;
@@ -599,7 +628,7 @@ var ge = {
   }
   .progress > div {
     height: 100%;
-    background: var(--gs-primary);
+    background: linear-gradient(90deg, var(--gs-primary-strong), var(--gs-primary));
     transition: width 0.3s;
   }
   table {
@@ -614,9 +643,11 @@ var ge = {
     vertical-align: middle;
   }
   th {
-    font-size: 12px;
+    font-size: 11.5px;
     color: var(--gs-muted);
-    font-weight: 500;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
   code {
     font-family: ui-monospace, monospace;
@@ -1279,7 +1310,7 @@ var ke = {
         min-height: 52px;
         font-size: 16px;
         padding: 0 26px;
-        background: linear-gradient(135deg, #3d8bfd, #8b5cf6);
+        background: linear-gradient(135deg, var(--gs-primary), var(--gs-primary-strong));
         border: none;
         color: #fff;
         font-weight: 600;
@@ -2159,8 +2190,75 @@ function H(e, t) {
 		icon: ot(n, t)
 	});
 }
+var ct = [
+	{
+		key: "fajr",
+		label: "Fajr",
+		aliases: [
+			"fajr",
+			"fadschr",
+			"sabah"
+		]
+	},
+	{
+		key: "sunrise",
+		label: "Sonnenaufgang",
+		aliases: [
+			"sunrise",
+			"sonnenaufgang",
+			"shuruq",
+			"shurooq",
+			"gunes"
+		]
+	},
+	{
+		key: "dhuhr",
+		label: "Dhuhr",
+		aliases: [
+			"dhuhr",
+			"zuhr",
+			"dhuhur",
+			"duhr",
+			"ogle"
+		]
+	},
+	{
+		key: "asr",
+		label: "Asr",
+		aliases: ["asr", "ikindi"]
+	},
+	{
+		key: "maghrib",
+		label: "Maghrib",
+		aliases: [
+			"maghrib",
+			"magrib",
+			"aksam"
+		]
+	},
+	{
+		key: "isha",
+		label: "Isha",
+		aliases: [
+			"isha",
+			"ischa",
+			"yatsi"
+		]
+	}
+];
+function lt(e) {
+	let t = Object.values(e.states).filter((e) => e.entity_id.startsWith("sensor.") && e.attributes.device_class === "timestamp" && !/midnight|mitternacht/.test(e.entity_id)), n = {};
+	for (let e of ct) {
+		let r = t.filter((t) => {
+			let n = `${t.entity_id} ${V(t)}`.toLowerCase();
+			return e.aliases.some((e) => n.includes(e));
+		}), i = (e) => +!/prayer|gebet|islam|salah|namaz|adhan/.test(`${e.entity_id} ${V(e)}`.toLowerCase());
+		r.sort((e, t) => i(e) - i(t) || e.entity_id.localeCompare(t.entity_id)), r[0] && (e.key !== "sunrise" || i(r[0]) === 0) && (n[e.key] = r[0].entity_id);
+	}
+	return n;
+}
 // src/history.ts
-var ct = class {
+var ut = class {
 	constructor(e = 100) {
 		this.limit = e, this.past = [], this.future = [];
 	}
@@ -2185,7 +2283,7 @@ var ct = class {
 	get canRedo() {
 		return this.future.length > 0;
 	}
-}, lt, ut = {
+}, dt, ft = {
 	wetter: ["weather"],
 	licht: ["light"],
 	lampe: ["light"],
@@ -2215,7 +2313,7 @@ var ct = class {
 	schloss: ["lock"],
 	ventilator: ["fan"],
 	lüfter: ["fan"]
-}, dt = {
+}, pt = {
 	weather: "Wetter",
 	light: "Licht",
 	switch: "Schalter",
@@ -2230,18 +2328,18 @@ var ct = class {
 	number: "Zahl",
 	input_number: "Zahlen-Helfer"
 };
-function ft(e, t, n) {
+function mt(e, t, n) {
 	let r = n.toLowerCase().split(/\s+/).filter(Boolean);
 	if (!r.length) return !0;
-	let i = t.entity_id.split(".", 1)[0], a = `${V(t)} ${t.entity_id} ${tt(e, t.entity_id)} ${dt[i] ?? ""}`.toLowerCase();
-	return r.every((e) => a.includes(e) || Object.entries(ut).some(([t, n]) => t.startsWith(e) && e.length >= 3 && n.includes(i)));
+	let i = t.entity_id.split(".", 1)[0], a = `${V(t)} ${t.entity_id} ${tt(e, t.entity_id)} ${pt[i] ?? ""}`.toLowerCase();
+	return r.every((e) => a.includes(e) || Object.entries(ft).some(([t, n]) => t.startsWith(e) && e.length >= 3 && n.includes(i)));
 }
-var U = (lt = class extends t {
+var U = (dt = class extends t {
 	constructor(...e) {
 		super(...e), this.value = null, this.domains = null, this.placeholder = "Entität suchen (z. B. wetter, licht, küche) …", this.invalid = !1, this.open = !1, this.query = "", this.active = 0;
 	}
 	get options() {
-		return Object.values(this.hass.states).filter((e) => !this.domains || this.domains.includes(e.entity_id.split(".", 1)[0])).filter((e) => ft(this.hass, e, this.query)).sort((e, t) => V(e).localeCompare(V(t), "de")).slice(0, 60);
+		return Object.values(this.hass.states).filter((e) => !this.domains || this.domains.includes(e.entity_id.split(".", 1)[0])).filter((e) => mt(this.hass, e, this.query)).sort((e, t) => V(e).localeCompare(V(t), "de")).slice(0, 60);
 	}
 	choose(e) {
 		this.open = !1, this.query = "", E(this, "gs-entity", e);
@@ -2251,7 +2349,7 @@ var U = (lt = class extends t {
 		e.key === "ArrowDown" ? (e.preventDefault(), this.open = !0, this.active = Math.min(this.active + 1, t.length - 1)) : e.key === "ArrowUp" ? (e.preventDefault(), this.active = Math.max(this.active - 1, 0)) : e.key === "Enter" && this.open && t[this.active] ? (e.preventDefault(), this.choose(t[this.active].entity_id)) : e.key === "Escape" && (this.open = !1);
 	}
 	render() {
-		let e = this.value ? this.hass.states[this.value] : void 0, t = this.open ? this.options : [], n = this.domains ? this.domains.map((e) => dt[e] ?? e).join(" / ") : "";
+		let e = this.value ? this.hass.states[this.value] : void 0, t = this.open ? this.options : [], n = this.domains ? this.domains.map((e) => pt[e] ?? e).join(" / ") : "";
 		return c`<div class="wrap">
       <input
         class=${this.invalid ? "invalid" : ""}
@@ -2284,7 +2382,7 @@ var U = (lt = class extends t {
           </div>` : a}
     </div>`;
 	}
-}, lt.styles = [w, r`
+}, dt.styles = [w, r`
       .wrap {
         position: relative;
       }
@@ -2339,10 +2437,10 @@ var U = (lt = class extends t {
         color: var(--gs-muted);
         line-height: 1.5;
       }
-    `], lt);
+    `], dt);
 j([s({ attribute: !1 })], U.prototype, "hass", void 0), j([s()], U.prototype, "value", void 0), j([s({ attribute: !1 })], U.prototype, "domains", void 0), j([s()], U.prototype, "placeholder", void 0), j([s({ type: Boolean })], U.prototype, "invalid", void 0), j([e()], U.prototype, "open", void 0), j([e()], U.prototype, "query", void 0), j([e()], U.prototype, "active", void 0), U = j([u("gs-entity-picker")], U);
 // src/views/tile-props.ts
-var pt, mt, ht = {
+var ht, gt, _t = {
 	light: "Licht (Ein/Aus)",
 	dimmer: "Licht mit Helligkeitsregler",
 	rgb: "RGB-Licht (Farben + Helligkeit)",
@@ -2360,7 +2458,7 @@ var pt, mt, ht = {
 	media: "Mediaplayer",
 	weather: "Wetter",
 	camera: "Kameravorschau (Stream auf ESP32 nicht sinnvoll)"
-}, gt = {
+}, vt = {
 	none: "Keine Aktion",
 	default: "Standard (passend zur Entität)",
 	toggle: "Umschalten",
@@ -2372,13 +2470,13 @@ var pt, mt, ht = {
 	back: "Zurück",
 	next: "Nächste Seite",
 	prev: "Vorherige Seite"
-}, _t = {
+}, yt = {
 	s: "Klein",
 	m: "Normal",
 	l: "Groß",
 	xl: "Sehr groß",
 	xxl: "Riesig"
-}, W = (pt = class extends t {
+}, W = (ht = class extends t {
 	constructor(...e) {
 		super(...e), this.iconsOpen = !1, this.iconFilter = "", this.jsonError = null;
 	}
@@ -2426,7 +2524,7 @@ var pt, mt, ht = {
 				data: {}
 			} : { action: t });
 		}}>
-          ${Object.keys(gt).map((e) => c`<option value=${e} ?selected=${n.action === e}>${gt[e]}</option>`)}
+          ${Object.keys(vt).map((e) => c`<option value=${e} ?selected=${n.action === e}>${vt[e]}</option>`)}
         </select>
       </label>
       ${n.action === "navigate" ? c`<label class="field"><span>Zielseite</span>
@@ -2535,9 +2633,9 @@ var pt, mt, ht = {
         <h3>Inhalt</h3>
         <label class="field"><span>Kacheltyp</span>
           <select @change=${(e) => this.patch({ type: e.target.value })}>
-            ${this.info.tile_types.map((t) => c`<option value=${t} ?selected=${e.type === t}>${ht[t] ?? t}</option>`)}
+            ${this.info.tile_types.map((t) => c`<option value=${t} ?selected=${e.type === t}>${_t[t] ?? t}</option>`)}
             <optgroup label="Geplant (noch nicht in Firmware v1)">
-              ${this.info.planned_tile_types.map((e) => c`<option disabled>${ht[e] ?? e} – nicht verfügbar</option>`)}
+              ${this.info.planned_tile_types.map((e) => c`<option disabled>${_t[e] ?? e} – nicht verfügbar</option>`)}
             </optgroup>
           </select>
         </label>
@@ -2616,7 +2714,7 @@ var pt, mt, ht = {
         <h3>Darstellung</h3>
         <label class="field"><span>Schriftgröße</span>
           <select @change=${(e) => this.patchStyle({ font_size: e.target.value })}>
-            ${Object.entries(_t).map(([t, n]) => c`<option value=${t} ?selected=${e.style.font_size === t}>${n}</option>`)}
+            ${Object.entries(yt).map(([t, n]) => c`<option value=${t} ?selected=${e.style.font_size === t}>${n}</option>`)}
           </select>
         </label>
         ${this.colorField("Hintergrund", "background", t.tile_bg)} ${this.colorField("Textfarbe", "color", t.text)}
@@ -2680,7 +2778,7 @@ var pt, mt, ht = {
       </section>
     `;
 	}
-}, pt.styles = [w, r`
+}, ht.styles = [w, r`
       :host {
         display: block;
       }
@@ -2748,15 +2846,15 @@ var pt, mt, ht = {
       input.invalid {
         border-color: var(--gs-error);
       }
-    `], pt);
+    `], ht);
 j([s({ attribute: !1 })], W.prototype, "hass", void 0), j([s({ attribute: !1 })], W.prototype, "info", void 0), j([s({ attribute: !1 })], W.prototype, "layout", void 0), j([s({ attribute: !1 })], W.prototype, "page", void 0), j([s({ attribute: !1 })], W.prototype, "tile", void 0), j([e()], W.prototype, "iconsOpen", void 0), j([e()], W.prototype, "iconFilter", void 0), j([e()], W.prototype, "jsonError", void 0), W = j([u("gs-tile-props")], W);
-var vt = [
+var bt = [
 	[2, 2],
 	[2, 3],
 	[3, 3],
 	[3, 4],
 	[4, 4]
-], G = (mt = class extends t {
+], G = (gt = class extends t {
 	commit(e) {
 		E(this, "gs-commit", e);
 	}
@@ -2782,7 +2880,7 @@ var vt = [
       <div class="field-like">
         <span class="lbl">Raster (Spalten × Zeilen)</span>
         <div class="presets">
-          ${vt.map(([t, n]) => c`<button class=${e.cols === t && e.rows === n ? "sel" : ""} @click=${() => this.grid(t, n)}>${t} × ${n}</button>`)}
+          ${bt.map(([t, n]) => c`<button class=${e.cols === t && e.rows === n ? "sel" : ""} @click=${() => this.grid(t, n)}>${t} × ${n}</button>`)}
         </div>
         <div class="custom">
           <label class="field"><span>Spalten</span>
@@ -2796,7 +2894,7 @@ var vt = [
       </div>
     `;
 	}
-}, mt.styles = [w, r`
+}, gt.styles = [w, r`
       .color-row {
         display: grid;
         grid-template-columns: 1fr auto 44px;
@@ -2830,10 +2928,10 @@ var vt = [
         grid-template-columns: 1fr 1fr;
         gap: 10px;
       }
-    `], mt);
+    `], gt);
 j([s({ attribute: !1 })], G.prototype, "info", void 0), j([s({ attribute: !1 })], G.prototype, "layout", void 0), j([s({ attribute: !1 })], G.prototype, "page", void 0), G = j([u("gs-page-props")], G);
 // src/views/automation-props.ts
-var yt, bt = {
+var xt, St = {
 	enabled: !1,
 	mode: "time",
 	start: "22:00",
@@ -2841,7 +2939,7 @@ var yt, bt = {
 	brightness: 15,
 	dim: 30,
 	page: null
-}, xt = {
+}, Ct = {
 	enabled: !1,
 	after: 120,
 	entities: [],
@@ -2851,7 +2949,7 @@ var yt, bt = {
 	order: "random",
 	fit: "cover",
 	show_clock: !0
-}, K = (yt = class extends t {
+}, K = (xt = class extends t {
 	constructor(...e) {
 		super(...e), this.folders = null, this.mediaRoot = "";
 	}
@@ -2865,13 +2963,13 @@ var yt, bt = {
 	}
 	get night() {
 		return {
-			...bt,
+			...St,
 			...this.layout.settings.night ?? {}
 		};
 	}
 	get screensaver() {
 		return {
-			...xt,
+			...Ct,
 			...this.layout.settings.screensaver ?? {}
 		};
 	}
@@ -3032,18 +3130,21 @@ var yt, bt = {
               </label>
               <label class="field"><span>Anzeige</span>
                 <select @change=${(e) => {
-			let n = e.target.value;
+			let n = e.target.value, r = n === "prayer" && !Object.values(t.prayer ?? {}).some(Boolean) ? lt(this.hass) : t.prayer;
 			this.commit({ screensaver: {
 				...t,
-				mode: n
+				mode: n,
+				prayer: r
 			} }), n === "slideshow" && !this.folders && this.loadFolders();
 		}}>
                   <option value="clock" ?selected=${t.mode !== "slideshow"}>Uhr, Datum & Werte</option>
                   <option value="slideshow" ?selected=${t.mode === "slideshow"}>Diashow (Bilder aus Home Assistant)</option>
+                  <option value="prayer" ?selected=${t.mode === "prayer"}>Islamische Gebetszeiten</option>
                 </select>
               </label>
               ${t.mode === "slideshow" ? this.renderSlideshow(t) : a}
-              ${t.mode === "slideshow" ? a : [0, 1].map((e) => c`<label class="field"><span>Wert ${e + 1} (optional)</span>
+              ${t.mode === "prayer" ? this.renderPrayer(t) : a}
+              ${t.mode !== "slideshow" && t.mode !== "prayer" ? [0, 1].map((e) => c`<label class="field"><span>Wert ${e + 1} (optional)</span>
                   <input list="gs-auto-entities" placeholder="z. B. sensor.aussentemperatur" .value=${t.entities[e] ?? ""}
                     @change=${(n) => {
 			let r = [...t.entities];
@@ -3052,13 +3153,38 @@ var yt, bt = {
 				entities: r.filter(Boolean).slice(0, 2)
 			} });
 		}} />
-                </label>`)}
+                </label>`) : a}
               <p class="muted small">Antippen beendet den Bildschirmschoner, ohne eine Kachel auszulösen. Er erscheint vor dem Dimmen, wenn seine Zeit kürzer ist als der Bildschirm-Timeout.</p>` : a}
       </section>
     `;
 	}
 	firstUpdated() {
 		this.screensaver.mode === "slideshow" && this.loadFolders();
+	}
+	renderPrayer(e) {
+		let t = e.prayer ?? {}, n = (t) => this.commit({ screensaver: {
+			...e,
+			prayer: t
+		} }), r = Object.values(t).filter(Boolean).length;
+		return c`<div class="notice small">
+        Die Zeiten kommen aus der Home-Assistant-Integration <b>Islamic Prayer Times</b>
+        (Einstellungen → Geräte & Dienste → Integration hinzufügen). Berechnungsmethode, Schule (Asr) und Standort stellst du dort ein.
+        Das Display zeigt Uhrzeit, Datum und alle Zeiten. Das nächste Gebet wird hervorgehoben, darüber steht ein Countdown.
+      </div>
+      ${r === 0 ? c`<div class="notice warn small">Keine Gebetszeit-Sensoren gefunden. Bitte die Integration einrichten oder die Sensoren unten von Hand wählen.</div>` : a}
+      ${ct.map((e) => c`<label class="field"><span>${e.label}${e.key === "sunrise" ? " (optional, kein Gebet)" : ""}</span>
+          <gs-entity-picker
+            .hass=${this.hass}
+            .value=${t[e.key] ?? null}
+            .domains=${["sensor"]}
+            placeholder="Sensor suchen (z. B. ${e.label.toLowerCase()}) …"
+            @gs-entity=${(r) => {
+			let i = { ...t };
+			r.detail ? i[e.key] = r.detail : delete i[e.key], n(i);
+		}}
+          ></gs-entity-picker>
+        </label>`)}
+      <button @click=${() => n(lt(this.hass))}>Automatisch erkennen</button>`;
 	}
 	renderSlideshow(e) {
 		let t = (t) => this.commit({ screensaver: {
@@ -3106,7 +3232,7 @@ var yt, bt = {
       </label>
       <label class="check"><input type="checkbox" .checked=${e.show_clock !== !1} @change=${(e) => t({ show_clock: e.target.checked })} /> Uhrzeit & Datum über den Bildern</label>`;
 	}
-}, yt.styles = [w, r`
+}, xt.styles = [w, r`
       section {
         border-top: 1px solid var(--gs-border);
         padding-top: 12px;
@@ -3138,12 +3264,12 @@ var yt, bt = {
         grid-template-columns: 1fr 96px 70px;
         gap: 4px;
       }
-    `], yt);
+    `], xt);
 j([s({ attribute: !1 })], K.prototype, "hass", void 0), j([s({ attribute: !1 })], K.prototype, "layout", void 0), j([s({ attribute: !1 })], K.prototype, "api", void 0), j([e()], K.prototype, "folders", void 0), j([e()], K.prototype, "mediaRoot", void 0), K = j([u("gs-automation-props")], K);
 // src/views/designer.ts
-var St, q = [], J = (St = class extends t {
+var wt, q = [], J = (wt = class extends t {
 	constructor(...e) {
-		super(...e), this.displays = [], this.displayId = null, this.layout = null, this.activePage = "", this.selection = [], this.zoom = .8, this.showGrid = !0, this.multi = !1, this.drag = null, this.saveState = "saved", this.validation = null, this.applying = null, this.search = "", this.category = "all", this.favorites = [], this.libraryOpen = !0, this.propsOpen = !1, this.loading = !1, this.loadError = null, this.pageDragIndex = null, this.propsTab = "page", this.history = new ct(), this.libraryCache = null, this.loadedFor = null, this.onKeyDown = (e) => {
+		super(...e), this.displays = [], this.displayId = null, this.layout = null, this.activePage = "", this.selection = [], this.zoom = .8, this.showGrid = !0, this.multi = !1, this.drag = null, this.saveState = "saved", this.validation = null, this.applying = null, this.search = "", this.category = "all", this.favorites = [], this.libraryOpen = !0, this.propsOpen = !1, this.loading = !1, this.loadError = null, this.pageDragIndex = null, this.propsTab = "page", this.history = new ut(), this.libraryCache = null, this.loadedFor = null, this.onKeyDown = (e) => {
 			let t = e.composedPath()[0];
 			if ([
 				"INPUT",
@@ -4017,7 +4143,7 @@ var St, q = [], J = (St = class extends t {
             <button @click=${() => this.apply()}>Erneut versuchen</button>` : a}
     </div>`;
 	}
-}, St.styles = [
+}, wt.styles = [
 	w,
 	Se,
 	r`
@@ -4134,8 +4260,8 @@ var St, q = [], J = (St = class extends t {
         border-color: transparent;
       }
       .cell.free.show {
-        border-color: rgba(61, 139, 253, 0.6);
-        background: rgba(61, 139, 253, 0.06);
+        border-color: color-mix(in srgb, var(--gs-primary) 60%, transparent);
+        background: color-mix(in srgb, var(--gs-primary) 6%, transparent);
       }
       .tile {
         cursor: grab;
@@ -4143,11 +4269,11 @@ var St, q = [], J = (St = class extends t {
         border-radius: 16px;
       }
       .tile:hover {
-        outline: 2px solid rgba(61, 139, 253, 0.5);
+        outline: 2px solid color-mix(in srgb, var(--gs-primary) 50%, transparent);
         outline-offset: 2px;
       }
       .tile.selected {
-        outline: 3px solid #3d8bfd;
+        outline: 3px solid var(--gs-primary);
         outline-offset: 3px;
         z-index: 2;
       }
@@ -4161,7 +4287,7 @@ var St, q = [], J = (St = class extends t {
         position: absolute;
         left: 6px;
         top: 6px;
-        background: #f59e0b;
+        background: var(--gs-accent);
         color: #111;
         font-size: 11px;
         font-weight: 600;
@@ -4182,7 +4308,7 @@ var St, q = [], J = (St = class extends t {
         width: 22px;
         height: 22px;
         border-radius: 50%;
-        background: #3d8bfd;
+        background: var(--gs-primary);
         border: 3px solid #fff;
         cursor: nwse-resize;
         touch-action: none;
@@ -4196,12 +4322,12 @@ var St, q = [], J = (St = class extends t {
         border: 3px solid;
       }
       .drop.valid {
-        border-color: #22c55e;
-        background: rgba(34, 197, 94, 0.25);
+        border-color: var(--gs-ok);
+        background: color-mix(in srgb, var(--gs-ok) 25%, transparent);
       }
       .drop.invalid {
-        border-color: #ef4444;
-        background: rgba(239, 68, 68, 0.25);
+        border-color: var(--gs-error);
+        background: color-mix(in srgb, var(--gs-error) 25%, transparent);
       }
       .add-page {
         flex-shrink: 0;
@@ -4252,7 +4378,7 @@ var St, q = [], J = (St = class extends t {
         color: var(--gs-muted);
       }
       button.tiny.home {
-        color: #f59e0b;
+        color: var(--gs-accent);
       }
       .page-actions {
         display: flex;
@@ -4352,7 +4478,7 @@ var St, q = [], J = (St = class extends t {
         width: 26px;
         min-height: 26px;
         padding: 0;
-        color: #f59e0b;
+        color: var(--gs-accent);
         display: grid;
         place-items: center;
       }
@@ -4401,8 +4527,8 @@ var St, q = [], J = (St = class extends t {
         pointer-events: none;
         padding: 8px 12px;
         border-radius: 10px;
-        background: #3d8bfd;
-        color: #fff;
+        background: var(--gs-primary);
+        color: var(--gs-on-primary);
         font-weight: 600;
         box-shadow: var(--gs-shadow);
       }
@@ -4460,16 +4586,16 @@ var St, q = [], J = (St = class extends t {
         }
       }
     `
-], St);
+], wt);
 j([s({ attribute: !1 })], J.prototype, "hass", void 0), j([s({ attribute: !1 })], J.prototype, "api", void 0), j([s({ attribute: !1 })], J.prototype, "info", void 0), j([s({ attribute: !1 })], J.prototype, "displays", void 0), j([s({ attribute: !1 })], J.prototype, "displayId", void 0), j([e()], J.prototype, "layout", void 0), j([e()], J.prototype, "activePage", void 0), j([e()], J.prototype, "selection", void 0), j([e()], J.prototype, "zoom", void 0), j([e()], J.prototype, "showGrid", void 0), j([e()], J.prototype, "multi", void 0), j([e()], J.prototype, "drag", void 0), j([e()], J.prototype, "saveState", void 0), j([e()], J.prototype, "validation", void 0), j([e()], J.prototype, "applying", void 0), j([e()], J.prototype, "search", void 0), j([e()], J.prototype, "category", void 0), j([e()], J.prototype, "favorites", void 0), j([e()], J.prototype, "libraryOpen", void 0), j([e()], J.prototype, "propsOpen", void 0), j([e()], J.prototype, "loading", void 0), j([e()], J.prototype, "loadError", void 0), j([e()], J.prototype, "pageDragIndex", void 0), j([e()], J.prototype, "propsTab", void 0), J = j([u("gs-designer")], J);
 // src/views/firmware.ts
-var Ct;
-function wt(e, t) {
+var Tt;
+function Et(e, t) {
 	let n = e.split(/[.-]/).map((e) => parseInt(e, 10) || 0), r = t.split(/[.-]/).map((e) => parseInt(e, 10) || 0);
 	for (let e = 0; e < Math.max(n.length, r.length); e++) if ((n[e] ?? 0) !== (r[e] ?? 0)) return (n[e] ?? 0) - (r[e] ?? 0);
 	return 0;
 }
-var Y = (Ct = class extends M {
+var Y = (Tt = class extends M {
 	constructor(...e) {
 		super(...e), this.status = null, this.busy = null, this.target = {}, this.showUsb = !1;
 	}
@@ -4554,7 +4680,7 @@ var Y = (Ct = class extends M {
         <table>
           <tr><th>Display</th><th>Installiert</th><th>Status</th><th>Zielversion</th><th></th></tr>
           ${this.displays.map((e) => {
-			let n = this.target[e.id] ?? t[0]?.version ?? "", r = e.firmware && n ? wt(n, e.firmware) > 0 : !1, i = e.ota?.state && e.ota.state !== "idle" ? e.ota : null;
+			let n = this.target[e.id] ?? t[0]?.version ?? "", r = e.firmware && n ? Et(n, e.firmware) > 0 : !1, i = e.ota?.state && e.ota.state !== "idle" ? e.ota : null;
 			return c`<tr>
               <td><b>${e.name}</b></td>
               <td>${e.firmware ?? "–"}</td>
@@ -4596,7 +4722,7 @@ var Y = (Ct = class extends M {
       </section>
     `;
 	}
-}, Ct.styles = [...M.styles, r`
+}, Tt.styles = [...M.styles, r`
       .notes {
         white-space: pre-wrap;
         font-size: 12px;
@@ -4606,11 +4732,11 @@ var Y = (Ct = class extends M {
       td select {
         min-width: 110px;
       }
-    `], Ct);
+    `], Tt);
 j([e()], Y.prototype, "status", void 0), j([e()], Y.prototype, "busy", void 0), j([e()], Y.prototype, "target", void 0), j([e()], Y.prototype, "showUsb", void 0), Y = j([u("gs-firmware")], Y);
 // src/views/templates.ts
-var Tt;
-function Et(e) {
+var Dt;
+function Ot(e) {
 	let t = I(e), n = /* @__PURE__ */ new Map();
 	for (let e of t.pages) {
 		let t = F("p");
@@ -4620,7 +4746,7 @@ function Et(e) {
 	for (let e of t.pages) for (let t of e.tiles) for (let e of ["tap_action", "hold_action"]) t[e].action === "navigate" && t[e].page && (t[e].page = n.get(t[e].page) ?? t[e].page);
 	return t.settings.home_page && (t.settings.home_page = n.get(t.settings.home_page) ?? t.pages[0]?.id ?? null), t;
 }
-var X = (Tt = class extends M {
+var X = (Dt = class extends M {
 	constructor(...e) {
 		super(...e), this.displayId = null, this.target = null, this.area = "";
 	}
@@ -4635,7 +4761,7 @@ var X = (Tt = class extends M {
 			text: `Der aktuelle Entwurf von „${n.name}“ wird ersetzt. Das Layout auf dem Display ändert sich erst beim Übertragen.`,
 			confirm: "Übernehmen"
 		})) try {
-			let n = await this.api.getLayout(t), r = Et(e.layout);
+			let n = await this.api.getLayout(t), r = Ot(e.layout);
 			r.revision = n.layout.revision, await this.api.saveLayout(t, r), O(this, "Vorlage übernommen – Kacheln ohne Entität sind markiert.", "ok"), this.go("designer", t);
 		} catch (e) {
 			O(this, y(e), "error");
@@ -4678,7 +4804,7 @@ var X = (Tt = class extends M {
 				text: `${n.pages.length} Seite(n). ${r.valid ? "Das Layout ist gültig." : `Hinweise: ${r.errors.slice(0, 3).join(" ")}`}\nDer aktuelle Entwurf wird ersetzt.`,
 				confirm: "Importieren"
 			})) return;
-			let i = await this.api.getLayout(e), a = Et(n);
+			let i = await this.api.getLayout(e), a = Ot(n);
 			a.revision = i.layout.revision, await this.api.saveLayout(e, a), O(this, "Layout importiert", "ok"), this.go("designer", e);
 		} catch (e) {
 			O(this, y(e), "error");
@@ -4809,7 +4935,7 @@ var X = (Tt = class extends M {
       </section>
     `;
 	}
-}, Tt.styles = [
+}, Dt.styles = [
 	...M.styles,
 	Se,
 	r`
@@ -4830,10 +4956,10 @@ var X = (Tt = class extends M {
         pointer-events: none;
       }
     `
-], Tt);
+], Dt);
 j([s({ attribute: !1 })], X.prototype, "displayId", void 0), j([e()], X.prototype, "target", void 0), j([e()], X.prototype, "area", void 0), X = j([u("gs-templates")], X);
 // src/views/settings.ts
-var Dt = class extends M {
+var kt = class extends M {
 	constructor(...e) {
 		super(...e), this.displayId = null, this.selected = null, this.layout = null, this.debug = !1, this.dirty = !1, this.busy = !1, this.loadedId = null;
 	}
@@ -4982,7 +5108,7 @@ var Dt = class extends M {
       </section>
     `;
 	}
-}, Z = (Dt.styles = [...M.styles, r`
+}, Z = (kt.styles = [...M.styles, r`
       .actions {
         margin-top: 16px;
         position: sticky;
@@ -5001,10 +5127,10 @@ var Dt = class extends M {
       th {
         width: 50%;
       }
-    `], Dt);
+    `], kt);
 j([s({ attribute: !1 })], Z.prototype, "displayId", void 0), j([e()], Z.prototype, "selected", void 0), j([e()], Z.prototype, "layout", void 0), j([e()], Z.prototype, "debug", void 0), j([e()], Z.prototype, "dirty", void 0), j([e()], Z.prototype, "busy", void 0), Z = j([u("gs-settings")], Z);
 // src/views/diagnostics.ts
-var Ot = class extends M {
+var At = class extends M {
 	constructor(...e) {
 		super(...e), this.entries = [], this.level = "all", this.debug = !1;
 	}
@@ -5082,7 +5208,7 @@ var Ot = class extends M {
       </section>
     `;
 	}
-}, Q = (Ot.styles = [...M.styles, r`
+}, Q = (At.styles = [...M.styles, r`
       th {
         width: 44%;
       }
@@ -5110,10 +5236,10 @@ var Ot = class extends M {
         background: var(--gs-warn);
         color: #fff;
       }
-    `], Ot);
+    `], At);
 j([e()], Q.prototype, "entries", void 0), j([e()], Q.prototype, "level", void 0), j([e()], Q.prototype, "debug", void 0), Q = j([u("gs-diagnostics")], Q);
 // src/panel.ts
-var kt, At = [
+var jt, Mt = [
 	{
 		key: "overview",
 		label: "Übersicht",
@@ -5156,7 +5282,7 @@ var kt, At = [
 		icon: "mdi:stethoscope",
 		glyph: "♥"
 	}
-], $ = (kt = class extends t {
+], $ = (jt = class extends t {
 	constructor(...e) {
 		super(...e), this.narrow = !1, this.view = "overview", this.displays = [], this.selected = null, this.error = null, this.dialog = null, this.toasts = [], this.navOpen = !1, this.api = new v(() => this.hass), this.toastId = 0, this.onNavigate = (e) => {
 			this.view = e.detail.view, e.detail.display && (this.selected = e.detail.display), this.navOpen = !1, this.refresh();
@@ -5183,7 +5309,7 @@ var kt, At = [
 	connectedCallback() {
 		super.connectedCallback(), this.addEventListener("gs-confirm", this.onConfirm), this.addEventListener("gs-prompt", this.onPrompt), this.addEventListener("gs-toast", this.onToast), this.addEventListener("gs-navigate", this.onNavigate), this.addEventListener("gs-refresh", () => this.refresh());
 		let e = new URLSearchParams(location.search).get("view");
-		e && At.some((t) => t.key === e) && (this.view = e);
+		e && Mt.some((t) => t.key === e) && (this.view = e);
 	}
 	disconnectedCallback() {
 		super.disconnectedCallback(), this.unsub?.(), this.unsub = void 0, window.clearInterval(this.refreshTimer);
@@ -5263,13 +5389,13 @@ var kt, At = [
       <div class="shell ${this.narrow ? "narrow" : ""}">
         <header class="topbar">
           <button class="icon ghost menu" title="Menü" @click=${() => this.navOpen = !this.navOpen}>${ve("mdi:menu", "≡")}</button>
-          <div class="brand"><span class="logo">GS</span> Guition Studio</div>
+          <div class="brand"><span class="logo">GS</span> <span>Guition <b>Studio</b></span></div>
           <span class="spacer"></span>
           ${this.info ? c`<span class="chip">v${this.info.version}</span>` : a}
         </header>
         <div class="body">
           <nav class="${this.navOpen ? "open" : ""}" aria-label="Guition Studio Navigation">
-            ${At.map((e) => c`<button
+            ${Mt.map((e) => c`<button
                 class="nav-item ${this.view === e.key ? "active" : ""}"
                 aria-current=${this.view === e.key ? "page" : "false"}
                 @click=${() => {
@@ -5307,13 +5433,48 @@ var kt, At = [
     </div>`;
 	}
 	updated() {
-		this.dialog?.kind === "prompt" && this.renderRoot.querySelector("#prompt-input")?.focus();
+		this.toggleAttribute("dark", !!this.hass?.themes?.darkMode), this.dialog?.kind === "prompt" && this.renderRoot.querySelector("#prompt-input")?.focus();
 	}
-}, kt.styles = [w, r`
+}, jt.styles = [w, r`
+      /* Guition Studio palette: petrol primary, amber accent, cool slate neutrals. */
       :host {
+        --gsp-bg: #f3f6f9;
+        --gsp-surface: #ffffff;
+        --gsp-surface-2: #eef2f6;
+        --gsp-text: #0f1c2a;
+        --gsp-muted: #5b6b7c;
+        --gsp-border: #dfe5ec;
+        --gsp-primary: #0e7490;
+        --gsp-primary-strong: #155e75;
+        --gsp-on-primary: #ffffff;
+        --gsp-accent: #f59e0b;
+        --gsp-ok: #15803d;
+        --gsp-warn: #b45309;
+        --gsp-error: #b91c1c;
+        --gsp-shadow: 0 1px 2px rgba(15, 28, 42, 0.05), 0 2px 8px rgba(15, 28, 42, 0.04);
+        --gsp-shadow-lg: 0 12px 32px rgba(15, 28, 42, 0.18);
+        --gsp-bar: linear-gradient(90deg, #0b1d2a 0%, #0f2b3a 60%, #114052 100%);
         display: block;
         height: 100%;
         background: var(--gs-bg);
+      }
+      :host([dark]) {
+        --gsp-bg: #0b1117;
+        --gsp-surface: #121a23;
+        --gsp-surface-2: #19232e;
+        --gsp-text: #e6edf3;
+        --gsp-muted: #8b98a5;
+        --gsp-border: #253241;
+        --gsp-primary: #22b8cf;
+        --gsp-primary-strong: #0ea5c0;
+        --gsp-on-primary: #04212a;
+        --gsp-accent: #fbbf24;
+        --gsp-ok: #3fb950;
+        --gsp-warn: #f0b429;
+        --gsp-error: #f87171;
+        --gsp-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+        --gsp-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.55);
+        --gsp-bar: linear-gradient(90deg, #070d13 0%, #0b1a24 60%, #0d2a36 100%);
       }
       .shell {
         display: flex;
@@ -5326,28 +5487,53 @@ var kt, At = [
         gap: 10px;
         height: 56px;
         padding: 0 16px;
-        background: var(--app-header-background-color, var(--gs-surface));
-        color: var(--app-header-text-color, var(--gs-text));
-        border-bottom: 1px solid var(--gs-border);
+        background: var(--gsp-bar);
+        color: #f1f5f9;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.15);
         flex-shrink: 0;
+      }
+      .topbar .chip {
+        background: rgba(255, 255, 255, 0.1);
+        color: #cbd5e1;
+        font-variant-numeric: tabular-nums;
       }
       .brand {
         display: flex;
         align-items: center;
         gap: 10px;
-        font-size: 18px;
+        font-size: 17px;
         font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .brand b {
+        font-weight: 400;
+        color: #7dd3e8;
       }
       .logo {
+        position: relative;
         display: grid;
         place-items: center;
         width: 30px;
         height: 30px;
-        border-radius: 9px;
-        background: linear-gradient(135deg, #3d8bfd, #8b5cf6);
+        border-radius: 8px;
+        background: linear-gradient(135deg, #22b8cf, #0e7490);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
         color: #fff;
-        font-size: 13px;
+        font-size: 12.5px;
         font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+      .logo::after {
+        content: "";
+        position: absolute;
+        right: -2px;
+        bottom: -2px;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #f59e0b;
+        border: 2px solid #0f2b3a;
       }
       .menu {
         display: none;
@@ -5361,24 +5547,41 @@ var kt, At = [
       nav {
         width: 224px;
         flex-shrink: 0;
-        padding: 12px 10px;
+        padding: 14px 10px;
         border-right: 1px solid var(--gs-border);
         background: var(--gs-surface);
         overflow-y: auto;
       }
       .nav-item {
+        position: relative;
         width: 100%;
         justify-content: flex-start;
         border: none;
         background: transparent;
         margin-bottom: 2px;
         gap: 12px;
-        min-height: 42px;
+        min-height: 40px;
+        color: var(--gs-muted);
+        font-weight: 500;
+      }
+      .nav-item:hover:not(:disabled) {
+        color: var(--gs-text);
+        background: var(--gs-surface-2);
       }
       .nav-item.active {
-        background: color-mix(in srgb, var(--gs-primary) 14%, transparent);
+        background: color-mix(in srgb, var(--gs-primary) 11%, transparent);
         color: var(--gs-primary);
         font-weight: 600;
+      }
+      .nav-item.active::before {
+        content: "";
+        position: absolute;
+        left: -10px;
+        top: 8px;
+        bottom: 8px;
+        width: 3px;
+        border-radius: 0 3px 3px 0;
+        background: var(--gs-primary);
       }
       main {
         flex: 1;
@@ -5415,13 +5618,15 @@ var kt, At = [
       .scrim {
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0.45);
+        background: rgba(7, 13, 19, 0.55);
+        backdrop-filter: blur(2px);
         display: grid;
         place-items: center;
         z-index: 100;
       }
       .dialog {
         width: min(460px, 92vw);
+        box-shadow: var(--gs-shadow-lg);
       }
       .danger-fill {
         background: var(--gs-error) !important;
@@ -5437,18 +5642,19 @@ var kt, At = [
         z-index: 200;
       }
       .toast {
-        background: #1f2937;
-        color: #fff;
-        padding: 12px 18px;
-        border-radius: 12px;
-        box-shadow: var(--gs-shadow);
+        background: #0f1c2a;
+        color: #f1f5f9;
+        padding: 12px 18px 12px 16px;
+        border-radius: 10px;
+        border-left: 4px solid #22b8cf;
+        box-shadow: var(--gs-shadow-lg);
         max-width: 80vw;
       }
       .toast.ok {
-        background: #166534;
+        border-left-color: #3fb950;
       }
       .toast.error {
-        background: #991b1b;
+        border-left-color: #f87171;
       }
-    `], kt);
+    `], jt);
 j([s({ attribute: !1 })], $.prototype, "hass", void 0), j([s({ type: Boolean })], $.prototype, "narrow", void 0), j([e()], $.prototype, "view", void 0), j([e()], $.prototype, "info", void 0), j([e()], $.prototype, "displays", void 0), j([e()], $.prototype, "selected", void 0), j([e()], $.prototype, "error", void 0), j([e()], $.prototype, "dialog", void 0), j([e()], $.prototype, "toasts", void 0), j([e()], $.prototype, "navOpen", void 0), $ = j([u("guition-studio-panel")], $);

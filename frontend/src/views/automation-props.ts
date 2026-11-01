@@ -1,10 +1,11 @@
 import { LitElement, css, html, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import type { StudioApi } from "../api";
-import { friendlyName } from "../entities";
+import { PRAYERS, detectPrayerSensors, friendlyName } from "../entities";
 import { clone, newId } from "../model";
 import type { Hass, Layout, NightSettings, PageRule, ScreensaverSettings } from "../types";
 import { fireEvent, sharedStyles } from "../ui";
+import "./entity-picker";
 
 export const DEFAULT_NIGHT: NightSettings = { enabled: false, mode: "time", start: "22:00", end: "06:30", brightness: 15, dim: 30, page: null };
 export const DEFAULT_SCREENSAVER: ScreensaverSettings = {
@@ -157,15 +158,18 @@ export class GsAutomationProps extends LitElement {
               <label class="field"><span>Anzeige</span>
                 <select @change=${(e: Event) => {
                   const mode = (e.target as HTMLSelectElement).value as ScreensaverSettings["mode"];
-                  this.commit({ screensaver: { ...ss, mode } });
+                  const prayer = mode === "prayer" && !Object.values(ss.prayer ?? {}).some(Boolean) ? detectPrayerSensors(this.hass) : ss.prayer;
+                  this.commit({ screensaver: { ...ss, mode, prayer } });
                   if (mode === "slideshow" && !this.folders) this.loadFolders();
                 }}>
                   <option value="clock" ?selected=${ss.mode !== "slideshow"}>Uhr, Datum & Werte</option>
                   <option value="slideshow" ?selected=${ss.mode === "slideshow"}>Diashow (Bilder aus Home Assistant)</option>
+                  <option value="prayer" ?selected=${ss.mode === "prayer"}>Islamische Gebetszeiten</option>
                 </select>
               </label>
               ${ss.mode === "slideshow" ? this.renderSlideshow(ss) : nothing}
-              ${ss.mode !== "slideshow" ? [0, 1].map(
+              ${ss.mode === "prayer" ? this.renderPrayer(ss) : nothing}
+              ${ss.mode !== "slideshow" && ss.mode !== "prayer" ? [0, 1].map(
                 (i) => html`<label class="field"><span>Wert ${i + 1} (optional)</span>
                   <input list="gs-auto-entities" placeholder="z. B. sensor.aussentemperatur" .value=${ss.entities[i] ?? ""}
                     @change=${(e: Event) => {
@@ -183,6 +187,35 @@ export class GsAutomationProps extends LitElement {
 
   protected firstUpdated(): void {
     if (this.screensaver.mode === "slideshow") this.loadFolders();
+  }
+
+  private renderPrayer(ss: ScreensaverSettings) {
+    const prayer = ss.prayer ?? {};
+    const set = (next: ScreensaverSettings["prayer"]) => this.commit({ screensaver: { ...ss, prayer: next } });
+    const found = Object.values(prayer).filter(Boolean).length;
+    return html`<div class="notice small">
+        Die Zeiten kommen aus der Home-Assistant-Integration <b>Islamic Prayer Times</b>
+        (Einstellungen → Geräte & Dienste → Integration hinzufügen). Berechnungsmethode, Schule (Asr) und Standort stellst du dort ein.
+        Das Display zeigt Uhrzeit, Datum und alle Zeiten. Das nächste Gebet wird hervorgehoben, darüber steht ein Countdown.
+      </div>
+      ${found === 0 ? html`<div class="notice warn small">Keine Gebetszeit-Sensoren gefunden. Bitte die Integration einrichten oder die Sensoren unten von Hand wählen.</div>` : nothing}
+      ${PRAYERS.map(
+        (p) => html`<label class="field"><span>${p.label}${p.key === "sunrise" ? " (optional, kein Gebet)" : ""}</span>
+          <gs-entity-picker
+            .hass=${this.hass}
+            .value=${prayer[p.key] ?? null}
+            .domains=${["sensor"]}
+            placeholder="Sensor suchen (z. B. ${p.label.toLowerCase()}) …"
+            @gs-entity=${(e: CustomEvent<string | null>) => {
+              const next = { ...prayer };
+              if (e.detail) next[p.key] = e.detail;
+              else delete next[p.key];
+              set(next);
+            }}
+          ></gs-entity-picker>
+        </label>`
+      )}
+      <button @click=${() => set(detectPrayerSensors(this.hass))}>Automatisch erkennen</button>`;
   }
 
   private renderSlideshow(ss: ScreensaverSettings) {

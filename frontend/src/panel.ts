@@ -185,7 +185,7 @@ export class GuitionStudioPanel extends LitElement {
       <div class="shell ${this.narrow ? "narrow" : ""}">
         <header class="topbar">
           <button class="icon ghost menu" title="Menü" @click=${() => (this.navOpen = !this.navOpen)}>${mdi("mdi:menu", "≡")}</button>
-          <div class="brand"><span class="logo">GS</span> Guition Studio</div>
+          <div class="brand"><span class="logo">GS</span> <span>Guition <b>Studio</b></span></div>
           <span class="spacer"></span>
           ${this.info ? html`<span class="chip">v${this.info.version}</span>` : nothing}
         </header>
@@ -237,16 +237,52 @@ export class GuitionStudioPanel extends LitElement {
   }
 
   protected updated(): void {
+    this.toggleAttribute("dark", !!this.hass?.themes?.darkMode);
     if (this.dialog?.kind === "prompt") this.renderRoot.querySelector<HTMLInputElement>("#prompt-input")?.focus();
   }
 
   static styles = [
     sharedStyles,
     css`
+      /* Guition Studio palette: petrol primary, amber accent, cool slate neutrals. */
       :host {
+        --gsp-bg: #f3f6f9;
+        --gsp-surface: #ffffff;
+        --gsp-surface-2: #eef2f6;
+        --gsp-text: #0f1c2a;
+        --gsp-muted: #5b6b7c;
+        --gsp-border: #dfe5ec;
+        --gsp-primary: #0e7490;
+        --gsp-primary-strong: #155e75;
+        --gsp-on-primary: #ffffff;
+        --gsp-accent: #f59e0b;
+        --gsp-ok: #15803d;
+        --gsp-warn: #b45309;
+        --gsp-error: #b91c1c;
+        --gsp-shadow: 0 1px 2px rgba(15, 28, 42, 0.05), 0 2px 8px rgba(15, 28, 42, 0.04);
+        --gsp-shadow-lg: 0 12px 32px rgba(15, 28, 42, 0.18);
+        --gsp-bar: linear-gradient(90deg, #0b1d2a 0%, #0f2b3a 60%, #114052 100%);
         display: block;
         height: 100%;
         background: var(--gs-bg);
+      }
+      :host([dark]) {
+        --gsp-bg: #0b1117;
+        --gsp-surface: #121a23;
+        --gsp-surface-2: #19232e;
+        --gsp-text: #e6edf3;
+        --gsp-muted: #8b98a5;
+        --gsp-border: #253241;
+        --gsp-primary: #22b8cf;
+        --gsp-primary-strong: #0ea5c0;
+        --gsp-on-primary: #04212a;
+        --gsp-accent: #fbbf24;
+        --gsp-ok: #3fb950;
+        --gsp-warn: #f0b429;
+        --gsp-error: #f87171;
+        --gsp-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+        --gsp-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.55);
+        --gsp-bar: linear-gradient(90deg, #070d13 0%, #0b1a24 60%, #0d2a36 100%);
       }
       .shell {
         display: flex;
@@ -259,28 +295,53 @@ export class GuitionStudioPanel extends LitElement {
         gap: 10px;
         height: 56px;
         padding: 0 16px;
-        background: var(--app-header-background-color, var(--gs-surface));
-        color: var(--app-header-text-color, var(--gs-text));
-        border-bottom: 1px solid var(--gs-border);
+        background: var(--gsp-bar);
+        color: #f1f5f9;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.15);
         flex-shrink: 0;
+      }
+      .topbar .chip {
+        background: rgba(255, 255, 255, 0.1);
+        color: #cbd5e1;
+        font-variant-numeric: tabular-nums;
       }
       .brand {
         display: flex;
         align-items: center;
         gap: 10px;
-        font-size: 18px;
+        font-size: 17px;
         font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .brand b {
+        font-weight: 400;
+        color: #7dd3e8;
       }
       .logo {
+        position: relative;
         display: grid;
         place-items: center;
         width: 30px;
         height: 30px;
-        border-radius: 9px;
-        background: linear-gradient(135deg, #3d8bfd, #8b5cf6);
+        border-radius: 8px;
+        background: linear-gradient(135deg, #22b8cf, #0e7490);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
         color: #fff;
-        font-size: 13px;
+        font-size: 12.5px;
         font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+      .logo::after {
+        content: "";
+        position: absolute;
+        right: -2px;
+        bottom: -2px;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #f59e0b;
+        border: 2px solid #0f2b3a;
       }
       .menu {
         display: none;
@@ -294,24 +355,41 @@ export class GuitionStudioPanel extends LitElement {
       nav {
         width: 224px;
         flex-shrink: 0;
-        padding: 12px 10px;
+        padding: 14px 10px;
         border-right: 1px solid var(--gs-border);
         background: var(--gs-surface);
         overflow-y: auto;
       }
       .nav-item {
+        position: relative;
         width: 100%;
         justify-content: flex-start;
         border: none;
         background: transparent;
         margin-bottom: 2px;
         gap: 12px;
-        min-height: 42px;
+        min-height: 40px;
+        color: var(--gs-muted);
+        font-weight: 500;
+      }
+      .nav-item:hover:not(:disabled) {
+        color: var(--gs-text);
+        background: var(--gs-surface-2);
       }
       .nav-item.active {
-        background: color-mix(in srgb, var(--gs-primary) 14%, transparent);
+        background: color-mix(in srgb, var(--gs-primary) 11%, transparent);
         color: var(--gs-primary);
         font-weight: 600;
+      }
+      .nav-item.active::before {
+        content: "";
+        position: absolute;
+        left: -10px;
+        top: 8px;
+        bottom: 8px;
+        width: 3px;
+        border-radius: 0 3px 3px 0;
+        background: var(--gs-primary);
       }
       main {
         flex: 1;
@@ -348,13 +426,15 @@ export class GuitionStudioPanel extends LitElement {
       .scrim {
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0.45);
+        background: rgba(7, 13, 19, 0.55);
+        backdrop-filter: blur(2px);
         display: grid;
         place-items: center;
         z-index: 100;
       }
       .dialog {
         width: min(460px, 92vw);
+        box-shadow: var(--gs-shadow-lg);
       }
       .danger-fill {
         background: var(--gs-error) !important;
@@ -370,18 +450,19 @@ export class GuitionStudioPanel extends LitElement {
         z-index: 200;
       }
       .toast {
-        background: #1f2937;
-        color: #fff;
-        padding: 12px 18px;
-        border-radius: 12px;
-        box-shadow: var(--gs-shadow);
+        background: #0f1c2a;
+        color: #f1f5f9;
+        padding: 12px 18px 12px 16px;
+        border-radius: 10px;
+        border-left: 4px solid #22b8cf;
+        box-shadow: var(--gs-shadow-lg);
         max-width: 80vw;
       }
       .toast.ok {
-        background: #166534;
+        border-left-color: #3fb950;
       }
       .toast.error {
-        background: #991b1b;
+        border-left-color: #f87171;
       }
     `,
   ];

@@ -2,6 +2,7 @@
 #include "gs_icons.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -519,6 +520,22 @@ bool GuitionStudio::parse_layout_(const char *data, size_t len, LayoutCfg &out, 
     out.slideshow = false;
   out.slide_interval = clampi(set["sli"] | 15, 5, 600);
   out.slide_clock = (set["slc"] | 1) != 0;
+  out.prayer = (set["ssm"] | 0) == 2;
+  out.prayer_names.clear();
+  out.prayer_entities.clear();
+  out.prayer_kind.clear();
+  if (out.prayer) {
+    JsonArrayConst names = set["spn"].as<JsonArrayConst>();
+    JsonArrayConst ents = set["spe"].as<JsonArrayConst>();
+    JsonArrayConst kinds = set["spk"].as<JsonArrayConst>();
+    for (size_t i = 0; i < ents.size() && i < 6; i++) {
+      out.prayer_entities.push_back(std::string(ents[i] | "").substr(0, 96));
+      out.prayer_names.push_back(std::string(names[i] | "").substr(0, 24));
+      out.prayer_kind.push_back((kinds[i] | 1) != 0 ? 1 : 0);
+    }
+    if (out.prayer_entities.empty())
+      out.prayer = false;
+  }
   out.themes.clear();
   for (JsonArrayConst t : set["thl"].as<JsonArrayConst>()) {
     if (out.themes.size() >= 8)
@@ -1677,9 +1694,12 @@ void GuitionStudio::show_screensaver_() {
         lv_obj_add_flag(lbl, LV_OBJ_FLAG_HIDDEN);
     }
   }
+  bool prayer = l.prayer && !slides;
+  if (prayer)
+    this->build_prayer_screensaver_(o);
   for (int i = 0; i < 2; i++) {
     this->ss_lines_[i] = nullptr;
-    if (i < static_cast<int>(l.ss_entities.size()) && !slides) {
+    if (i < static_cast<int>(l.ss_entities.size()) && !slides && !prayer) {
       this->ss_lines_[i] = make_label(o, font_px(28), 0xE6EDF3, "");
       lv_obj_set_width(this->ss_lines_[i], 440);
       lv_obj_set_style_text_align(this->ss_lines_[i], LV_TEXT_ALIGN_CENTER, 0);
@@ -1702,6 +1722,113 @@ void GuitionStudio::hide_screensaver_() {
   this->slide_stop_();
   this->ss_clock_ = this->ss_date_ = nullptr;
   this->ss_lines_[0] = this->ss_lines_[1] = nullptr;
+  this->ss_next_ = nullptr;
+  for (int i = 0; i < MAX_PRAYER_ROWS; i++)
+    this->ss_prow_[i] = this->ss_pname_[i] = this->ss_ptime_[i] = nullptr;
+  this->ss_prayer_sig_.clear();
+}
+
+void GuitionStudio::build_prayer_screensaver_(lv_obj_t *parent) {
+  const auto &l = this->layout_;
+  // clock + date at the top, "next prayer" line, then one row per time
+  lv_obj_align(this->ss_clock_, LV_ALIGN_TOP_MID, 0, 22);
+  lv_obj_align(this->ss_date_, LV_ALIGN_TOP_MID, 0, 74);
+  this->ss_next_ = make_label(parent, font_px(20), l.accent, "");
+  lv_obj_set_width(this->ss_next_, 440);
+  lv_obj_set_style_text_align(this->ss_next_, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_align(this->ss_next_, LV_ALIGN_TOP_MID, 0, 108);
+  int rows = std::min(static_cast<int>(l.prayer_entities.size()), MAX_PRAYER_ROWS);
+  for (int i = 0; i < rows; i++) {
+    lv_obj_t *row = make_plain(parent);
+    lv_obj_set_size(row, 400, 46);
+    lv_obj_align(row, LV_ALIGN_TOP_MID, 0, 146 + i * 52);
+    lv_obj_set_style_radius(row, 12, 0);
+    lv_obj_set_style_bg_color(row, lv_color_hex(l.accent), 0);
+    lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
+    uint32_t color = l.prayer_kind[i] ? 0xE6EDF3 : l.muted;
+    this->ss_pname_[i] = make_label(row, font_px(28), color, l.prayer_names[i].c_str());
+    lv_obj_align(this->ss_pname_[i], LV_ALIGN_LEFT_MID, 18, 0);
+    this->ss_ptime_[i] = make_label(row, font_px(28), color, "--:--");
+    lv_obj_align(this->ss_ptime_[i], LV_ALIGN_RIGHT_MID, -18, 0);
+    this->ss_prow_[i] = row;
+  }
+}
+
+// "HH:MM" -> minutes since midnight, -1 if the text is no time (unknown/unavailable)
+static int hhmm_minutes(const std::string &t) {
+  if (t.size() != 5 || t[2] != ':')
+    return -1;
+  for (int i : {0, 1, 3, 4})
+    if (!isdigit(static_cast<unsigned char>(t[i])))
+      return -1;
+  int h = (t[0] - '0') * 10 + (t[1] - '0'), m = (t[3] - '0') * 10 + (t[4] - '0');
+  return (h < 24 && m < 60) ? h * 60 + m : -1;
+}
+
+void GuitionStudio::update_prayer_(const std::string &hhmm) {
+  const auto &l = this->layout_;
+  int rows = std::min(static_cast<int>(l.prayer_entities.size()), MAX_PRAYER_ROWS);
+  std::string times[MAX_PRAYER_ROWS];
+  std::string sig = hhmm;
+  for (int i = 0; i < rows; i++) {
+    auto it = this->states_.find(l.prayer_entities[i]);
+    times[i] = (it != this->states_.end() && it->second.known && it->second.available) ? it->second.display
+                                                                                         : std::string("--:--");
+    sig += "|" + times[i];
+  }
+  if (sig == this->ss_prayer_sig_)
+    return;  // only redraw when the minute or a time changes
+  this->ss_prayer_sig_ = sig;
+
+  int now = hhmm_minutes(hhmm);
+  // A prayer stays "current" for 15 minutes after its time, afterwards the next one is shown.
+  int current = -1, next = -1, delta = 0;
+  if (now >= 0) {
+    for (int i = 0; i < rows; i++) {
+      int t = hhmm_minutes(times[i]);
+      if (!l.prayer_kind[i] || t < 0)
+        continue;
+      if (t <= now && now - t < 15)
+        current = i;
+      if (t > now && next < 0) {
+        next = i;
+        delta = t - now;
+      }
+    }
+    if (next < 0) {  // after Isha: Fajr of tomorrow (today's time is a good estimate)
+      for (int i = 0; i < rows; i++) {
+        int t = hhmm_minutes(times[i]);
+        if (l.prayer_kind[i] && t >= 0) {
+          next = i;
+          delta = t + 1440 - now;
+          break;
+        }
+      }
+    }
+  }
+  int highlight = current >= 0 ? current : next;
+  for (int i = 0; i < rows; i++) {
+    if (this->ss_prow_[i] == nullptr)
+      continue;
+    lv_label_set_text(this->ss_ptime_[i], times[i].c_str());
+    bool hl = i == highlight;
+    lv_obj_set_style_bg_opa(this->ss_prow_[i], hl ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
+    uint32_t color = hl ? 0xFFFFFF : (l.prayer_kind[i] ? 0xE6EDF3 : l.muted);
+    lv_obj_set_style_text_color(this->ss_pname_[i], lv_color_hex(color), 0);
+    lv_obj_set_style_text_color(this->ss_ptime_[i], lv_color_hex(color), 0);
+  }
+  std::string text;
+  if (current >= 0) {
+    text = "Jetzt: " + l.prayer_names[current];
+  } else if (next >= 0) {
+    char buf[40];
+    if (delta >= 60)
+      snprintf(buf, sizeof(buf), " in %d h %d min", delta / 60, delta % 60);
+    else
+      snprintf(buf, sizeof(buf), " in %d min", delta);
+    text = "Nächstes Gebet: " + l.prayer_names[next] + buf;
+  }
+  lv_label_set_text(this->ss_next_, text.c_str());
 }
 
 void GuitionStudio::update_screensaver_(const std::string &hhmm, const std::string &date) {
@@ -1710,6 +1837,8 @@ void GuitionStudio::update_screensaver_(const std::string &hhmm, const std::stri
   lv_label_set_text(this->ss_clock_, hhmm.c_str());
   lv_label_set_text(this->ss_date_, date.c_str());
   const auto &l = this->layout_;
+  if (this->ss_next_ != nullptr)
+    this->update_prayer_(hhmm);
   for (int i = 0; i < 2; i++) {
     if (this->ss_lines_[i] == nullptr)
       continue;

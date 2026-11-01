@@ -167,7 +167,7 @@ export class GsUsbInstaller extends LitElement {
         min-height: 52px;
         font-size: 16px;
         padding: 0 26px;
-        background: linear-gradient(135deg, #3d8bfd, #8b5cf6);
+        background: linear-gradient(135deg, var(--gs-primary), var(--gs-primary-strong));
         border: none;
         color: #fff;
         font-weight: 600;

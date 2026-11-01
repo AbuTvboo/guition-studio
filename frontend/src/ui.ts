@@ -7,23 +7,28 @@ import { previewState, tileColors, visibleNow } from "./preview";
 import { DEFAULT_WEATHER_OPTIONS, type Hass, type Layout, type Page, type Theme, type Tile } from "./types";
 
 export const sharedStyles = css`
+  /* Palette: --gsp-* is set once on the panel (light/dark), every component maps it here. */
   :host {
-    --gs-bg: var(--primary-background-color, #f4f6f9);
-    --gs-surface: var(--card-background-color, #ffffff);
-    --gs-surface-2: var(--secondary-background-color, #eef1f5);
-    --gs-text: var(--primary-text-color, #1f2937);
-    --gs-muted: var(--secondary-text-color, #6b7280);
-    --gs-border: var(--divider-color, rgba(0, 0, 0, 0.12));
-    --gs-primary: var(--primary-color, #2563eb);
-    --gs-on-primary: var(--text-primary-color, #ffffff);
-    --gs-ok: var(--success-color, #16a34a);
-    --gs-warn: var(--warning-color, #d97706);
-    --gs-error: var(--error-color, #dc2626);
-    --gs-radius: 14px;
-    --gs-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.06);
+    --gs-bg: var(--gsp-bg, #f3f6f9);
+    --gs-surface: var(--gsp-surface, #ffffff);
+    --gs-surface-2: var(--gsp-surface-2, #eef2f6);
+    --gs-text: var(--gsp-text, #0f1c2a);
+    --gs-muted: var(--gsp-muted, #5b6b7c);
+    --gs-border: var(--gsp-border, #dfe5ec);
+    --gs-primary: var(--gsp-primary, #0e7490);
+    --gs-primary-strong: var(--gsp-primary-strong, #155e75);
+    --gs-on-primary: var(--gsp-on-primary, #ffffff);
+    --gs-accent: var(--gsp-accent, #f59e0b);
+    --gs-ok: var(--gsp-ok, #15803d);
+    --gs-warn: var(--gsp-warn, #b45309);
+    --gs-error: var(--gsp-error, #b91c1c);
+    --gs-radius: 12px;
+    --gs-shadow: var(--gsp-shadow, 0 1px 2px rgba(15, 28, 42, 0.05), 0 2px 8px rgba(15, 28, 42, 0.04));
+    --gs-shadow-lg: var(--gsp-shadow-lg, 0 12px 32px rgba(15, 28, 42, 0.18));
     color: var(--gs-text);
-    font-family: var(--paper-font-body1_-_font-family, "Roboto", "Segoe UI", system-ui, sans-serif);
+    font-family: "Inter", "Segoe UI", var(--paper-font-body1_-_font-family, "Roboto"), system-ui, sans-serif;
     font-size: 14px;
+    -webkit-font-smoothing: antialiased;
   }
   * {
     box-sizing: border-box;
@@ -36,14 +41,17 @@ export const sharedStyles = css`
   }
   h1 {
     font-size: 22px;
+    letter-spacing: -0.01em;
   }
   h2 {
-    font-size: 17px;
+    font-size: 16px;
+    letter-spacing: -0.005em;
   }
   h3 {
-    font-size: 14px;
+    font-size: 11.5px;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.08em;
     color: var(--gs-muted);
   }
   p {
@@ -86,17 +94,19 @@ export const sharedStyles = css`
     gap: 6px;
     min-height: 36px;
     padding: 0 14px;
-    border-radius: 10px;
+    border-radius: 8px;
     border: 1px solid var(--gs-border);
     background: var(--gs-surface);
     color: var(--gs-text);
+    font-weight: 500;
     cursor: pointer;
     text-decoration: none;
     white-space: nowrap;
-    transition: background 0.15s, border-color 0.15s, transform 0.05s;
+    transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.05s;
   }
   button:hover:not(:disabled) {
     background: var(--gs-surface-2);
+    border-color: color-mix(in srgb, var(--gs-text) 18%, var(--gs-border));
   }
   button:active:not(:disabled) {
     transform: translateY(1px);
@@ -116,10 +126,11 @@ export const sharedStyles = css`
     background: var(--gs-primary);
     border-color: var(--gs-primary);
     color: var(--gs-on-primary);
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--gs-primary) 35%, transparent);
   }
   button.primary:hover:not(:disabled) {
-    filter: brightness(1.08);
-    background: var(--gs-primary);
+    background: var(--gs-primary-strong);
+    border-color: var(--gs-primary-strong);
   }
   button.danger {
     color: var(--gs-error);
@@ -133,6 +144,9 @@ export const sharedStyles = css`
     border-color: transparent;
     background: transparent;
   }
+  button.ghost:hover:not(:disabled) {
+    border-color: transparent;
+  }
   input,
   select,
   textarea {
@@ -140,10 +154,18 @@ export const sharedStyles = css`
     color: var(--gs-text);
     background: var(--gs-surface);
     border: 1px solid var(--gs-border);
-    border-radius: 10px;
+    border-radius: 8px;
     min-height: 36px;
     padding: 6px 10px;
     width: 100%;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  input:focus,
+  select:focus,
+  textarea:focus {
+    outline: none;
+    border-color: var(--gs-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--gs-primary) 20%, transparent);
   }
   textarea {
     min-height: 70px;
@@ -207,20 +229,27 @@ export const sharedStyles = css`
   }
   .notice {
     padding: 12px 14px;
-    border-radius: 12px;
-    background: var(--gs-surface-2);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--gs-primary) 7%, var(--gs-surface));
+    border: 1px solid color-mix(in srgb, var(--gs-primary) 22%, transparent);
     border-left: 4px solid var(--gs-primary);
     margin: 8px 0;
     line-height: 1.5;
   }
   .notice.warn {
-    border-color: var(--gs-warn);
+    background: color-mix(in srgb, var(--gs-warn) 8%, var(--gs-surface));
+    border-color: color-mix(in srgb, var(--gs-warn) 28%, transparent);
+    border-left-color: var(--gs-warn);
   }
   .notice.error {
-    border-color: var(--gs-error);
+    background: color-mix(in srgb, var(--gs-error) 7%, var(--gs-surface));
+    border-color: color-mix(in srgb, var(--gs-error) 28%, transparent);
+    border-left-color: var(--gs-error);
   }
   .notice.ok {
-    border-color: var(--gs-ok);
+    background: color-mix(in srgb, var(--gs-ok) 7%, var(--gs-surface));
+    border-color: color-mix(in srgb, var(--gs-ok) 28%, transparent);
+    border-left-color: var(--gs-ok);
   }
   .progress {
     height: 8px;
@@ -230,7 +259,7 @@ export const sharedStyles = css`
   }
   .progress > div {
     height: 100%;
-    background: var(--gs-primary);
+    background: linear-gradient(90deg, var(--gs-primary-strong), var(--gs-primary));
     transition: width 0.3s;
   }
   table {
@@ -245,9 +274,11 @@ export const sharedStyles = css`
     vertical-align: middle;
   }
   th {
-    font-size: 12px;
+    font-size: 11.5px;
     color: var(--gs-muted);
-    font-weight: 500;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
   code {
     font-family: ui-monospace, monospace;

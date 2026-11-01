@@ -232,3 +232,37 @@ describe("entity library", () => {
     expect(formatState("binary_sensor", "on", { device_class: "window" })).toBe("Offen");
   });
 });
+
+import { detectPrayerSensors } from "../src/entities";
+
+describe("detectPrayerSensors", () => {
+  const ts = (entity_id: string, friendly_name = "") => ({ entity_id, state: "2026-11-02T05:31:00+00:00", attributes: { device_class: "timestamp", friendly_name } });
+  it("finds the Islamic Prayer Times sensors and skips unrelated timestamps", () => {
+    const states = Object.fromEntries(
+      [
+        ts("sensor.islamic_prayer_times_fajr_prayer"),
+        ts("sensor.islamic_prayer_times_sunrise_prayer"),
+        ts("sensor.islamic_prayer_times_dhuhr_prayer"),
+        ts("sensor.islamic_prayer_times_asr_prayer"),
+        ts("sensor.islamic_prayer_times_maghrib_prayer"),
+        ts("sensor.islamic_prayer_times_isha_prayer"),
+        ts("sensor.islamic_prayer_times_midnight"),
+        ts("sensor.sun_next_rising", "Sunrise"),
+        { entity_id: "sensor.asr_text", state: "x", attributes: {} },
+      ].map((e) => [e.entity_id, e])
+    );
+    const found = detectPrayerSensors({ states } as never);
+    expect(found).toEqual({
+      fajr: "sensor.islamic_prayer_times_fajr_prayer",
+      sunrise: "sensor.islamic_prayer_times_sunrise_prayer",
+      dhuhr: "sensor.islamic_prayer_times_dhuhr_prayer",
+      asr: "sensor.islamic_prayer_times_asr_prayer",
+      maghrib: "sensor.islamic_prayer_times_maghrib_prayer",
+      isha: "sensor.islamic_prayer_times_isha_prayer",
+    });
+  });
+  it("does not take the sun's sunrise sensor as prayer sunrise", () => {
+    const states = { "sensor.sun_next_rising": ts("sensor.sun_next_rising", "Sunrise") };
+    expect(detectPrayerSensors({ states } as never)).toEqual({});
+  });
+});

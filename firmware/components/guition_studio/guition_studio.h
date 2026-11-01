@@ -106,6 +106,10 @@ struct LayoutCfg {
   std::string slide_url;       // base URL incl. per-display token (no query string)
   int slide_interval{15};      // seconds
   bool slide_clock{true};
+  // screensaver mode 2: Islamic prayer times (timestamp sensors, shown as HH:MM by HA)
+  bool prayer{false};
+  std::vector<std::string> prayer_names, prayer_entities;
+  std::vector<uint8_t> prayer_kind;  // 1 = prayer, 0 = sunrise (orientation only)
   std::string theme;
   std::vector<std::pair<std::string, std::string>> themes;  // id, name
   std::vector<PageCfg> pages;
@@ -220,6 +224,8 @@ class GuitionStudio : public Component {
   void show_screensaver_();
   void hide_screensaver_();
   void update_screensaver_(const std::string &hhmm, const std::string &date);
+  void build_prayer_screensaver_(lv_obj_t *parent);
+  void update_prayer_(const std::string &hhmm);
   void apply_night_overlay_();
   void slide_next_();
   void slide_ready_();
@@ -320,6 +326,12 @@ class GuitionStudio : public Component {
   lv_obj_t *ss_clock_{nullptr};
   lv_obj_t *ss_date_{nullptr};
   lv_obj_t *ss_lines_[2]{nullptr, nullptr};
+  static const int MAX_PRAYER_ROWS = 6;
+  lv_obj_t *ss_next_{nullptr};
+  lv_obj_t *ss_prow_[MAX_PRAYER_ROWS]{};
+  lv_obj_t *ss_pname_[MAX_PRAYER_ROWS]{};
+  lv_obj_t *ss_ptime_[MAX_PRAYER_ROWS]{};
+  std::string ss_prayer_sig_;
 
   // local overrides (-1 = use layout), persisted in NVS key "ovr"
   int ovr_br_{-1}, ovr_sb_{-1}, ovr_to_{-1}, ovr_ss_{-1}, ovr_rot_{-1};

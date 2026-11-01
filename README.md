@@ -37,7 +37,7 @@ Details stehen im [CHANGELOG](CHANGELOG.md).
 - Firmware-Manager: GitHub-Release-Download mit SHA-256-Prüfung, OTA-Update, dokumentierte Wiederherstellung
 - Dienste für Automationen: `guition_studio.notify` (Pop-up), `guition_studio.show_page` (Seitenwechsel), `guition_studio.push_layout`
 - Pro Display eine `update`-Entität (Firmware-Updates in HA) und eine `notify`-Entität (`notify.send_message`)
-- Reiter „Automatik“: Seitenwechsel-Regeln (Uhrzeit/Zustand), Nachtmodus (Uhrzeit/Sonne), Bildschirmschoner mit Uhr oder **Diashow** (Fotos aus Home Assistant, gestreamt, nicht gespeichert)
+- Reiter „Automatik“: Seitenwechsel-Regeln (Uhrzeit/Zustand), Nachtmodus (Uhrzeit/Sonne), Bildschirmschoner mit Uhr, **Diashow** (Fotos aus Home Assistant, gestreamt, nicht gespeichert) oder **islamischen Gebetszeiten** (aus der Integration „Islamic Prayer Times“)
 - Einstellungsmenü direkt am Display (Kachel „Einstellungen“ oder 3 s auf die Uhr drücken)
 
 Was **noch nicht** enthalten ist, ist in der Oberfläche als „nicht verfügbar“ markiert und in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#grenzen-von-v02) beschrieben (z. B. Kamera, Rotation).

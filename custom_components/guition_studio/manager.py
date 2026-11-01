@@ -79,6 +79,7 @@ from .protocol import (
     describe_device_error,
     entity_payload,
     parse_event_payload,
+    set_local_timezone,
     tiles_depending_on,
     to_int32,
     visibility_map,
@@ -120,6 +121,7 @@ class StudioManager:
     # ------------------------------------------------------------------ lifecycle
 
     async def async_start(self) -> None:
+        set_local_timezone(dt_util.get_default_time_zone())
         self._unsubs.append(self.hass.bus.async_listen(EVENT_DEVICE, self._on_device_event))
         self._unsubs.append(self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, self._on_stop))
         self._unsubs.append(async_track_time_change(self.hass, self._on_minute, second=0))

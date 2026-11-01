@@ -1,6 +1,6 @@
 // Entity library helpers: categorisation, search and default tiles (unit tested).
 import { makeTile } from "./model";
-import type { Hass, HassEntity, Tile, TileType } from "./types";
+import type { Hass, HassEntity, PrayerKey, Tile, TileType } from "./types";
 
 export type CategoryKey =
   | "all"
@@ -200,4 +200,35 @@ export function tileFromEntity(hass: Hass, entityId: string): Tile {
     title: entity ? friendlyName(entity).slice(0, 64) : entityId,
     icon: defaultIcon(entity, entityId),
   });
+}
+
+/** Prayer times screensaver rows (same order and labels as on the display). */
+export const PRAYERS: { key: PrayerKey; label: string; aliases: string[] }[] = [
+  { key: "fajr", label: "Fajr", aliases: ["fajr", "fadschr", "sabah"] },
+  { key: "sunrise", label: "Sonnenaufgang", aliases: ["sunrise", "sonnenaufgang", "shuruq", "shurooq", "gunes"] },
+  { key: "dhuhr", label: "Dhuhr", aliases: ["dhuhr", "zuhr", "dhuhur", "duhr", "ogle"] },
+  { key: "asr", label: "Asr", aliases: ["asr", "ikindi"] },
+  { key: "maghrib", label: "Maghrib", aliases: ["maghrib", "magrib", "aksam"] },
+  { key: "isha", label: "Isha", aliases: ["isha", "ischa", "yatsi"] },
+];
+
+/**
+ * Find the timestamp sensors of the "Islamic Prayer Times" integration (or similar)
+ * by entity id / name. Sensors that look like prayer sensors are preferred.
+ */
+export function detectPrayerSensors(hass: Hass): Partial<Record<PrayerKey, string>> {
+  const sensors = Object.values(hass.states).filter(
+    (e) => e.entity_id.startsWith("sensor.") && e.attributes.device_class === "timestamp" && !/midnight|mitternacht/.test(e.entity_id)
+  );
+  const out: Partial<Record<PrayerKey, string>> = {};
+  for (const p of PRAYERS) {
+    const hits = sensors.filter((e) => {
+      const hay = `${e.entity_id} ${friendlyName(e)}`.toLowerCase();
+      return p.aliases.some((a) => hay.includes(a));
+    });
+    const score = (e: HassEntity) => (/prayer|gebet|islam|salah|namaz|adhan/.test(`${e.entity_id} ${friendlyName(e)}`.toLowerCase()) ? 0 : 1);
+    hits.sort((a, b) => score(a) - score(b) || a.entity_id.localeCompare(b.entity_id));
+    if (hits[0] && (p.key !== "sunrise" || score(hits[0]) === 0)) out[p.key] = hits[0].entity_id;
+  }
+  return out;
 }

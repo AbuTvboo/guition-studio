@@ -146,13 +146,17 @@ export interface ScreensaverSettings {
   enabled: boolean;
   after: number;
   entities: string[];
-  mode?: "clock" | "slideshow";
+  mode?: "clock" | "slideshow" | "prayer";
   folder?: string;
   interval?: number;
   order?: "random" | "sequential";
   fit?: "cover" | "contain";
   show_clock?: boolean;
+  /** prayer mode: timestamp sensors (Islamic Prayer Times integration), key -> entity id */
+  prayer?: Partial<Record<PrayerKey, string>>;
 }
+
+export type PrayerKey = "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha";
 
 export interface PageRule {
   id: string;

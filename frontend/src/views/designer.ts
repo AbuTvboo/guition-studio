@@ -1179,8 +1179,8 @@ export class GsDesigner extends LitElement {
         border-color: transparent;
       }
       .cell.free.show {
-        border-color: rgba(61, 139, 253, 0.6);
-        background: rgba(61, 139, 253, 0.06);
+        border-color: color-mix(in srgb, var(--gs-primary) 60%, transparent);
+        background: color-mix(in srgb, var(--gs-primary) 6%, transparent);
       }
       .tile {
         cursor: grab;
@@ -1188,11 +1188,11 @@ export class GsDesigner extends LitElement {
         border-radius: 16px;
       }
       .tile:hover {
-        outline: 2px solid rgba(61, 139, 253, 0.5);
+        outline: 2px solid color-mix(in srgb, var(--gs-primary) 50%, transparent);
         outline-offset: 2px;
       }
       .tile.selected {
-        outline: 3px solid #3d8bfd;
+        outline: 3px solid var(--gs-primary);
         outline-offset: 3px;
         z-index: 2;
       }
@@ -1206,7 +1206,7 @@ export class GsDesigner extends LitElement {
         position: absolute;
         left: 6px;
         top: 6px;
-        background: #f59e0b;
+        background: var(--gs-accent);
         color: #111;
         font-size: 11px;
         font-weight: 600;
@@ -1227,7 +1227,7 @@ export class GsDesigner extends LitElement {
         width: 22px;
         height: 22px;
         border-radius: 50%;
-        background: #3d8bfd;
+        background: var(--gs-primary);
         border: 3px solid #fff;
         cursor: nwse-resize;
         touch-action: none;
@@ -1241,12 +1241,12 @@ export class GsDesigner extends LitElement {
         border: 3px solid;
       }
       .drop.valid {
-        border-color: #22c55e;
-        background: rgba(34, 197, 94, 0.25);
+        border-color: var(--gs-ok);
+        background: color-mix(in srgb, var(--gs-ok) 25%, transparent);
       }
       .drop.invalid {
-        border-color: #ef4444;
-        background: rgba(239, 68, 68, 0.25);
+        border-color: var(--gs-error);
+        background: color-mix(in srgb, var(--gs-error) 25%, transparent);
       }
       .add-page {
         flex-shrink: 0;
@@ -1297,7 +1297,7 @@ export class GsDesigner extends LitElement {
         color: var(--gs-muted);
       }
       button.tiny.home {
-        color: #f59e0b;
+        color: var(--gs-accent);
       }
       .page-actions {
         display: flex;
@@ -1397,7 +1397,7 @@ export class GsDesigner extends LitElement {
         width: 26px;
         min-height: 26px;
         padding: 0;
-        color: #f59e0b;
+        color: var(--gs-accent);
         display: grid;
         place-items: center;
       }
@@ -1446,8 +1446,8 @@ export class GsDesigner extends LitElement {
         pointer-events: none;
         padding: 8px 12px;
         border-radius: 10px;
-        background: #3d8bfd;
-        color: #fff;
+        background: var(--gs-primary);
+        color: var(--gs-on-primary);
         font-weight: 600;
         box-shadow: var(--gs-shadow);
       }

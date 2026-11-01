@@ -103,7 +103,21 @@ def default_screensaver() -> dict[str, Any]:
         "enabled": False, "after": 120, "entities": [],
         # slideshow: pictures streamed from a Home Assistant media folder
         "mode": "clock", "folder": "guition_studio", "interval": 15, "order": "random", "fit": "cover", "show_clock": True,
+        # prayer: timestamp sensors of the Islamic Prayer Times integration, key -> entity id
+        "prayer": {},
     }  # fmt: skip
+
+
+# Islamic prayer times screensaver: order and German labels as shown on the display.
+# "sunrise" is shown for orientation but is not a prayer (never highlighted as "next").
+PRAYER_KEYS: tuple[tuple[str, str], ...] = (
+    ("fajr", "Fajr"),
+    ("sunrise", "Sonnenaufgang"),
+    ("dhuhr", "Dhuhr"),
+    ("asr", "Asr"),
+    ("maghrib", "Maghrib"),
+    ("isha", "Isha"),
+)
 
 
 def default_style() -> dict[str, Any]:
@@ -378,7 +392,7 @@ def _validate_screensaver(raw: Any, errors: list[str]) -> dict[str, Any]:
             errors.append(f"Bildschirmschoner: ungültige Entity-ID „{e}“.")
         else:
             s["entities"].append(e)
-    s["mode"] = raw.get("mode") if raw.get("mode") in ("clock", "slideshow") else "clock"
+    s["mode"] = raw.get("mode") if raw.get("mode") in ("clock", "slideshow", "prayer") else "clock"
     folder = raw.get("folder", s["folder"])
     if not isinstance(folder, str) or ".." in folder or not FOLDER_RE.match(folder):
         errors.append("Bildschirmschoner: ungültiger Bilderordner.")
@@ -388,6 +402,17 @@ def _validate_screensaver(raw: Any, errors: list[str]) -> dict[str, Any]:
     s["order"] = raw.get("order") if raw.get("order") in ("random", "sequential") else "random"
     s["fit"] = raw.get("fit") if raw.get("fit") in ("cover", "contain") else "cover"
     s["show_clock"] = _bool(raw.get("show_clock"), True)
+    prayer = raw.get("prayer") if isinstance(raw.get("prayer"), dict) else {}
+    for key, label in PRAYER_KEYS:
+        eid = prayer.get(key)
+        if not eid:
+            continue
+        if not isinstance(eid, str) or not ENTITY_RE.match(eid):
+            errors.append(f"Bildschirmschoner: ungültige Entity-ID für {label}.")
+        else:
+            s["prayer"][key] = eid
+    if s["enabled"] and s["mode"] == "prayer" and not s["prayer"]:
+        errors.append("Bildschirmschoner: Bitte die Gebetszeit-Sensoren auswählen.")
     return s
 
 
@@ -803,12 +828,25 @@ def _screensaver_device(settings: dict[str, Any], layout: dict[str, Any], slide_
     out = {"ss": ss["after"], "sse": ss.get("entities", []), "sst": titles}
     if ss.get("mode") == "slideshow" and slide_url:
         out.update(ssm=1, slu=slide_url, sli=ss.get("interval", 15), slc=int(ss.get("show_clock", True)))
+    elif ss.get("mode") == "prayer":
+        prayer = ss.get("prayer") or {}
+        rows = [(key, label, prayer[key]) for key, label in PRAYER_KEYS if prayer.get(key)]
+        # spk: 1 = real prayer (can be "next"), 0 = sunrise (orientation only)
+        out.update(
+            ssm=2,
+            spn=[label for _, label, _ in rows],
+            spe=[eid for _, _, eid in rows],
+            spk=[0 if key == "sunrise" else 1 for key, _, _ in rows],
+        )
     return out
 
 
 def layout_entities(layout: dict[str, Any]) -> set[str]:
     """All entity ids the display shows (tiles, visibility conditions, screensaver)."""
-    out: set[str] = set((layout.get("settings") or {}).get("screensaver", {}).get("entities", []))
+    ss = (layout.get("settings") or {}).get("screensaver", {}) or {}
+    out: set[str] = set(ss.get("entities", []))
+    if ss.get("enabled") and ss.get("mode") == "prayer":
+        out.update(e for e in (ss.get("prayer") or {}).values() if e)
     for page in layout.get("pages", []):
         for tile in page.get("tiles", []):
             if tile.get("entity"):

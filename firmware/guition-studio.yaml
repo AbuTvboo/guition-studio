@@ -10,7 +10,7 @@
 substitutions:
   name: guition-studio
   friendly_name: Guition Studio
-  fw_version: "0.5.6"
+  fw_version: "0.5.7"
 
 esphome:
   name: ${name}
@@ -30,6 +30,14 @@ esp32:
       # Run code/rodata from PSRAM: flash writes (OTA, NVS) then no longer stall the
       # RGB panel's PSRAM frame buffer access, which otherwise makes the screen flicker.
       CONFIG_SPIRAM_XIP_FROM_PSRAM: y
+      # The RGB panel refills its SRAM bounce buffers from PSRAM in an interrupt. Without
+      # IRAM placement that interrupt is held off while flash is written (OTA) -> the panel
+      # underruns and the picture flickers/shifts. Keep it in IRAM and resync on VSYNC.
+      CONFIG_LCD_RGB_ISR_IRAM_SAFE: y
+      CONFIG_LCD_RGB_RESTART_IN_VSYNC: y
+      # Bigger data cache lines = more PSRAM throughput for frame buffer + XIP code.
+      CONFIG_ESP32S3_DATA_CACHE_64KB: y
+      CONFIG_ESP32S3_DATA_CACHE_LINE_64B: y
 
 psram:
   mode: octal

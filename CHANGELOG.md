@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.7 – Gebetszeiten & kein Flackern mehr beim Update
+- **Neuer Bildschirmschoner „Islamische Gebetszeiten“:** Uhrzeit und Datum, darunter Fajr, Sonnenaufgang, Dhuhr, Asr, Maghrib und Isha. Das **nächste Gebet** ist farbig hervorgehoben, darüber steht ein Countdown („Nächstes Gebet: Asr in 1 h 23 min“). Zur Gebetszeit steht 15 Minuten lang „Jetzt: …“. Die Zeiten kommen aus der Home-Assistant-Integration **Islamic Prayer Times**, dort stellst du auch die Berechnungsmethode ein. Im Designer werden die Sensoren automatisch erkannt, du kannst sie aber auch von Hand wählen.
+- Zeitstempel-Sensoren werden jetzt in der **Zeitzone von Home Assistant** angezeigt. Vorher galt die Zeitzone des Betriebssystems, und in Docker ohne `TZ` lagen die Zeiten dadurch um eine Stunde daneben.
+- **Neues Farbdesign der Oberfläche:** Petrol als Hauptfarbe, Bernstein als Akzent, kühle Grautöne, dunkle Titelleiste. Eingabefelder, Hinweise, Tabellen und Menü sind überarbeitet. Hell- und Dunkelmodus folgen automatisch dem Home-Assistant-Design. Alle Funktionen sind gleich geblieben.
+- **Firmware-Update ohne Flackern:** Die Display-Interrupt-Routine, die den Bildpuffer nachlädt, liegt jetzt im internen RAM (`CONFIG_LCD_RGB_ISR_IRAM_SAFE`). Vorher pausierte sie bei jedem Flash-Schreibvorgang. Zusätzlich synchronisiert sich das Bild bei VSYNC neu, und der PSRAM-Cache ist größer.
+
 ## 0.5.6 – Bessere Entitätsauswahl & einstellbares Wetter
 - **Neue Entitätsauswahl:** zeigt nur passende Entitäten für den Kacheltyp (bei der Wetter-Kachel z. B. alle Wetter-Entitäten), mit Name, Bereich und aktuellem Wert. Sie versteht deutsche Suchbegriffe wie „wetter“, „licht“, „lampe“, „rollladen“, „heizung“, „steckdose“ oder „musik“. Bedienbar mit Maus, Touch und Tastatur.
 - Verständlichere Meldung, wenn eine Entität nicht zum Kacheltyp passt (z. B. „Dieser Kacheltyp braucht eine Wetter-Entität (weather.…)“)

@@ -666,6 +666,13 @@ bool GuitionStudio::parse_layout_(const char *data, size_t len, LayoutCfg &out, 
       tile.show_title = (t["st"] | 1) != 0;
       tile.show_state = (t["sv"] | 1) != 0;
       tile.show_icon = (t["si"] | 1) != 0;
+      tile.align = static_cast<uint8_t>(clampi(t["al"] | 0, 0, 3));
+      {
+        int ipx = t["is"] | 0;
+        tile.icon_px = static_cast<uint8_t>(ipx >= 40 ? 40 : ipx >= 28 ? 28 : ipx > 0 ? 20 : 0);
+      }
+      tile.value_font = t["vs"].is<int>() ? static_cast<uint8_t>(clampi(t["vs"].as<int>(), 0, 4)) : 255;
+      tile.icon_frame = static_cast<uint8_t>(clampi(t["if"] | 0, 0, 4));
       tile.tap = clampi(t["ta"] | 0, 0, 8);
       tile.hold = clampi(t["ha"] | 0, 0, 8);
       tile.tap_page = t["tp"] | -1;
@@ -1081,6 +1088,88 @@ void GuitionStudio::build_tile_(int page_index, lv_obj_t *parent, const TileCfg 
     lv_obj_align(view.title, align, x, y);
   };
 
+  // Layout options from the tile style: alignment (auto = the type's usual look), icon size,
+  // state/value font and a frame around the icon.
+  bool centred_type = t.kind == "nav" || t.kind == "action" || t.kind == "settings" || t.kind == "text";
+  int align = t.align ? t.align : (centred_type ? 2 : 1);  // 1 left, 2 centre, 3 right
+  lv_text_align_t text_align =
+      align == 2 ? LV_TEXT_ALIGN_CENTER : (align == 3 ? LV_TEXT_ALIGN_RIGHT : LV_TEXT_ALIGN_LEFT);
+  auto icon_px = [&](int auto_px) { return t.icon_px ? static_cast<int>(t.icon_px) : auto_px; };
+  auto value_font = [&](const lv_font_t *auto_font) {
+    return t.value_font <= 4 ? font_step(t.value_font) : auto_font;
+  };
+  auto line_h = [](const lv_font_t *f) { return static_cast<int>(lv_font_get_line_height(f)); };
+  // icon label (view.icon), optionally framed as a circle / rounded square; returns its height
+  auto make_icon = [&](lv_obj_t *parent, int px, const char *s) -> int {
+    const lv_font_t *f = icon_font(px);
+    lv_obj_t *ic = make_label(parent, f, t.icon_color, s);
+    view.icon = ic;
+    int size = line_h(f);
+    if (t.icon_frame) {
+      int p = px / 4 + 2;
+      size += 2 * p;
+      lv_obj_set_size(ic, size, size);
+      lv_obj_set_style_pad_top(ic, p, 0);
+      lv_obj_set_style_text_align(ic, LV_TEXT_ALIGN_CENTER, 0);
+      lv_obj_set_style_radius(ic, t.icon_frame <= 2 ? LV_RADIUS_CIRCLE : size / 4, 0);
+      if (t.icon_frame == 2 || t.icon_frame == 4) {  // ring
+        lv_obj_set_style_border_width(ic, 2, 0);
+        lv_obj_set_style_border_color(ic, lv_color_hex(t.icon_color), 0);
+        lv_obj_set_style_border_opa(ic, LV_OPA_COVER, 0);
+      } else {  // filled, tinted in the icon colour
+        lv_obj_set_style_bg_color(ic, lv_color_hex(t.icon_color), 0);
+        lv_obj_set_style_bg_opa(ic, LV_OPA_20, 0);
+      }
+    }
+    return size;
+  };
+  // single-line text label across the inner width, aligned like the tile content
+  auto make_text = [&](lv_obj_t *parent, const lv_font_t *f, const char *s) {
+    lv_obj_t *l = make_label(parent, f, t.fg, s);
+    lv_obj_set_size(l, inner_w, line_h(f));
+    lv_label_set_long_mode(l, LABEL_LONG_DOTS);
+    lv_obj_set_style_text_align(l, text_align, 0);
+    return l;
+  };
+  // centre alignment: the given objects stacked top to bottom, centred vertically in [top, bottom]
+  struct Row {
+    lv_obj_t *obj;
+    int h;
+  };
+  auto stack = [&](std::initializer_list<Row> rows, int top, int bottom) {
+    int total = -4;
+    for (const auto &r : rows)
+      if (r.obj != nullptr)
+        total += r.h + 4;
+    int y = top + std::max(0, (bottom - top - total) / 2);
+    for (const auto &r : rows) {
+      if (r.obj == nullptr)
+        continue;
+      bool framed_icon = r.obj == view.icon && t.icon_frame;
+      if (r.obj == view.icon && !t.icon_frame) {
+        lv_obj_set_width(r.obj, inner_w);
+        lv_obj_set_style_text_align(r.obj, LV_TEXT_ALIGN_CENTER, 0);
+      }
+      lv_obj_set_pos(r.obj, framed_icon ? (pw - r.h) / 2 : pad, y);
+      y += r.h + 4;
+    }
+  };
+  // entity-style layout: icon on top, title above the state at the bottom (or everything centred);
+  // bottom = distance of the lowest text from the bottom edge
+  auto place_entity = [&](int icon_h, const lv_font_t *vf, int bottom) {
+    if (align == 2) {
+      stack({{view.icon, icon_h}, {view.title, line_h(title_font)}, {view.value, line_h(vf)}}, pad, ph - bottom);
+      return;
+    }
+    if (view.icon != nullptr)
+      lv_obj_align(view.icon, align == 3 ? LV_ALIGN_TOP_RIGHT : LV_ALIGN_TOP_LEFT, align == 3 ? -pad : pad, pad - 2);
+    if (view.value != nullptr)
+      lv_obj_align(view.value, LV_ALIGN_BOTTOM_LEFT, pad, -bottom);
+    if (view.title != nullptr)
+      lv_obj_align(view.title, LV_ALIGN_BOTTOM_LEFT, pad,
+                   view.value != nullptr ? -(bottom + std::max(20, line_h(vf) + 4)) : -bottom);
+  };
+
   if (t.kind == "clock") {
     view.value = make_label(o, font_px(big ? 40 : 28), t.fg, "--:--");
     lv_obj_align(view.value, LV_ALIGN_CENTER, 0, t.show_title ? -10 : 0);
@@ -1133,29 +1222,33 @@ void GuitionStudio::build_tile_(int page_index, lv_obj_t *parent, const TileCfg 
       }
     }
   } else if (t.kind == "sensor") {
+    // left: title top left, icon top right, value bottom left (right = mirrored); centre: stacked
+    int icon_h = with_icon ? make_icon(o, icon_px(28), sym) : 0;
+    int icon_w = with_icon ? (t.icon_frame ? icon_h : icon_px(28)) + 6 : 0;
+    const lv_font_t *vf = value_font(font_px(big ? 40 : (pw < 110 ? 20 : 28)));
+    view.value = make_text(o, vf, "–");
     if (t.show_title)
-      title_label(LV_ALIGN_TOP_LEFT, pad, pad, inner_w - (with_icon ? 34 : 0));
-    if (with_icon) {
-      view.icon = make_label(o, icon_font(28), t.icon_color, sym);
-      lv_obj_align(view.icon, LV_ALIGN_TOP_RIGHT, -pad, pad - 4);
+      view.title = make_text(o, title_font, t.title.c_str());
+    if (align == 2) {
+      stack({{view.icon, icon_h}, {view.value, line_h(vf)}, {view.title, line_h(title_font)}}, pad, ph - pad);
+    } else {
+      if (view.icon != nullptr)
+        lv_obj_align(view.icon, align == 3 ? LV_ALIGN_TOP_LEFT : LV_ALIGN_TOP_RIGHT, align == 3 ? pad : -pad, pad - 4);
+      if (view.title != nullptr) {
+        lv_obj_set_width(view.title, inner_w - icon_w);
+        lv_obj_set_pos(view.title, align == 3 ? pad + icon_w : pad, pad);
+      }
+      lv_obj_align(view.value, LV_ALIGN_BOTTOM_LEFT, pad, -pad);
     }
-    view.value = make_label(o, font_px(big ? 40 : (pw < 110 ? 20 : 28)), t.fg, "–");
-    lv_obj_set_width(view.value, inner_w);
-    lv_label_set_long_mode(view.value, LABEL_LONG_DOTS);
-    lv_obj_align(view.value, LV_ALIGN_BOTTOM_LEFT, pad, -pad);
   } else if (t.kind == "nav" || t.kind == "action" || t.kind == "settings") {
-    if (with_icon) {
-      view.icon = make_label(o, icon_font(big ? 40 : 28), t.icon_color, sym);
-      lv_obj_align(view.icon, LV_ALIGN_CENTER, 0, t.show_title ? -14 : 0);
-    }
-    if (t.show_title) {
-      title_label(with_icon ? LV_ALIGN_BOTTOM_MID : LV_ALIGN_CENTER, 0, with_icon ? -pad : 0, inner_w);
-      lv_obj_set_style_text_align(view.title, LV_TEXT_ALIGN_CENTER, 0);
-    }
+    int icon_h = with_icon ? make_icon(o, icon_px(big ? 40 : 28), sym) : 0;
+    if (t.show_title)
+      view.title = make_text(o, title_font, t.title.c_str());
+    place_entity(icon_h, title_font, pad);
   } else if (t.kind == "text") {
     view.title = make_label(o, title_font, t.fg, t.title.c_str());
     lv_obj_set_width(view.title, inner_w);
-    lv_obj_set_style_text_align(view.title, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_align(view.title, text_align, 0);
     lv_obj_align(view.title, LV_ALIGN_CENTER, 0, 0);
   } else if (t.kind == "status") {
     view.value = make_label(o, font_px(16), t.fg, LV_SYMBOL_WIFI " WLAN");
@@ -1223,22 +1316,13 @@ void GuitionStudio::build_tile_(int page_index, lv_obj_t *parent, const TileCfg 
     view.content = c;
     lv_obj_set_pos(c, 0, 0);
     lv_obj_set_size(c, pw, ph);
-    if (t.show_icon && isym != nullptr) {
-      view.icon = make_label(c, icon_font(big ? 40 : 28), t.icon_color, isym);
-      lv_obj_align(view.icon, LV_ALIGN_TOP_LEFT, pad, pad - 2);
-    }
-    if (t.show_state) {
-      view.value = make_label(c, font_px(big ? 28 : (t.font == 0 ? 12 : 16)), t.fg, "");
-      lv_obj_set_width(view.value, inner_w);
-      lv_label_set_long_mode(view.value, LABEL_LONG_DOTS);
-      lv_obj_align(view.value, LV_ALIGN_BOTTOM_LEFT, pad, -pad);
-    }
-    if (t.show_title) {
-      view.title = make_label(c, title_font, t.fg, first.title.c_str());
-      lv_obj_set_width(view.title, inner_w);
-      lv_label_set_long_mode(view.title, LABEL_LONG_DOTS);
-      lv_obj_align(view.title, LV_ALIGN_BOTTOM_LEFT, pad, t.show_state ? -(pad + (big ? 32 : 20)) : -pad);
-    }
+    int icon_h = (t.show_icon && isym != nullptr) ? make_icon(c, icon_px(big ? 40 : 28), isym) : 0;
+    const lv_font_t *vf = value_font(font_px(big ? 28 : (t.font == 0 ? 12 : 16)));
+    if (t.show_state)
+      view.value = make_text(c, vf, "");
+    if (t.show_title)
+      view.title = make_text(c, title_font, first.title.c_str());
+    place_entity(icon_h, vf, pad);
     int n = static_cast<int>(t.items.size());
     if (n > 1) {
       for (int i = 0; i < n; i++) {
@@ -1249,6 +1333,8 @@ void GuitionStudio::build_tile_(int page_index, lv_obj_t *parent, const TileCfg 
         lv_obj_set_style_bg_opa(d, i == 0 ? LV_OPA_COVER : LV_OPA_40, 0);
         if (t.vertical)  // column on the right edge, centred
           lv_obj_set_pos(d, pw - pad - 2, ph / 2 - n * 6 + i * 12);
+        else if (align == 3)  // icon sits top right -> dots top left
+          lv_obj_set_pos(d, pad + i * 12, pad + 4);
         else
           lv_obj_set_pos(d, pw - pad - (n - i) * 12 + 5, pad + 4);
         view.dots[i] = d;
@@ -1264,18 +1350,13 @@ void GuitionStudio::build_tile_(int page_index, lv_obj_t *parent, const TileCfg 
     int slider_h = dimmer ? (ph >= 140 ? 18 : 12) : 0;
     int swatch_h = rgb ? (ph >= 140 ? 28 : 20) : 0;
     int bottom = dimmer ? pad + slider_h + 10 + (rgb ? swatch_h + 8 : 0) : pad;
-    if (with_icon) {
-      view.icon = make_label(o, icon_font(big ? 40 : 28), t.icon_color, sym);
-      lv_obj_align(view.icon, LV_ALIGN_TOP_LEFT, pad, pad - 2);
-    }
-    if (t.show_state) {
-      view.value = make_label(o, font_px(t.font == 0 ? 12 : 16), t.fg, "");
-      lv_obj_set_width(view.value, inner_w);
-      lv_label_set_long_mode(view.value, LABEL_LONG_DOTS);
-      lv_obj_align(view.value, LV_ALIGN_BOTTOM_LEFT, pad, -bottom);
-    }
+    int icon_h = with_icon ? make_icon(o, icon_px(big ? 40 : 28), sym) : 0;
+    const lv_font_t *vf = value_font(font_px(t.font == 0 ? 12 : 16));
+    if (t.show_state)
+      view.value = make_text(o, vf, "");
     if (t.show_title)
-      title_label(LV_ALIGN_BOTTOM_LEFT, pad, t.show_state ? -(bottom + 20) : -bottom, inner_w);
+      view.title = make_text(o, title_font, t.title.c_str());
+    place_entity(icon_h, vf, bottom);
     if (dimmer) {
       lv_obj_t *s = lv_slider_create(o);
       view.slider = s;
@@ -1503,6 +1584,10 @@ void GuitionStudio::update_tile_(TileView &view) {
   if (view.icon != nullptr) {
     uint32_t ic = !available ? this->layout_.muted : (on && stateful) ? fg : (on && t.kind != "sensor" ? t.on_bg : t.icon_color);
     lv_obj_set_style_text_color(view.icon, lv_color_hex(ic), 0);
+    if (t.icon_frame) {  // the frame follows the icon colour
+      lv_obj_set_style_bg_color(view.icon, lv_color_hex(ic), 0);
+      lv_obj_set_style_border_color(view.icon, lv_color_hex(ic), 0);
+    }
     const char *sym = (st && !st->icon.empty()) ? icon_symbol(st->icon) : nullptr;
     if (sym == nullptr)
       sym = icon_symbol(icon_key);

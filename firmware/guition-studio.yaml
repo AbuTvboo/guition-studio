@@ -10,7 +10,7 @@
 substitutions:
   name: guition-studio
   friendly_name: Guition Studio
-  fw_version: "0.5.19"
+  fw_version: "0.5.20"
 
 esphome:
   name: ${name}

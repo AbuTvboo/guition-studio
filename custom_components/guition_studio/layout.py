@@ -152,7 +152,18 @@ def default_style() -> dict[str, Any]:
         "border_width": 0,
         "border_color": None,
         "opacity": 100,
+        # content alignment (auto = the tile type's usual look), icon size, state/value font size, icon frame
+        "align": "auto",
+        "icon_size": "auto",
+        "state_size": "auto",
+        "icon_frame": "none",
     }
+
+
+# device codes of the layout options above (missing key = auto / none)
+TILE_ALIGN = {"auto": 0, "left": 1, "center": 2, "right": 3}
+ICON_SIZES = {"auto": 0, "s": 20, "m": 28, "l": 40}
+ICON_FRAMES = {"none": 0, "circle": 1, "ring": 2, "rounded": 3, "rounded_ring": 4}
 
 
 def default_layout(name: str = "Start") -> dict[str, Any]:
@@ -590,6 +601,11 @@ def _validate_tile(
     style["radius"] = _int(style_in.get("radius"), 16, 0, 60)
     style["border_width"] = _int(style_in.get("border_width"), 0, 0, 8)
     style["opacity"] = _int(style_in.get("opacity"), 100, 10, 100)
+    for key, allowed in (("align", TILE_ALIGN), ("icon_size", ICON_SIZES), ("icon_frame", ICON_FRAMES)):
+        if style_in.get(key) in allowed:
+            style[key] = style_in[key]
+    if style_in.get("state_size") in FONT_SIZES:
+        style["state_size"] = style_in["state_size"]
 
     visibility = []
     for cond in tile.get("visibility") or []:
@@ -837,6 +853,14 @@ def compile_device_layout(layout: dict[str, Any], slide_url: str | None = None) 
                 dev["fs"] = FONT_SIZES[s["font_size"]]
             if s["radius"] != 16:
                 dev["rad"] = s["radius"]
+            if TILE_ALIGN[s["align"]]:
+                dev["al"] = TILE_ALIGN[s["align"]]
+            if ICON_SIZES[s["icon_size"]]:
+                dev["is"] = ICON_SIZES[s["icon_size"]]
+            if s["state_size"] in FONT_SIZES:
+                dev["vs"] = FONT_SIZES[s["state_size"]]
+            if ICON_FRAMES[s["icon_frame"]]:
+                dev["if"] = ICON_FRAMES[s["icon_frame"]]
             if s["opacity"] != 100:
                 dev["op"] = s["opacity"]
             if not t["show_title"]:

@@ -359,6 +359,7 @@ export function formatBytes(n: number | null | undefined): string {
 }
 
 const FONT_PX: Record<string, number> = { s: 12, m: 16, l: 20, xl: 28, xxl: 40 };
+const ICON_PX: Record<string, number> = { s: 20, m: 28, l: 40 };
 
 /** Inner content of a tile, laid out like the firmware does. */
 export function renderTileContent(tile: Tile, theme: Theme, hass: Hass | undefined, pw: number, ph: number, now = new Date(), item = 0): TemplateResult {
@@ -377,6 +378,53 @@ export function renderTileContent(tile: Tile, theme: Theme, hass: Hass | undefin
   const title = (style: Record<string, string>) =>
     tile.show_title ? html`<div class="t-title" style=${styleMap({ fontSize: `${titlePx}px`, ...style })}>${tile.title}</div>` : nothing;
   const hhmm = now.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  // layout options (like the firmware): alignment, icon size, state/value size, icon frame
+  const st = tile.style;
+  const centredType = ["nav", "action", "settings", "text"].includes(tile.type);
+  const align = st.align && st.align !== "auto" ? st.align : centredType ? "center" : "left";
+  const iconPx = (auto: number) => (st.icon_size && st.icon_size !== "auto" ? ICON_PX[st.icon_size] : auto);
+  const valuePx = (auto: number) => (st.state_size && st.state_size !== "auto" ? FONT_PX[st.state_size] : auto);
+  const frame = st.icon_frame ?? "none";
+  const iconEl = (key: string | null, px: number) => {
+    if (frame === "none") return deviceIcon(key, px);
+    const p = Math.floor(px / 4) + 2;
+    const size = px + 2 * p;
+    const ring = frame === "ring" || frame === "rounded_ring";
+    return html`<span style=${styleMap({
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      boxSizing: "border-box",
+      width: `${size}px`,
+      height: `${size}px`,
+      borderRadius: frame === "circle" || frame === "ring" ? "50%" : `${Math.round(size / 4)}px`,
+      border: ring ? `2px solid ${c.icon}` : "none",
+      background: ring ? "transparent" : `color-mix(in srgb, ${c.icon} 20%, transparent)`,
+    })}>${deviceIcon(key, px)}</span>`;
+  };
+  const textAlign = align === "center" ? "center" : align === "right" ? "right" : "left";
+  /** centre alignment: children stacked and centred between top and bottom */
+  const stack = (bottom: number, ...parts: unknown[]) =>
+    html`<div style="position:absolute;left:${pad}px;right:${pad}px;top:${pad}px;bottom:${bottom}px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;min-width:0">
+      ${parts}
+    </div>`;
+  const corner = align === "right" ? "right" : "left";
+  /** icon on top, title above the state at the bottom – or everything stacked in the centre */
+  const entityLayout = (bottom: number, ipx: number, state: unknown, vpx: number) => {
+    const hasState = state !== nothing;
+    if (align === "center")
+      return stack(
+        bottom,
+        ipx ? html`<div style="color:${c.icon};line-height:0">${iconEl(iconKey, ipx)}</div>` : nothing,
+        title({ maxWidth: "100%", textAlign: "center" }),
+        hasState ? html`<div class="t-state" style="font-size:${vpx}px;max-width:100%">${state}</div>` : nothing
+      );
+    return html`${ipx ? html`<div style="position:absolute;${corner}:${pad}px;top:${pad - 2}px;color:${c.icon};line-height:0">${iconEl(iconKey, ipx)}</div>` : nothing}
+      ${title({ position: "absolute", left: `${pad}px`, right: `${pad}px`, bottom: `${hasState ? bottom + Math.max(20, Math.round(vpx * 1.15) + 4) : bottom}px`, textAlign })}
+      ${hasState
+        ? html`<div class="t-state" style="position:absolute;left:${pad}px;right:${pad}px;bottom:${bottom}px;font-size:${vpx}px;text-align:${textAlign}">${state}</div>`
+        : nothing}`;
+  };
   let body: TemplateResult;
   switch (tile.type) {
     case "clock":
@@ -410,14 +458,24 @@ export function renderTileContent(tile: Tile, theme: Theme, hass: Hass | undefin
       break;
     }
     case "sensor": {
-      const weather = false;
-      const ic = weather && ps.icon ? ps.icon : iconKey;
-      body = html`${title({ position: "absolute", left: `${pad}px`, top: `${pad}px`, right: `${pad + 34}px` })}
-        ${tile.show_icon || weather ? html`<div style="position:absolute;right:${pad}px;top:${pad - 4}px;color:${c.icon}">${deviceIcon(ic, weather && big ? 40 : 28)}</div>` : nothing}
-        <div class="t-value" style="position:absolute;left:${pad}px;right:${pad}px;bottom:${weather ? pad + 18 : pad}px;font-size:${big ? 40 : pw < 110 ? 20 : 28}px">
-          ${ps.known ? (ps.available ? ps.text || "–" : "Nicht verfügbar") : "–"}
-        </div>
-        ${weather ? html`<div class="t-state" style="position:absolute;left:${pad}px;right:${pad}px;bottom:${pad}px;font-size:12px">${ps.sub}</div>` : nothing}`;
+      const ipx = iconPx(28);
+      const withIcon = tile.show_icon && !!iconKey;
+      const iconW = withIcon ? (frame === "none" ? ipx : ipx + 2 * (Math.floor(ipx / 4) + 2)) + 6 : 0;
+      const vpx = valuePx(big ? 40 : pw < 110 ? 20 : 28);
+      const valueText = ps.known ? (ps.available ? ps.text || "–" : "Nicht verfügbar") : "–";
+      if (align === "center") {
+        body = stack(
+          pad,
+          withIcon ? html`<div style="color:${c.icon};line-height:0">${iconEl(iconKey, ipx)}</div>` : nothing,
+          html`<div class="t-value" style="font-size:${vpx}px;max-width:100%">${valueText}</div>`,
+          title({ maxWidth: "100%", textAlign: "center" })
+        );
+      } else {
+        const right = align === "right";
+        body = html`${title({ position: "absolute", top: `${pad}px`, left: `${pad + (right ? iconW : 0)}px`, right: `${pad + (right ? 0 : iconW)}px`, textAlign })}
+          ${withIcon ? html`<div style="position:absolute;${right ? "left" : "right"}:${pad}px;top:${pad - 4}px;color:${c.icon};line-height:0">${iconEl(iconKey, ipx)}</div>` : nothing}
+          <div class="t-value" style="position:absolute;left:${pad}px;right:${pad}px;bottom:${pad}px;font-size:${vpx}px;text-align:${textAlign}">${valueText}</div>`;
+      }
       break;
     }
     case "cover":
@@ -452,13 +510,10 @@ export function renderTileContent(tile: Tile, theme: Theme, hass: Hass | undefin
     case "nav":
     case "action":
     case "settings":
-      body = html`<div class="t-center">
-        ${tile.show_icon && tile.icon ? html`<div style="color:${c.icon}">${deviceIcon(iconKey, big ? 40 : 28)}</div>` : nothing}
-        ${title({ textAlign: "center", maxWidth: "100%" })}
-      </div>`;
+      body = entityLayout(pad, tile.show_icon && tile.icon ? iconPx(big ? 40 : 28) : 0, nothing, 16);
       break;
     case "text":
-      body = html`<div class="t-center" style="font-size:${titlePx}px;text-align:center;white-space:pre-wrap">${tile.title}</div>`;
+      body = html`<div class="t-center" style="font-size:${titlePx}px;text-align:${textAlign};align-items:${align === "center" ? "center" : align === "right" ? "flex-end" : "flex-start"};white-space:pre-wrap">${tile.title}</div>`;
       break;
     case "status":
       body = html`<div style="position:absolute;left:${pad}px;top:50%;transform:translateY(-50%);font-size:15px;line-height:1.8">
@@ -487,13 +542,13 @@ export function renderTileContent(tile: Tile, theme: Theme, hass: Hass | undefin
       const swatchH = rgb ? (ph >= 140 ? 28 : 20) : 0;
       const bottom = dimmer ? pad + sliderH + 10 + (rgb ? swatchH + 8 : 0) : pad;
       const level = ps.on ? (ps.num >= 0 ? ps.num : 100) : 0;
-      body = html`${tile.show_icon ? html`<div style="position:absolute;left:${pad}px;top:${pad - 2}px;color:${c.icon}">${deviceIcon(iconKey, big ? 40 : 28)}</div>` : nothing}
-        ${title({ position: "absolute", left: `${pad}px`, right: `${pad}px`, bottom: `${tile.show_state ? bottom + 20 : bottom}px` })}
-        ${tile.show_state
-          ? html`<div class="t-state" style="position:absolute;left:${pad}px;right:${pad}px;bottom:${bottom}px;font-size:${tile.style.font_size === "s" ? 12 : 16}px">
-              ${ps.known ? (ps.available ? ps.text : "Nicht verfügbar") : "…"}
-            </div>`
-          : nothing}
+      const autoValue = items.length ? (big ? 28 : tile.style.font_size === "s" ? 12 : 16) : tile.style.font_size === "s" ? 12 : 16;
+      body = html`${entityLayout(
+          bottom,
+          tile.show_icon && iconKey ? iconPx(big ? 40 : 28) : 0,
+          tile.show_state ? (ps.known ? (ps.available ? ps.text : "Nicht verfügbar") : "…") : nothing,
+          valuePx(autoValue)
+        )}
         ${dimmer
           ? html`<div class="t-slider" style="left:${pad + 4}px;right:${pad + 4}px;bottom:${pad + 2}px;height:${sliderH}px;background:color-mix(in srgb, ${c.fg} 20%, transparent)">
               <div style="width:${level}%;background:${tile.style.on_color ?? theme.on_bg}"></div>
@@ -507,7 +562,7 @@ export function renderTileContent(tile: Tile, theme: Theme, hass: Hass | undefin
         ${items.length > 1
           ? html`<div style=${tile.swipe_dir === "v"
               ? `position:absolute;right:${pad - 2}px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:5px`
-              : `position:absolute;right:${pad}px;top:${pad + 4}px;display:flex;gap:5px`}>
+              : `position:absolute;${align === "right" ? "left" : "right"}:${pad}px;top:${pad + 4}px;display:flex;gap:5px`}>
               ${items.map((_, i) => html`<span style="width:7px;height:7px;border-radius:4px;background:${c.fg};opacity:${i === Math.min(item, items.length - 1) ? 1 : 0.4}"></span>`)}
             </div>`
           : nothing}`;

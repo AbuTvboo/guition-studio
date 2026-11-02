@@ -44,6 +44,19 @@ const ACTION_LABELS: Record<ActionType, string> = {
 };
 
 const FONT_LABELS = { s: "Klein", m: "Normal", l: "Groß", xl: "Sehr groß", xxl: "Riesig" };
+const ALIGN_LABELS = { auto: "Automatisch", left: "Links", center: "Mittig", right: "Rechts" };
+const ICON_SIZE_LABELS = { auto: "Automatisch", s: "Klein", m: "Normal", l: "Groß" };
+const ICON_FRAME_LABELS = {
+  none: "Keine",
+  circle: "Kreis (gefüllt)",
+  ring: "Kreis (Ring)",
+  rounded: "Abgerundetes Quadrat (gefüllt)",
+  rounded_ring: "Abgerundetes Quadrat (Ring)",
+};
+/** tile types with icon + title (+ state) whose layout can be configured */
+const LAYOUT_TYPES: string[] = ["light", "dimmer", "rgb", "switch", "swipe", "sensor", "nav", "action", "settings"];
+/** tile types with a state / value line */
+const STATE_TYPES: string[] = ["light", "dimmer", "rgb", "switch", "swipe", "sensor"];
 
 @customElement("gs-tile-props")
 export class GsTileProps extends LitElement {
@@ -54,6 +67,8 @@ export class GsTileProps extends LitElement {
   @property({ attribute: false }) tile!: Tile;
   @state() private iconsOpen = false;
   @state() private iconFilter = "";
+  /** swipe tile: index of the entry whose icon picker is open (-1 = none) */
+  @state() private itemIconOpen = -1;
   @state() private jsonError: string | null = null;
 
   private patch(p: Partial<Tile>) {
@@ -71,6 +86,32 @@ export class GsTileProps extends LitElement {
 
   private get theme() {
     return this.info.themes[this.layout.settings.theme] ?? Object.values(this.info.themes)[0];
+  }
+
+  /** searchable icon grid; pick() is called with the chosen icon */
+  private iconGrid(selected: string | null | undefined, pick: (icon: string) => void) {
+    const icons = this.info.icons.filter((i) => i.includes(this.iconFilter.trim().toLowerCase()));
+    return html`<input
+        class="icon-search"
+        type="search"
+        placeholder="Icon suchen (englisch, z. B. lamp, fan, door) …"
+        .value=${this.iconFilter}
+        @input=${(e: Event) => (this.iconFilter = (e.target as HTMLInputElement).value)}
+      />
+      <div class="icon-grid">
+        ${icons.map((i) => html`<button class=${selected === i ? "sel" : ""} title=${i} @click=${() => pick(i)}>${deviceIcon(i, 20)}</button>`)}
+        ${icons.length ? nothing : html`<span class="muted small" style="grid-column:1/-1">Kein Icon gefunden</span>`}
+      </div>`;
+  }
+
+  /** dropdown for one of the layout options (missing value = "auto" / "none") */
+  private styleSelect(label: string, key: "align" | "icon_size" | "state_size" | "icon_frame", options: Record<string, string>) {
+    const value = this.tile.style[key] ?? Object.keys(options)[0];
+    return html`<label class="field"><span>${label}</span>
+      <select @change=${(e: Event) => this.patchStyle({ [key]: (e.target as HTMLSelectElement).value } as Partial<TileStyle>)}>
+        ${Object.entries(options).map(([k, l]) => html`<option value=${k} ?selected=${value === k}>${l}</option>`)}
+      </select>
+    </label>`;
   }
 
   private colorField(label: string, key: keyof TileStyle, fallback: string) {
@@ -192,11 +233,24 @@ export class GsTileProps extends LitElement {
                 set(next);
               }}
             ></gs-entity-picker>
-            <input maxlength="64" placeholder="Titel" .value=${it.title} @input=${(e: Event) => {
-              const next = [...items];
-              next[i] = { ...it, title: (e.target as HTMLInputElement).value };
-              set(next);
-            }} />
+            <div class="row">
+              <button class="icon-btn" title="Icon für diesen Eintrag wählen" @click=${() => (this.itemIconOpen = this.itemIconOpen === i ? -1 : i)}>
+                ${deviceIcon(it.icon ?? this.tile.icon, 22)}
+              </button>
+              <input style="flex:1;min-width:0" maxlength="64" placeholder="Titel" .value=${it.title} @input=${(e: Event) => {
+                const next = [...items];
+                next[i] = { ...it, title: (e.target as HTMLInputElement).value };
+                set(next);
+              }} />
+            </div>
+            ${this.itemIconOpen === i
+              ? this.iconGrid(it.icon, (icon) => {
+                  const next = [...items];
+                  next[i] = { ...it, icon };
+                  set(next);
+                  this.itemIconOpen = -1;
+                })
+              : nothing}
           </div>
           <div style="display:grid;gap:4px">
             <button class="icon ghost" title="Nach oben" ?disabled=${i === 0} @click=${() => {
@@ -230,7 +284,6 @@ export class GsTileProps extends LitElement {
     const entity = t.entity ? this.hass.states[t.entity] : undefined;
     const requiresEntity = needsEntity(t);
     const domainProblem = entityDomainProblem(t);
-    const icons = this.info.icons.filter((i) => i.includes(this.iconFilter.trim().toLowerCase()));
     return html`
       <datalist id="gs-entities">
         ${Object.values(this.hass.states).map((s) => html`<option value=${s.entity_id}>${friendlyName(s)}</option>`)}
@@ -297,7 +350,7 @@ export class GsTileProps extends LitElement {
               <span>Daten aus dem Recorder von Home Assistant, Aktualisierung alle 10 Minuten.</span>
             </label>`
           : nothing}
-        ${t.type !== "clock" && t.type !== "text" && t.type !== "status"
+        ${t.type !== "clock" && t.type !== "text" && t.type !== "status" && t.type !== "swipe"
           ? html`<div class="field-like">
               <span class="lbl">Icon</span>
               <div class="row">
@@ -305,27 +358,15 @@ export class GsTileProps extends LitElement {
                 ${t.icon ? html`<button class="icon ghost" title="Icon entfernen" @click=${() => this.patch({ icon: null })}>✕</button>` : nothing}
               </div>
               ${this.iconsOpen
-                ? html`<input
-                      class="icon-search"
-                      type="search"
-                      placeholder="Icon suchen (englisch, z. B. lamp, fan, door) …"
-                      .value=${this.iconFilter}
-                      @input=${(e: Event) => (this.iconFilter = (e.target as HTMLInputElement).value)}
-                    />
-                    <div class="icon-grid">
-                    ${icons.map(
-                      (i) => html`<button class=${t.icon === i ? "sel" : ""} title=${i} @click=${() => {
-                        this.patch({ icon: i });
-                        this.iconsOpen = false;
-                      }}>${deviceIcon(i, 20)}</button>`
-                    )}
-                    ${icons.length ? nothing : html`<span class="muted small" style="grid-column:1/-1">Kein Icon gefunden</span>`}
-                  </div>`
+                ? this.iconGrid(t.icon, (icon) => {
+                    this.patch({ icon });
+                    this.iconsOpen = false;
+                  })
                 : nothing}
             </div>`
           : nothing}
         <label class="check"><input type="checkbox" .checked=${t.show_title} @change=${(e: Event) => this.patch({ show_title: (e.target as HTMLInputElement).checked })} /> Titel anzeigen</label>
-        ${["light", "dimmer", "rgb", "switch", "action"].includes(t.type)
+        ${["light", "dimmer", "rgb", "switch", "action", "swipe"].includes(t.type)
           ? html`<label class="check"><input type="checkbox" .checked=${t.show_state} @change=${(e: Event) => this.patch({ show_state: (e.target as HTMLInputElement).checked })} /> Zustand anzeigen</label>`
           : nothing}
         <label class="check"><input type="checkbox" .checked=${t.show_icon} @change=${(e: Event) => this.patch({ show_icon: (e.target as HTMLInputElement).checked })} /> Icon anzeigen</label>
@@ -333,11 +374,20 @@ export class GsTileProps extends LitElement {
 
       <section>
         <h3>Darstellung</h3>
-        <label class="field"><span>Schriftgröße</span>
+        <label class="field"><span>${LAYOUT_TYPES.includes(t.type) ? "Schriftgröße Titel" : "Schriftgröße"}</span>
           <select @change=${(e: Event) => this.patchStyle({ font_size: (e.target as HTMLSelectElement).value as TileStyle["font_size"] })}>
             ${Object.entries(FONT_LABELS).map(([k, l]) => html`<option value=${k} ?selected=${t.style.font_size === k}>${l}</option>`)}
           </select>
         </label>
+        ${LAYOUT_TYPES.includes(t.type) || t.type === "text"
+          ? this.styleSelect("Ausrichtung", "align", ALIGN_LABELS)
+          : nothing}
+        ${STATE_TYPES.includes(t.type)
+          ? this.styleSelect(t.type === "sensor" ? "Schriftgröße Wert" : "Schriftgröße Zustand", "state_size", { auto: "Automatisch", ...FONT_LABELS })
+          : nothing}
+        ${LAYOUT_TYPES.includes(t.type)
+          ? html`${this.styleSelect("Icongröße", "icon_size", ICON_SIZE_LABELS)} ${this.styleSelect("Icon-Umrandung", "icon_frame", ICON_FRAME_LABELS)}`
+          : nothing}
         ${this.colorField("Hintergrund", "background", theme.tile_bg)} ${this.colorField("Textfarbe", "color", theme.text)}
         ${this.colorField("Iconfarbe", "icon_color", theme.icon)}
         ${["light", "dimmer", "rgb", "switch", "cover", "thermostat", "media"].includes(t.type)

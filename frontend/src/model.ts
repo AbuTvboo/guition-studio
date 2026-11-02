@@ -25,6 +25,10 @@ export function defaultStyle(): TileStyle {
     border_width: 0,
     border_color: null,
     opacity: 100,
+    align: "auto",
+    icon_size: "auto",
+    state_size: "auto",
+    icon_frame: "none",
   };
 }
 

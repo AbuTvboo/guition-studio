@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.20 – Kachel-Layout einstellbar, Icon-Umrandung, Icons der Wischkachel
+- Neue Einstellungen unter **Darstellung** (Licht, Dimmer, RGB, Schalter, Wischkachel, Sensor, Navigation, Aktion, Einstellungen):
+  - **Ausrichtung:** Automatisch (wie bisher) / Links / Mittig / Rechts. Mittig stapelt Icon, Titel und Zustand zentriert untereinander, Rechts spiegelt die Kachel (Icon oben rechts, Text rechtsbündig). Beim Text-Element richtet es den Text aus.
+  - **Icongröße:** Automatisch / Klein / Normal / Groß.
+  - **Schriftgröße Zustand** bzw. **Wert** (Sensor): Automatisch oder Klein bis Riesig – unabhängig von der Titel-Schriftgröße.
+  - **Icon-Umrandung:** Kreis oder abgerundetes Quadrat, jeweils gefüllt (in der Iconfarbe getönt) oder als Ring. Die Umrandung wechselt mit der Iconfarbe, z. B. wenn die Lampe an ist.
+- **Wischkachel:** Jeder Eintrag hat jetzt einen eigenen Icon-Knopf neben dem Titel. Vorher ließ sich nur das Kachel-Icon ändern, und das wurde vom automatisch gesetzten Icon jedes Eintrags überdeckt. Außerdem lässt sich „Zustand anzeigen“ jetzt auch für die Wischkachel abschalten.
+- Die Designer-Vorschau zeigt alle neuen Einstellungen genauso wie das Display.
+
 ## 0.5.19 – 3D-Kacheln ohne Farbstreifen
 - Die 3D-Kacheln haben auf dem Panel **wieder genau die gewählte Farbe** – ohne den Verlauf von hell nach dunkel. Das 16-Bit-Display (RGB565) hat den weichen Verlauf in Stufen dargestellt; vor allem bei Grau gab es dadurch leicht rot-, grün- und blaustichige waagerechte Streifen.
 - Der 3D-Eindruck bleibt durch die helle Lichtkante oben, den Schlagschatten und den Drück-Effekt. Die Designer-Vorschau zeigt es jetzt genauso.

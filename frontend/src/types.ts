@@ -72,7 +72,17 @@ export interface TileStyle {
   border_width: number;
   border_color: string | null;
   opacity: number;
+  /** content alignment, "auto" = the tile type's usual look */
+  align?: TileAlign;
+  icon_size?: IconSize;
+  /** font size of the state / value line */
+  state_size?: FontSize | "auto";
+  icon_frame?: IconFrame;
 }
+
+export type TileAlign = "auto" | "left" | "center" | "right";
+export type IconSize = "auto" | "s" | "m" | "l";
+export type IconFrame = "none" | "circle" | "ring" | "rounded" | "rounded_ring";
 
 export interface Tile {
   id: string;

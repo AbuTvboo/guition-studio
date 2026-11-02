@@ -103,6 +103,9 @@ struct TileCfg {
   uint32_t border_color{0x000000};
   uint8_t font{1}, radius{16}, border{0}, opacity{100};
   bool show_title{true}, show_state{true}, show_icon{true};
+  // layout options: align 0 auto/1 left/2 centre/3 right, icon_px 0 = auto, value_font 255 = auto,
+  // icon_frame 0 none/1 filled circle/2 circle ring/3 filled rounded square/4 rounded square ring
+  uint8_t align{0}, icon_px{0}, value_font{255}, icon_frame{0};
   uint8_t tap{ACTION_NONE}, hold{ACTION_NONE};
   int tap_page{-1}, hold_page{-1};
   uint8_t wopts{0x2F};  // weather: 1 condition, 2 high/low, 4 humidity, 8 wind, 16 pressure, 32 forecast

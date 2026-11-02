@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.21 – Wischkachel: Punkte und Inhalt sitzen wie im Designer
+- Die Positionspunkte der Wischkachel (senkrecht am rechten Rand) saßen auf dem Panel 3 px zu weit außen, fast auf der Kante. Jetzt haben sie denselben Abstand wie in der Designer-Vorschau und sind sauber senkrecht zentriert.
+- Der Kachelinhalt war auf dem Panel um die Rahmenbreite nach rechts unten verschoben: LVGL zieht den Rahmen auf allen Seiten ab, auch wenn bei 3D-Kacheln nur die obere Lichtkante gezeichnet wird. Zentrierte Icons wirkten dadurch leicht rechts von der Mitte. Bei 3D-Kacheln nutzt der Inhalt jetzt wieder die ganze Kachel. Bei einem eigenen Rahmen wird der Inhalt innerhalb des Rahmens angeordnet, wie im Designer.
+
 ## 0.5.20 – Kachel-Layout einstellbar, Icon-Umrandung, Icons der Wischkachel
 - Neue Einstellungen unter **Darstellung** (Licht, Dimmer, RGB, Schalter, Wischkachel, Sensor, Navigation, Aktion, Einstellungen):
   - **Ausrichtung:** Automatisch (wie bisher) / Links / Mittig / Rechts. Mittig stapelt Icon, Titel und Zustand zentriert untereinander, Rechts spiegelt die Kachel (Icon oben rechts, Text rechtsbündig). Beim Text-Element richtet es den Text aus.

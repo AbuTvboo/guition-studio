@@ -1076,6 +1076,15 @@ void GuitionStudio::build_tile_(int page_index, lv_obj_t *parent, const TileCfg 
 
   bool big = (pw >= 200 && ph >= 200);
   int pad = ph < 90 ? 8 : 12;
+  // LVGL places children inside the border on ALL sides (even if only one edge is drawn).
+  // 3D light edge (1 px, top only): negative padding keeps the content area = the whole tile, like
+  // the designer. Own border: lay the content out inside it (designer: absolute inside the border).
+  if (this->layout_.depth && t.border == 0) {
+    lv_obj_set_style_pad_all(o, -1, 0);
+  } else if (t.border > 0) {
+    pw -= 2 * t.border;
+    ph -= 2 * t.border;
+  }
   const char *sym = icon_symbol(t.icon);
   const lv_font_t *title_font = font_step(t.font);
   int inner_w = pw - 2 * pad;
@@ -1332,7 +1341,7 @@ void GuitionStudio::build_tile_(int page_index, lv_obj_t *parent, const TileCfg 
         lv_obj_set_style_bg_color(d, lv_color_hex(t.fg), 0);
         lv_obj_set_style_bg_opa(d, i == 0 ? LV_OPA_COVER : LV_OPA_40, 0);
         if (t.vertical)  // column on the right edge, centred
-          lv_obj_set_pos(d, pw - pad - 2, ph / 2 - n * 6 + i * 12);
+          lv_obj_set_pos(d, pw - (pad - 2) - 7, (ph - (12 * n - 5)) / 2 + i * 12);
         else if (align == 3)  // icon sits top right -> dots top left
           lv_obj_set_pos(d, pad + i * 12, pad + 4);
         else

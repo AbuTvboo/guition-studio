@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.14 – Größere Schrift und Logos im Fußball-Bildschirmschoner
+- Spielzeilen jetzt in **20 px** mit **24-px-Logos** (vorher 16 px / 18 px). Nur wenn sehr viele Spiele anstehen, wird auf 16 px mit 18-px-Logos verkleinert; die 12-px-Stufe entfällt, stattdessen blättert die Liste öfter weiter.
+- Die Spalte für die Anstoßzeit ist nur noch so breit wie nötig – mehr Platz für die Vereinsnamen.
+
 ## 0.5.13 – Vereinslogos im Fußball-Bildschirmschoner
 - **Vereinslogos** neben den Mannschaftsnamen („Bayern 🛡 – 🛡 Dortmund“). Home Assistant lädt jedes Logo einmal von ESPN, schneidet den transparenten Rand ab und verkleinert es auf 18 × 18 Pixel mit weicher Kante (in der 12-px-Ansicht 13 px). Das Display behält bis zu 120 Logos bis zum nächsten Neustart, jedes Logo wird also nur einmal übertragen (≈ 1 KB).
 - Die Liste erscheint sofort; die Logos werden nachgeladen, sobald sie da sind.

@@ -3367,7 +3367,7 @@ var xt, St = {
       <div class="notice small">
         Home Assistant holt die Spiele von ESPN (öffentlich, ohne Konto) – alle 10 Minuten, während Spiele laufen jede Minute.
         Gezeigt werden die heutigen Spiele mit Anstoß, Live-Spielstand und Minute; an Tagen ohne Spiele die nächsten Spiele mit Wochentag.
-        Die Schrift wird so klein gewählt, dass möglichst viele Spiele auf den Bildschirm passen; reicht der Platz nicht, blättert die Liste alle 8 Sekunden weiter.
+        Schrift 20 px mit Vereinslogos (bei sehr vielen Spielen 16 px); reicht der Platz nicht, blättert die Liste alle 8 Sekunden weiter.
       </div>`;
 	}
 	renderPrayerBackgrounds(e) {

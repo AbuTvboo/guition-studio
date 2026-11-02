@@ -61,7 +61,7 @@ NAME_FIX: dict[str, str] = {
 }  # fmt: skip
 
 
-LOGO_SIZE = 18
+LOGO_SIZE = 24
 LOGO_URL = "https://a.espncdn.com/i/teamlogos/soccer/500/{id}.png"
 
 

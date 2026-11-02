@@ -2087,14 +2087,22 @@ void GuitionStudio::render_football_() {
     this->fb_pages_ = 1;
     return;
   }
-  bool big = lines * 22 + static_cast<int>(this->fb_groups_.size()) * 4 <= avail;
-  int px = big ? 16 : 12;
-  int row_h = big ? 22 : 16;
+  // 20 px rows with 24 px logos; only when that does not fit on one page 16 px / 18 px
+  bool big = lines * 28 + static_cast<int>(this->fb_groups_.size()) * 4 <= avail;
+  int px = big ? 20 : 16;
+  int row_h = big ? 28 : 22;
   int head_h = row_h + 4;
   // columns: kick-off/score | home (right aligned) | – | away | minute
-  int c1 = big ? 78 : 62, cm = big ? 46 : 36;
-  int logo = big ? LOGO_PX : 13;  // drawn size (scaled down for 12 px rows)
-  int team_w = (SCREEN_W - 16 - c1 - cm - 14 - 2 * (logo + 4)) / 2;
+  // first column only as wide as needed: "18:30" or "Cmt 18:30" (next match days)
+  bool with_day = false;
+  for (const auto &g : this->fb_groups_)
+    for (const auto &r : g.rows)
+      with_day |= r.first.find(' ') != std::string::npos;
+  int c1 = with_day ? (big ? 104 : 84) : (big ? 64 : 52), cm = big ? 52 : 42;
+  int logo = big ? LOGO_PX : 18;  // drawn size (scaled down for 16 px rows)
+  int dash_w = big ? 14 : 11;
+  // home | 4 | logo | 3 | – | logo | 4 | away
+  int team_w = (SCREEN_W - 16 - c1 - cm - (11 + dash_w) - 2 * logo) / 2;
   auto put_logo = [&](const std::string &id, int x, int y) {
     auto it = this->logos_.find(id);
     if (id.empty() || it == this->logos_.end())
@@ -2160,7 +2168,7 @@ void GuitionStudio::render_football_() {
     x += logo + 3;
     lv_obj_t *dash = make_label(this->fb_list_, font_px(px), l.muted, "–");
     lv_obj_set_pos(dash, x, y);
-    x += 11;
+    x += dash_w;
     put_logo(r.away_logo, x, y);
     x += logo + 4;
     lv_obj_t *away = make_label(this->fb_list_, font_px(px), team_col, r.away.c_str());

@@ -112,3 +112,4 @@ def test_logo_is_trimmed_and_converted_to_rgb565a8():
     centre = (LOGO_SIZE // 2) * LOGO_SIZE + LOGO_SIZE // 2
     assert raw[centre * 2 : centre * 2 + 2] == bytes((0x00, 0xF8))  # red, little endian
     assert raw[2 * n + centre] == 255 and raw[2 * n] == 0  # opaque centre, transparent corner
+    assert LOGO_SIZE == 24  # = LOGO_PX in guition_studio.h

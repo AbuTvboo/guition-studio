@@ -76,7 +76,7 @@ struct TeamLogo {
   uint8_t *data{nullptr};
   lv_image_dsc_t dsc{};
 };
-static constexpr int LOGO_PX = 18;
+static constexpr int LOGO_PX = 24;  // must match LOGO_SIZE in football.py
 struct FootballGroup {
   std::string name;
   std::vector<FootballRow> rows;

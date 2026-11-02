@@ -4,7 +4,8 @@ import { defaultIcon, friendlyName } from "../entities";
 import { TILE_ENTITY_DOMAINS } from "../types";
 import "./entity-picker";
 import { formatState } from "../preview";
-import { clone, entityDomainProblem, needsEntity, setGrid } from "../model";
+import { clone, entityDomainProblem, needsEntity, setFree, setGrid } from "../model";
+import { FREE_STEP } from "../geometry";
 import { DEFAULT_WEATHER_OPTIONS, MAX_SWIPE_ITEMS, type ActionType, type SwipeItem, type Condition, type Hass, type Layout, type Page, type StudioInfo, type Tile, type TileAction, type TileStyle, type WeatherOptions } from "../types";
 import { deviceIcon, fireEvent, sharedStyles, toast } from "../ui";
 
@@ -105,7 +106,7 @@ export class GsTileProps extends LitElement {
   }
 
   /** dropdown for one of the layout options (missing value = "auto" / "none") */
-  private styleSelect(label: string, key: "align" | "icon_size" | "state_size" | "icon_frame", options: Record<string, string>) {
+  private styleSelect(label: string, key: "align" | "icon_size" | "state_size" | "icon_frame" | "on_effect", options: Record<string, string>) {
     const value = this.tile.style[key] ?? Object.keys(options)[0];
     return html`<label class="field"><span>${label}</span>
       <select @change=${(e: Event) => this.patchStyle({ [key]: (e.target as HTMLSelectElement).value } as Partial<TileStyle>)}>
@@ -390,8 +391,11 @@ export class GsTileProps extends LitElement {
           : nothing}
         ${this.colorField("Hintergrund", "background", theme.tile_bg)} ${this.colorField("Textfarbe", "color", theme.text)}
         ${this.colorField("Iconfarbe", "icon_color", theme.icon)}
+        ${["light", "dimmer", "rgb", "switch", "swipe"].includes(t.type)
+          ? this.styleSelect("Beim Einschalten", "on_effect", { card: "Ganze Karte einfärben", icon: "Nur Icon leuchtet" })
+          : nothing}
         ${["light", "dimmer", "rgb", "switch", "cover", "thermostat", "media"].includes(t.type)
-          ? html`${this.colorField("Farbe wenn „An“", "on_color", theme.on_bg)} ${this.colorField("Text wenn „An“", "on_text_color", theme.on_text)}`
+          ? html`${this.colorField(t.style.on_effect === "icon" ? "Leuchtfarbe des Icons" : "Farbe wenn „An“", "on_color", theme.on_bg)} ${t.style.on_effect === "icon" ? nothing : this.colorField("Text wenn „An“", "on_text_color", theme.on_text)}`
           : nothing}
         <label class="field"><span>Eckenradius: ${t.style.radius}px</span>
           <input type="range" min="0" max="60" .value=${String(t.style.radius)} @change=${(e: Event) => this.patchStyle({ radius: +(e.target as HTMLInputElement).value })} />
@@ -407,7 +411,25 @@ export class GsTileProps extends LitElement {
 
       <section>
         <h3>Größe & Position</h3>
-        <div class="geo">
+        ${this.page.free
+          ? html`<div class="geo">
+              ${(["x", "y", "w", "h"] as const).map(
+                (k) => html`<label class="field"><span>${{ x: "X (px)", y: "Y (px)", w: "Breite (px)", h: "Höhe (px)" }[k]}</span>
+                  <input type="number" step=${FREE_STEP} min=${k === "w" || k === "h" ? FREE_STEP : 0}
+                    max=${(k === "x" || k === "w" ? this.page.cols : this.page.rows) * FREE_STEP}
+                    .value=${String(t[k] * FREE_STEP)}
+                    @change=${(e: Event) => {
+                      const v = parseInt((e.target as HTMLInputElement).value, 10);
+                      if (Number.isNaN(v)) return;
+                      const units = Math.round(v / FREE_STEP);
+                      this.geometry({ [k]: k === "w" || k === "h" ? Math.max(1, units) : Math.max(0, units) });
+                    }} />
+                </label>`
+              )}
+            </div>
+            <p class="muted small">Position ab dem Rand des Seitenbereichs, in ${FREE_STEP}-px-Schritten.</p>`
+          : nothing}
+        <div class="geo" ?hidden=${!!this.page.free}>
           ${(["x", "y", "w", "h"] as const).map(
             (k) => html`<label class="field"><span>${{ x: "Spalte", y: "Zeile", w: "Breite", h: "Höhe" }[k]}</span>
               <input type="number" min=${k === "w" || k === "h" ? 1 : 1} max=${k === "x" || k === "w" ? this.page.cols : this.page.rows}
@@ -580,6 +602,26 @@ export class GsPageProps extends LitElement {
         <input type="color" .value=${p.background ?? theme.page_bg} @input=${(e: Event) => patch({ background: (e.target as HTMLInputElement).value.toUpperCase() })} />
         ${p.background ? html`<button class="icon ghost" title="Design-Standard" @click=${() => patch({ background: null })}>↺</button>` : html`<span class="muted small">Design</span>`}
       </div>
+      <label class="check">
+        <input type="checkbox" .checked=${!!p.free} @change=${(e: Event) => {
+          const res = setFree(this.layout, p.id, (e.target as HTMLInputElement).checked);
+          if (res.ok) this.commit(res.layout);
+          else {
+            (e.target as HTMLInputElement).checked = !!p.free;
+            toast(this, res.reason ?? "Nicht möglich", "error");
+          }
+        }} />
+        Freie Anordnung (Kacheln pixelgenau verschieben und skalieren)
+      </label>
+      ${p.free
+        ? html`<p class="muted small">Kacheln frei ziehen, an der Ecke unten rechts in der Größe ändern. Fangraster ${FREE_STEP} px, Pfeiltasten verschieben um ${FREE_STEP} px (mit Umschalt: Größe). Abstände zwischen den Kacheln legst du selbst fest. Zurück zum Raster rastet die Kacheln in ein 6×6-Raster ein.</p>`
+        : this.gridFields()}
+    `;
+  }
+
+  private gridFields() {
+    const p = this.page;
+    return html`
       <div class="field-like">
         <span class="lbl">Raster (Spalten × Zeilen)</span>
         <div class="presets">

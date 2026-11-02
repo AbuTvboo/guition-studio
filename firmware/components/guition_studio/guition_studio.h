@@ -49,6 +49,7 @@ static constexpr int MARGIN = 8;
 static constexpr int GAP = 8;
 static constexpr int MAX_PAGES = 10;
 static constexpr int MAX_GRID = 6;
+static constexpr int MAX_FREE_GRID = 128;  // free layout: 480 px / 4 px step
 static constexpr int MAX_TILES_TOTAL = 160;
 
 enum TileAction : uint8_t {
@@ -106,6 +107,7 @@ struct TileCfg {
   // layout options: align 0 auto/1 left/2 centre/3 right, icon_px 0 = auto, value_font 255 = auto,
   // icon_frame 0 none/1 filled circle/2 circle ring/3 filled rounded square/4 rounded square ring
   uint8_t align{0}, icon_px{0}, value_font{255}, icon_frame{0};
+  bool icon_glow{false};  // "on" lights up only the icon (on colour + glow), the card keeps its colours
   uint8_t tap{ACTION_NONE}, hold{ACTION_NONE};
   int tap_page{-1}, hold_page{-1};
   uint8_t wopts{0x2F};  // weather: 1 condition, 2 high/low, 4 humidity, 8 wind, 16 pressure, 32 forecast
@@ -118,6 +120,7 @@ struct PageCfg {
   std::string name;
   uint32_t bg{0x0B0F14};
   int cols{3}, rows{3};
+  int step{0};  // free layout: fine grid of `step` px without gaps (0 = normal cell grid)
   std::vector<TileCfg> tiles;
 };
 

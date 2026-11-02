@@ -28,7 +28,11 @@ from .const import (
     DEV_ACTION_PREV,
     DEV_ACTION_REMOTE,
     DEV_ACTION_SETTINGS,
+    DOTS_H,
     FONT_SIZES,
+    FREE_COLS,
+    FREE_STEP,
+    HEADER_H,
     ICONS,
     LAYOUT_SCHEMA,
     LEGACY_ICONS,
@@ -39,7 +43,9 @@ from .const import (
     MAX_TILES_TOTAL,
     MAX_RULES,
     MAX_SCREENSAVER_ENTITIES,
+    MARGIN,
     MAX_TITLE_LEN,
+    SCREEN_H,
     PROTOCOL_VERSION,
     TILE_ENTITY_DOMAINS,
     TILE_TYPES,
@@ -157,6 +163,8 @@ def default_style() -> dict[str, Any]:
         "icon_size": "auto",
         "state_size": "auto",
         "icon_frame": "none",
+        # what lights up when switched on: the whole card or only the icon (on colour + glow)
+        "on_effect": "card",
     }
 
 
@@ -285,6 +293,14 @@ def _action(value: Any, errors: list[str], where: str) -> dict[str, Any]:
     return out
 
 
+def free_rows(settings: dict[str, Any], page_count: int) -> int:
+    """Rows of the fine grid of a free page = height of the page area in FREE_STEP units."""
+    height = SCREEN_H - (HEADER_H if settings.get("show_header", True) else 0)
+    if settings.get("show_dots", True) and page_count > 1:
+        height -= DOTS_H
+    return (height - 2 * MARGIN) // FREE_STEP
+
+
 def validate_layout(data: Any) -> dict[str, Any]:
     """Validate and normalise an editor layout. Raises LayoutValidationError."""
     errors: list[str] = []
@@ -343,9 +359,14 @@ def validate_layout(data: Any) -> dict[str, Any]:
         if pid in page_ids:
             errors.append(f"{where_p}: Seiten-ID „{pid}“ ist doppelt vergeben.")
         page_ids.add(pid)
+        free = page.get("free") is True
         cols = page.get("cols", 3)
         rows = page.get("rows", 3)
-        if not all(isinstance(v, int) and not isinstance(v, bool) and 1 <= v <= MAX_GRID for v in (cols, rows)):
+        if free:
+            # fine grid; the row count follows the page area (header, page dots)
+            cols = FREE_COLS
+            rows = free_rows(settings, len(pages_in[:MAX_PAGES]))
+        elif not all(isinstance(v, int) and not isinstance(v, bool) and 1 <= v <= MAX_GRID for v in (cols, rows)):
             errors.append(f"{where_p}: Rastergröße muss zwischen 1×1 und {MAX_GRID}×{MAX_GRID} liegen.")
             cols, rows = 3, 3
         occupied: dict[tuple[int, int], str] = {}
@@ -363,6 +384,7 @@ def validate_layout(data: Any) -> dict[str, Any]:
                 "background": _color(page.get("background")),
                 "cols": cols,
                 "rows": rows,
+                "free": free,
                 "tiles": tiles,
             }
         )
@@ -539,7 +561,8 @@ def _validate_tile(
         errors.append(f"{where}: Position und Größe müssen ganze Zahlen sein.")
         x, y, w, h = 0, 0, 1, 1
     elif w < 1 or h < 1 or x < 0 or y < 0 or x + w > cols or y + h > rows:
-        errors.append(f"{where}: liegt außerhalb des Displays ({cols}×{rows}-Raster).")
+        grid = f" ({cols}×{rows}-Raster)" if cols <= MAX_GRID else ""
+        errors.append(f"{where}: liegt außerhalb des Displays{grid}.")
     else:
         for yy in range(y, y + h):
             for xx in range(x, x + w):
@@ -604,6 +627,8 @@ def _validate_tile(
     for key, allowed in (("align", TILE_ALIGN), ("icon_size", ICON_SIZES), ("icon_frame", ICON_FRAMES)):
         if style_in.get(key) in allowed:
             style[key] = style_in[key]
+    if style_in.get("on_effect") in ("card", "icon"):
+        style["on_effect"] = style_in["on_effect"]
     if style_in.get("state_size") in FONT_SIZES:
         style["state_size"] = style_in["state_size"]
 
@@ -861,6 +886,8 @@ def compile_device_layout(layout: dict[str, Any], slide_url: str | None = None) 
                 dev["vs"] = FONT_SIZES[s["state_size"]]
             if ICON_FRAMES[s["icon_frame"]]:
                 dev["if"] = ICON_FRAMES[s["icon_frame"]]
+            if s["on_effect"] == "icon":
+                dev["og"] = 1
             if s["opacity"] != 100:
                 dev["op"] = s["opacity"]
             if not t["show_title"]:
@@ -885,6 +912,7 @@ def compile_device_layout(layout: dict[str, Any], slide_url: str | None = None) 
                 "bg": _hex(page.get("background"), theme["page_bg"]),
                 "c": page["cols"],
                 "r": page["rows"],
+                **({"g": FREE_STEP} if page.get("free") else {}),
                 "t": tiles,
             }
         )

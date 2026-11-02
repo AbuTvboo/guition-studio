@@ -115,8 +115,9 @@ export function previewState(hass: Hass | undefined, tile: Tile): PreviewState {
 
 export function tileColors(tile: Tile, theme: Theme, ps: PreviewState) {
   const stateful = ["light", "switch", "dimmer", "rgb", "swipe"].includes(tile.type);
-  const on = stateful && ps.on && ps.available;
   const s = tile.style;
+  // "on" colours the whole card - or with on_effect "icon" only the icon (glow drawn by the tile)
+  const on = stateful && ps.on && ps.available && s.on_effect !== "icon";
   return {
     bg: on ? s.on_color ?? theme.on_bg : s.background ?? theme.tile_bg,
     fg: on ? s.on_text_color ?? theme.on_text : s.color ?? theme.text,
@@ -127,6 +128,8 @@ export function tileColors(tile: Tile, theme: Theme, ps: PreviewState) {
         : ps.on && tile.entity && tile.type !== "sensor"
           ? s.on_color ?? theme.on_bg
           : s.icon_color ?? theme.icon,
+    /** icon glows in the on colour */
+    glow: stateful && ps.on && ps.available && s.on_effect === "icon" ? s.on_color ?? theme.on_bg : null,
   };
 }
 

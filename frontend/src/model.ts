@@ -1,5 +1,6 @@
 // Pure, immutable layout operations used by the designer (unit tested).
 import { DEFAULT_WEATHER_OPTIONS, TILE_ENTITY_DOMAINS, type Layout, type Page, type Tile, type TileStyle, type TileType } from "./types";
+import { cellRect, FREE_COLS, FREE_STEP, freeRows, GAP, MARGIN, pageGeometry } from "./geometry";
 
 export const MAX_PAGES = 10;
 export const MAX_GRID = 6;
@@ -29,6 +30,7 @@ export function defaultStyle(): TileStyle {
     icon_size: "auto",
     state_size: "auto",
     icon_frame: "none",
+    on_effect: "card",
   };
 }
 
@@ -119,6 +121,17 @@ export function moveTiles(layout: Layout, fromPageId: string, ids: string[], anc
   const moving = from.tiles.filter((t) => ids.includes(t.id));
   const anchor = moving.find((t) => t.id === anchorId);
   if (!anchor) return { layout, ok: false, reason: "Kachel nicht gefunden" };
+  if (!!from.free !== !!to.free) {
+    // grid page <-> free page: convert sizes and the offsets relative to the anchor
+    for (const t of moving) {
+      if (t === anchor) continue;
+      const c = convertRect({ x: t.x - anchor.x, y: t.y - anchor.y, w: t.w, h: t.h }, !!from.free, !!to.free);
+      Object.assign(t, { x: anchor.x + c.x, y: anchor.y + c.y, w: c.w, h: c.h });
+    }
+    const c = convertRect({ x: 0, y: 0, w: anchor.w, h: anchor.h }, !!from.free, !!to.free);
+    anchor.w = c.w;
+    anchor.h = c.h;
+  }
   const dx = ax - anchor.x;
   const dy = ay - anchor.y;
   const ignore = new Set(from === to ? ids : []);
@@ -158,8 +171,10 @@ export function addTile(layout: Layout, pageId: string, tile: Tile): MoveResult 
     let { w, h } = tile;
     let spot = findFreeSpot(page, w, h);
     if (!spot) {
-      w = h = 1;
-      spot = findFreeSpot(page, 1, 1);
+      // smaller fallback: one grid cell, on a free page 64 px
+      w = Math.min(w, page.free ? 16 : 1);
+      h = Math.min(h, page.free ? 16 : 1);
+      spot = findFreeSpot(page, w, h);
     }
     if (!spot) return { layout, ok: false, reason: "Kein freier Platz auf dieser Seite" };
     tile = { ...tile, ...spot, w, h };
@@ -255,6 +270,92 @@ export function movePage(layout: Layout, from: number, to: number): Layout {
   const [p] = next.pages.splice(from, 1);
   next.pages.splice(to, 0, p);
   return next;
+}
+
+// --------------------------------------------------------------- free layout
+
+/** Reference cell when converting without a concrete page geometry (≈ a 4×4 grid cell). */
+const REF_CELL = 108;
+
+/**
+ * Convert a rect (position relative to some origin + size) between grid units and the 4 px units
+ * of a free page, e.g. for tiles from the library (always grid sized) or tiles moved between pages.
+ */
+export function convertRect(r: { x: number; y: number; w: number; h: number }, fromFree: boolean, toFree: boolean) {
+  if (fromFree === toFree) return { ...r };
+  const unit = REF_CELL + GAP;
+  if (toFree) {
+    const size = (n: number) => Math.max(1, Math.round((n * REF_CELL + (n - 1) * GAP) / FREE_STEP));
+    const pos = (n: number) => Math.round((n * unit) / FREE_STEP);
+    return { x: pos(r.x), y: pos(r.y), w: size(r.w), h: size(r.h) };
+  }
+  const size = (n: number) => Math.max(1, Math.round((n * FREE_STEP + GAP) / unit));
+  const pos = (n: number) => Math.round((n * FREE_STEP) / unit);
+  return { x: pos(r.x), y: pos(r.y), w: size(r.w), h: size(r.h) };
+}
+
+/** Tile sized for the given page (library tiles come in grid units). */
+export function fitTile(tile: Tile, page: Page | undefined, fromFree = false): Tile {
+  if (!page || !!page.free === fromFree) return tile;
+  const c = convertRect({ x: 0, y: 0, w: tile.w, h: tile.h }, fromFree, !!page.free);
+  return { ...tile, w: Math.min(c.w, page.cols), h: Math.min(c.h, page.rows) };
+}
+
+/** Keep the fine grid of free pages in sync with the page area (header, page dots). */
+export function syncFreePages(layout: Layout): Layout {
+  const geo = pageGeometry(layout.settings, layout.pages.length);
+  const rows = freeRows(geo);
+  if (!layout.pages.some((p) => p.free && (p.cols !== FREE_COLS || p.rows !== rows))) return layout;
+  const next = clone(layout);
+  for (const p of next.pages) {
+    if (!p.free) continue;
+    p.cols = FREE_COLS;
+    p.rows = rows;
+  }
+  return next;
+}
+
+/**
+ * Switch a page between the cell grid and the free layout. Tiles keep their position on the screen:
+ * grid -> free is exact (4 px), free -> grid snaps them into a 6×6 grid (fails if they would collide).
+ */
+export function setFree(layout: Layout, pageId: string, free: boolean): MoveResult {
+  const next = clone(layout);
+  const page = next.pages.find((p) => p.id === pageId);
+  if (!page) return { layout, ok: false, reason: "Seite nicht gefunden" };
+  if (!!page.free === free) return { layout, ok: true };
+  const geo = pageGeometry(next.settings, next.pages.length);
+  const rects = page.tiles.map((t) => cellRect(page, geo, t.x, t.y, t.w, t.h));
+  if (free) {
+    page.tiles.forEach((t, i) => {
+      const r = rects[i];
+      t.x = Math.floor((r.x - MARGIN) / FREE_STEP);
+      t.y = Math.floor((r.y - MARGIN) / FREE_STEP);
+      t.w = Math.max(1, Math.floor(r.w / FREE_STEP));
+      t.h = Math.max(1, Math.floor(r.h / FREE_STEP));
+    });
+    page.free = true;
+    page.cols = FREE_COLS;
+    page.rows = freeRows(geo);
+    return { layout: next, ok: true };
+  }
+  const grid = { cols: MAX_GRID, rows: MAX_GRID };
+  const cell = cellRect(grid, geo, 0, 0, 1, 1);
+  const unitW = cell.w + GAP;
+  const unitH = cell.h + GAP;
+  page.tiles.forEach((t, i) => {
+    const r = rects[i];
+    t.w = Math.max(1, Math.min(grid.cols, Math.round((r.w + GAP) / unitW)));
+    t.h = Math.max(1, Math.min(grid.rows, Math.round((r.h + GAP) / unitH)));
+    t.x = Math.max(0, Math.min(grid.cols - t.w, Math.round((r.x - MARGIN) / unitW)));
+    t.y = Math.max(0, Math.min(grid.rows - t.h, Math.round((r.y - MARGIN) / unitH)));
+  });
+  const clash = page.tiles.some((a, i) => page.tiles.some((b, j) => j > i && overlaps(a, b)));
+  if (clash) return { layout, ok: false, reason: "Im Raster würden sich Kacheln überlappen. Bitte erst Abstand zwischen den Kacheln lassen." };
+  page.free = false;
+  page.cols = grid.cols;
+  page.rows = grid.rows;
+  return { layout: next, ok: true };
 }
 
 export function setGrid(layout: Layout, pageId: string, cols: number, rows: number): MoveResult {

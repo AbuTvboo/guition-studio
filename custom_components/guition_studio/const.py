@@ -8,7 +8,7 @@ and frontend/src/geometry.ts.
 from __future__ import annotations
 
 DOMAIN = "guition_studio"
-VERSION = "0.5.21"
+VERSION = "0.5.22"
 PROTOCOL_VERSION = 5
 LAYOUT_SCHEMA = 1
 
@@ -57,6 +57,9 @@ SCREEN_H = 480
 HEADER_H = 44
 DOTS_H = 22
 MARGIN = 8
+# free layout ("Freie Anordnung"): fine grid of FREE_STEP px without gaps, positions in these units
+FREE_STEP = 4
+FREE_COLS = (SCREEN_W - 2 * MARGIN) // FREE_STEP
 GAP = 8
 
 # Limits

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.22 – Freie Anordnung & leuchtende Icons
+- **Freie Anordnung pro Seite** (Seiten-Eigenschaften → „Freie Anordnung“): Kacheln lassen sich pixelgenau verschieben und an der Ecke unten rechts beliebig skalieren (Fangraster 4 px, ohne festes Spaltenraster).
+  - Beim Einschalten bleiben alle Kacheln an ihrer Stelle. Zurück zum Raster rastet sie in ein 6×6-Raster ein (nur möglich, wenn sie sich dort nicht überlappen).
+  - Position und Größe stehen in den Kachel-Eigenschaften in Pixeln und lassen sich dort auch eintippen. Pfeiltasten verschieben um 4 px, mit Umschalt ändern sie die Größe.
+  - Neue Kacheln aus der Bibliothek, eingefügte Kacheln und Kacheln, die zwischen Raster- und freien Seiten verschoben werden, bekommen automatisch eine passende Pixelgröße.
+  - Kacheln dürfen sich weiterhin nicht überlappen. Abstände zwischen den Kacheln legst du selbst fest.
+- **„Beim Einschalten: Nur Icon leuchtet“** (Licht, Dimmer, RGB, Schalter, Wischkachel): Die Karte behält ihre Farbe, nur das Icon wechselt beim Einschalten in die Leuchtfarbe und bekommt einen runden Leuchtschein. Funktioniert mit und ohne Icon-Umrandung. Standard bleibt „Ganze Karte einfärben“.
+
 ## 0.5.21 – Wischkachel: Punkte und Inhalt sitzen wie im Designer
 - Die Positionspunkte der Wischkachel (senkrecht am rechten Rand) saßen auf dem Panel 3 px zu weit außen, fast auf der Kante. Jetzt haben sie denselben Abstand wie in der Designer-Vorschau und sind sauber senkrecht zentriert.
 - Der Kachelinhalt war auf dem Panel um die Rahmenbreite nach rechts unten verschoben: LVGL zieht den Rahmen auf allen Seiten ab, auch wenn bei 3D-Kacheln nur die obere Lichtkante gezeichnet wird. Zentrierte Icons wirkten dadurch leicht rechts von der Mitte. Bei 3D-Kacheln nutzt der Inhalt jetzt wieder die ganze Kachel. Bei einem eigenen Rahmen wird der Inhalt innerhalb des Rahmens angeordnet, wie im Designer.

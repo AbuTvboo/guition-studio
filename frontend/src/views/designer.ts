@@ -4,7 +4,7 @@ import { classMap } from "lit/directives/class-map.js";
 import { repeat } from "lit/directives/repeat.js";
 import { errorText, type StudioApi } from "../api";
 import { CATEGORIES, buildLibrary, filterLibrary, tileFromEntity, type CategoryKey, type LibraryEntry } from "../entities";
-import { cellRect, pageGeometry, pointToCell, SCREEN } from "../geometry";
+import { cellRect, MARGIN, pageGeometry, pointToCell, SCREEN } from "../geometry";
 import { History } from "../history";
 import {
   addPage,
@@ -25,6 +25,9 @@ import {
   resizeTile,
   updateTile,
   MAX_PAGES,
+  convertRect,
+  fitTile,
+  syncFreePages,
 } from "../model";
 import { visibleNow } from "../preview";
 import type { DisplayStatus, Hass, Layout, Page, StudioInfo, Tile, Validation } from "../types";
@@ -62,6 +65,8 @@ interface SystemItem {
 }
 
 let clipboard: Tile[] = [];
+/** clipboard tiles come from a free page (4 px units) */
+let clipboardFree = false;
 
 @customElement("gs-designer")
 export class GsDesigner extends LitElement {
@@ -156,6 +161,7 @@ export class GsDesigner extends LitElement {
   private commit(next: Layout): void {
     if (!this.layout) return;
     this.history.push(this.layout);
+    next = syncFreePages(next);
     this.layout = next;
     if (!next.pages.some((p) => p.id === this.activePage)) this.activePage = next.pages[0].id;
     const ids = new Set(next.pages.flatMap((p) => p.tiles.map((t) => t.id)));
@@ -221,12 +227,15 @@ export class GsDesigner extends LitElement {
 
   private copySelection(): void {
     clipboard = clone(this.selectedTiles);
+    clipboardFree = !!this.page?.free;
     if (clipboard.length) toast(this, `${clipboard.length} Kachel(n) kopiert`);
   }
 
   private paste(): void {
     if (!this.layout || !clipboard.length || !this.page) return;
-    const res = pasteTiles(this.layout, this.page.id, clipboard);
+    const page = this.page;
+    const tiles = clipboard.map((t) => ({ ...t, ...convertRect({ x: t.x, y: t.y, w: t.w, h: t.h }, clipboardFree, !!page.free) }));
+    const res = pasteTiles(this.layout, page.id, tiles);
     if (!res.ids.length) {
       toast(this, "Kein freier Platz auf dieser Seite", "error");
       return;
@@ -240,6 +249,7 @@ export class GsDesigner extends LitElement {
     const tiles = this.selectedTiles;
     if (!tiles.length) return;
     clipboard = clone(tiles);
+    clipboardFree = !!this.page?.free;
     this.paste();
   }
 
@@ -431,8 +441,9 @@ export class GsDesigner extends LitElement {
     }
     const cell = pointToCell(hit.page, geo, hit.px, hit.py);
     if (d.mode === "new" && d.newTile) {
-      const w = Math.min(d.newTile.w, hit.page.cols);
-      const h = Math.min(d.newTile.h, hit.page.rows);
+      const sized = fitTile(d.newTile, hit.page);
+      const w = Math.min(sized.w, hit.page.cols);
+      const h = Math.min(sized.h, hit.page.rows);
       const x = Math.max(0, Math.min(hit.page.cols - w, cell.x));
       const y = Math.max(0, Math.min(hit.page.rows - h, cell.y));
       next.target = { page: hit.page.id, x, y, w, h };
@@ -500,6 +511,7 @@ export class GsDesigner extends LitElement {
 
   private addToActivePage(tile: Tile): void {
     if (!this.layout || !this.page) return;
+    tile = fitTile(tile, this.page);
     const res = addTile(this.layout, this.page.id, tile);
     if (!res.ok) {
       toast(this, res.reason ?? "Kein Platz", "error");
@@ -827,13 +839,13 @@ export class GsDesigner extends LitElement {
       }}
     >
       ${layout.pages.map((page, index) => {
-        const cells = occupiedCells(page);
+        const cells = page.free ? [] : occupiedCells(page);
         const moving = d && d.mode === "move" ? new Set(d.ids) : new Set<string>();
         return html`<div class="page-col ${page.id === this.page?.id ? "active" : ""}" data-col=${page.id}>
           <div class="page-label" @click=${() => (this.activePage = page.id)} @dblclick=${() => this.renamePage(page)}>
             <span class="num">${index + 1}</span> ${page.name}
             ${layout.settings.home_page === page.id ? html`<span class="chip">★ Start</span>` : nothing}
-            <span class="muted small">${page.cols}×${page.rows}</span>
+            <span class="muted small">${page.free ? "frei" : `${page.cols}×${page.rows}`}</span>
           </div>
           <div class="canvas-wrap" style="width:${SCREEN * z}px;height:${SCREEN * z}px">
             <div
@@ -852,7 +864,10 @@ export class GsDesigner extends LitElement {
                   </div>`
                 : nothing}
               <div class="s-page" style="top:${geo.top}px;height:${geo.height}px;background:${page.background ?? theme.page_bg}">
-                ${this.showGrid || d
+                ${page.free && (this.showGrid || d)
+                  ? html`<div class="fine-grid" style="top:${MARGIN}px;left:${MARGIN}px;right:${MARGIN}px;bottom:${MARGIN}px"></div>`
+                  : nothing}
+                ${!page.free && (this.showGrid || d)
                   ? cells.flatMap((row, y) =>
                       row.map((occ, x) => {
                         const r = cellRect(page, geo, x, y, 1, 1);
@@ -1222,6 +1237,15 @@ export class GsDesigner extends LitElement {
         color: #fff;
         top: auto;
         bottom: 6px;
+      }
+      .fine-grid {
+        position: absolute;
+        pointer-events: none;
+        /* 16 px guide lines over the 4 px snap grid of a free page */
+        background-image: linear-gradient(to right, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+        background-size: 16px 16px;
+        outline: 1px dashed rgba(255, 255, 255, 0.15);
       }
       .resize {
         position: absolute;

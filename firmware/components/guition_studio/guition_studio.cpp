@@ -612,7 +612,9 @@ bool GuitionStudio::parse_layout_(const char *data, size_t len, LayoutCfg &out, 
     page.bg = parse_color(p["bg"], page.bg);
     page.cols = p["c"] | 3;
     page.rows = p["r"] | 3;
-    if (page.cols < 1 || page.cols > MAX_GRID || page.rows < 1 || page.rows > MAX_GRID) {
+    page.step = clampi(p["g"] | 0, 0, 16);
+    int max_grid = page.step ? MAX_FREE_GRID : MAX_GRID;
+    if (page.cols < 1 || page.cols > max_grid || page.rows < 1 || page.rows > max_grid) {
       err = "schema:grid";
       return false;
     }
@@ -673,6 +675,7 @@ bool GuitionStudio::parse_layout_(const char *data, size_t len, LayoutCfg &out, 
       }
       tile.value_font = t["vs"].is<int>() ? static_cast<uint8_t>(clampi(t["vs"].as<int>(), 0, 4)) : 255;
       tile.icon_frame = static_cast<uint8_t>(clampi(t["if"] | 0, 0, 4));
+      tile.icon_glow = (t["og"] | 0) != 0;
       tile.tap = clampi(t["ta"] | 0, 0, 8);
       tile.hold = clampi(t["ha"] | 0, 0, 8);
       tile.tap_page = t["tp"] | -1;
@@ -1036,12 +1039,14 @@ void GuitionStudio::build_tile_(int page_index, lv_obj_t *parent, const TileCfg 
   const auto &page = this->layout_.pages[page_index];
   int area_w = SCREEN_W - 2 * MARGIN;
   int area_h = this->page_h_ - 2 * MARGIN;
-  int cw = (area_w - (page.cols - 1) * GAP) / page.cols;
-  int ch = (area_h - (page.rows - 1) * GAP) / page.rows;
-  int px = MARGIN + t.x * (cw + GAP);
-  int py = MARGIN + t.y * (ch + GAP);
-  int pw = t.w * cw + (t.w - 1) * GAP;
-  int ph = t.h * ch + (t.h - 1) * GAP;
+  // free layout: fine grid without gaps (positions and sizes in `step` px)
+  const int gap = page.step ? 0 : GAP;
+  int cw = page.step ? page.step : (area_w - (page.cols - 1) * GAP) / page.cols;
+  int ch = page.step ? page.step : (area_h - (page.rows - 1) * GAP) / page.rows;
+  int px = MARGIN + t.x * (cw + gap);
+  int py = MARGIN + t.y * (ch + gap);
+  int pw = t.w * cw + (t.w - 1) * gap;
+  int ph = t.h * ch + (t.h - 1) * gap;
 
   TileView view;
   view.page = page_index;
@@ -1114,6 +1119,12 @@ void GuitionStudio::build_tile_(int page_index, lv_obj_t *parent, const TileCfg 
     lv_obj_t *ic = make_label(parent, f, t.icon_color, s);
     view.icon = ic;
     int size = line_h(f);
+    if (t.icon_glow) {  // round glow behind the icon while on (shadow_width set in update_tile_)
+      lv_obj_set_style_radius(ic, LV_RADIUS_CIRCLE, 0);
+      lv_obj_set_style_shadow_color(ic, lv_color_hex(t.on_bg), 0);
+      lv_obj_set_style_shadow_opa(ic, LV_OPA_70, 0);
+      lv_obj_set_style_shadow_width(ic, 0, 0);
+    }
     if (t.icon_frame) {
       int p = px / 4 + 2;
       size += 2 * p;
@@ -1581,8 +1592,10 @@ void GuitionStudio::update_tile_(TileView &view) {
   bool stateful = t.kind == "light" || t.kind == "switch" || t.kind == "dimmer" || t.kind == "rgb" || swipe;
   const EntityState *st = known ? &it->second : nullptr;
 
-  uint32_t bg = (on && stateful) ? t.on_bg : t.bg;
-  uint32_t fg = (on && stateful) ? t.on_fg : t.fg;
+  // "on" colours the whole card - or with icon_glow only the icon (on colour + glow)
+  bool card_on = on && stateful && !t.icon_glow;
+  uint32_t bg = card_on ? t.on_bg : t.bg;
+  uint32_t fg = card_on ? t.on_fg : t.fg;
   this->paint_tile_(view.obj, t, bg);
   if (view.title != nullptr)
     lv_obj_set_style_text_color(view.title, lv_color_hex(fg), 0);
@@ -1591,7 +1604,9 @@ void GuitionStudio::update_tile_(TileView &view) {
   if (view.sub != nullptr)
     lv_obj_set_style_text_color(view.sub, lv_color_hex(fg), 0);
   if (view.icon != nullptr) {
-    uint32_t ic = !available ? this->layout_.muted : (on && stateful) ? fg : (on && t.kind != "sensor" ? t.on_bg : t.icon_color);
+    uint32_t ic = !available ? this->layout_.muted : card_on ? fg : (on && t.kind != "sensor" ? t.on_bg : t.icon_color);
+    if (t.icon_glow)
+      lv_obj_set_style_shadow_width(view.icon, on ? 28 : 0, 0);
     lv_obj_set_style_text_color(view.icon, lv_color_hex(ic), 0);
     if (t.icon_frame) {  // the frame follows the icon colour
       lv_obj_set_style_bg_color(view.icon, lv_color_hex(ic), 0);

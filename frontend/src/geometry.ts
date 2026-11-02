@@ -7,6 +7,16 @@ export const HEADER_H = 44;
 export const DOTS_H = 22;
 export const MARGIN = 8;
 export const GAP = 8;
+/** free layout ("Freie Anordnung"): fine grid of FREE_STEP px without gaps */
+export const FREE_STEP = 4;
+export const FREE_COLS = Math.floor((SCREEN - 2 * MARGIN) / FREE_STEP);
+
+type GridPage = Pick<Page, "cols" | "rows"> & { free?: boolean };
+
+/** Rows of the fine grid of a free page (depends on header / page dots). */
+export function freeRows(geo: PageGeometry): number {
+  return Math.floor((geo.height - 2 * MARGIN) / FREE_STEP);
+}
 
 export interface PageGeometry {
   top: number;
@@ -27,30 +37,31 @@ export function pageGeometry(settings: Pick<DisplaySettings, "show_header" | "sh
   return { top, bottom, height: SCREEN - top - bottom };
 }
 
-function cellSize(page: Pick<Page, "cols" | "rows">, geo: PageGeometry) {
+function cellSize(page: GridPage, geo: PageGeometry) {
+  if (page.free) return { cw: FREE_STEP, ch: FREE_STEP, gap: 0 };
   const areaW = SCREEN - 2 * MARGIN;
   const areaH = geo.height - 2 * MARGIN;
   // integer division exactly like the C++ code
   const cw = Math.floor((areaW - (page.cols - 1) * GAP) / page.cols);
   const ch = Math.floor((areaH - (page.rows - 1) * GAP) / page.rows);
-  return { cw, ch };
+  return { cw, ch, gap: GAP };
 }
 
 /** Rect in page-area coordinates (relative to the top of the page area). */
-export function cellRect(page: Pick<Page, "cols" | "rows">, geo: PageGeometry, x: number, y: number, w: number, h: number): Rect {
-  const { cw, ch } = cellSize(page, geo);
+export function cellRect(page: GridPage, geo: PageGeometry, x: number, y: number, w: number, h: number): Rect {
+  const { cw, ch, gap } = cellSize(page, geo);
   return {
-    x: MARGIN + x * (cw + GAP),
-    y: MARGIN + y * (ch + GAP),
-    w: w * cw + (w - 1) * GAP,
-    h: h * ch + (h - 1) * GAP,
+    x: MARGIN + x * (cw + gap),
+    y: MARGIN + y * (ch + gap),
+    w: w * cw + (w - 1) * gap,
+    h: h * ch + (h - 1) * gap,
   };
 }
 
 /** Cell under a point given in page-area coordinates, clamped into the grid. */
-export function pointToCell(page: Pick<Page, "cols" | "rows">, geo: PageGeometry, px: number, py: number): { x: number; y: number } {
-  const { cw, ch } = cellSize(page, geo);
-  const x = Math.floor((px - MARGIN + GAP / 2) / (cw + GAP));
-  const y = Math.floor((py - MARGIN + GAP / 2) / (ch + GAP));
+export function pointToCell(page: GridPage, geo: PageGeometry, px: number, py: number): { x: number; y: number } {
+  const { cw, ch, gap } = cellSize(page, geo);
+  const x = Math.floor((px - MARGIN + gap / 2) / (cw + gap));
+  const y = Math.floor((py - MARGIN + gap / 2) / (ch + gap));
   return { x: Math.max(0, Math.min(page.cols - 1, x)), y: Math.max(0, Math.min(page.rows - 1, y)) };
 }

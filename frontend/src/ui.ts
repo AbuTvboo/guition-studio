@@ -386,7 +386,11 @@ export function renderTileContent(tile: Tile, theme: Theme, hass: Hass | undefin
   const valuePx = (auto: number) => (st.state_size && st.state_size !== "auto" ? FONT_PX[st.state_size] : auto);
   const frame = st.icon_frame ?? "none";
   const iconEl = (key: string | null, px: number) => {
-    if (frame === "none") return deviceIcon(key, px);
+    const glow = c.glow ? `0 0 14px 2px color-mix(in srgb, ${c.glow} 70%, transparent)` : "none";
+    if (frame === "none")
+      return c.glow
+        ? html`<span style="display:inline-flex;border-radius:50%;box-shadow:${glow}">${deviceIcon(key, px)}</span>`
+        : deviceIcon(key, px);
     const p = Math.floor(px / 4) + 2;
     const size = px + 2 * p;
     const ring = frame === "ring" || frame === "rounded_ring";
@@ -400,6 +404,7 @@ export function renderTileContent(tile: Tile, theme: Theme, hass: Hass | undefin
       borderRadius: frame === "circle" || frame === "ring" ? "50%" : `${Math.round(size / 4)}px`,
       border: ring ? `2px solid ${c.icon}` : "none",
       background: ring ? "transparent" : `color-mix(in srgb, ${c.icon} 20%, transparent)`,
+      boxShadow: glow,
     })}>${deviceIcon(key, px)}</span>`;
   };
   const textAlign = align === "center" ? "center" : align === "right" ? "right" : "left";

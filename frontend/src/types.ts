@@ -78,6 +78,8 @@ export interface TileStyle {
   /** font size of the state / value line */
   state_size?: FontSize | "auto";
   icon_frame?: IconFrame;
+  /** what lights up when switched on: the whole card (default) or only the icon */
+  on_effect?: "card" | "icon";
 }
 
 export type TileAlign = "auto" | "left" | "center" | "right";
@@ -136,6 +138,8 @@ export interface Page {
   background: string | null;
   cols: number;
   rows: number;
+  /** free layout: cols/rows are a fine 4 px grid without gaps (tiles freely positioned and sized) */
+  free?: boolean;
   tiles: Tile[];
 }
 

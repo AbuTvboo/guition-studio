@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.16 – Fußball-Karten mit 3D-Tiefe
+- Der Fußball-Bildschirmschoner bekommt **Tiefe statt flacher Flächen**:
+  - Spielkarten, Liga-Balken, Ergebnis-Boxen und Kopfleiste mit **Licht von oben** (Verlauf hell → dunkel, heller Rand oben) und **Schlagschatten** darunter – sie wirken, als würden sie über dem Hintergrund schweben.
+  - **Glanzreflex** auf der oberen Hälfte von Ergebnis-Box, Liga-Balken und Kopfleiste (Glas-Look wie bei TV-Einblendungen).
+  - Ergebnis und Anstoßzeit mit **Schriftschatten**.
+  - Vereinslogos sitzen auf **erhabenen, hellen Medaillons** mit Schatten – auch dunkle Wappen sind jetzt gut zu erkennen.
+  - Live-Spiele: rote Box mit Glanz, Karte mit rotem Lichtrand.
+
 ## 0.5.15 – Fußball im Sport-TV-Look
 - **Neues Design des Fußball-Bildschirmschoners** im Stil einer Sport-TV-Einblendung:
   - Kopfleiste mit Farbverlauf und rotem Strich: links „FUSSBALL · HEUTE“, rechts groß die Uhrzeit.

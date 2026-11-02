@@ -2064,6 +2064,41 @@ static lv_color_t darker(uint32_t rgb, int pct) {
   return lv_color_hex((r << 16) | (g << 8) | b);
 }
 
+static lv_color_t lighter(uint32_t rgb, int pct) {
+  uint32_t r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, b = rgb & 0xFF;
+  r += (255 - r) * pct / 100;
+  g += (255 - g) * pct / 100;
+  b += (255 - b) * pct / 100;
+  return lv_color_hex((r << 16) | (g << 8) | b);
+}
+
+/// 3D look: light from above (vertical gradient + bright top edge) and a drop shadow below.
+static void raise_obj(lv_obj_t *o, lv_color_t top, lv_color_t bottom, lv_color_t edge, int shadow, int shadow_y) {
+  lv_obj_set_style_bg_color(o, top, 0);
+  lv_obj_set_style_bg_grad_color(o, bottom, 0);
+  lv_obj_set_style_bg_grad_dir(o, LV_GRAD_DIR_VER, 0);
+  lv_obj_set_style_bg_opa(o, LV_OPA_COVER, 0);
+  lv_obj_set_style_border_width(o, 1, 0);
+  lv_obj_set_style_border_side(o, LV_BORDER_SIDE_TOP, 0);
+  lv_obj_set_style_border_color(o, edge, 0);
+  if (shadow > 0) {
+    lv_obj_set_style_shadow_width(o, shadow, 0);
+    lv_obj_set_style_shadow_offset_y(o, shadow_y, 0);
+    lv_obj_set_style_shadow_color(o, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_shadow_opa(o, LV_OPA_70, 0);
+  }
+}
+
+/// Glass reflection on the upper half (create before the content so it stays behind it).
+static void gloss_obj(lv_obj_t *parent, int w, int h, int radius, lv_opa_t opa) {
+  lv_obj_t *g = make_plain(parent);
+  lv_obj_set_size(g, w - 2, h / 2);
+  lv_obj_set_pos(g, 1, 1);
+  lv_obj_set_style_radius(g, radius, 0);
+  lv_obj_set_style_bg_color(g, lv_color_hex(0xFFFFFF), 0);
+  lv_obj_set_style_bg_opa(g, opa, 0);
+}
+
 void GuitionStudio::build_football_(lv_obj_t *parent) {
   // sports TV look: dark gradient, header bar with a red line, competition strips, match cards
   lv_obj_set_style_bg_color(parent, lv_color_hex(0x060A10), 0);
@@ -2071,10 +2106,8 @@ void GuitionStudio::build_football_(lv_obj_t *parent) {
   lv_obj_set_style_bg_grad_dir(parent, LV_GRAD_DIR_VER, 0);
   lv_obj_t *bar = make_plain(parent);
   lv_obj_set_size(bar, SCREEN_W, 42);
-  lv_obj_set_style_bg_color(bar, lv_color_hex(0x0B1524), 0);
-  lv_obj_set_style_bg_grad_color(bar, lv_color_hex(0x173250), 0);
-  lv_obj_set_style_bg_grad_dir(bar, LV_GRAD_DIR_HOR, 0);
-  lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, 0);
+  raise_obj(bar, lv_color_hex(0x21436B), lv_color_hex(0x0A1626), lv_color_hex(0x4A74A6), 0, 0);
+  gloss_obj(bar, SCREEN_W, 42, 0, LV_OPA_10);
   lv_obj_t *line = make_plain(parent);
   lv_obj_set_size(line, SCREEN_W, 3);
   lv_obj_set_pos(line, 0, 42);
@@ -2138,14 +2171,20 @@ void GuitionStudio::render_football_() {
   this->fb_page_at_ = millis() + 8000;
 
   const int card_w = SCREEN_W - 16, mid = card_w / 2, box_w = 84, box_h = 40;
-  const int name_w = mid - box_w / 2 - 8 - LOGO_PX - 6 - 8;
+  const int disc = LOGO_PX + 8;  // logos sit on raised light medallions (dark crests stay visible)
+  const int name_w = mid - box_w / 2 - 8 - disc - 6 - 8;
   auto put_logo = [&](lv_obj_t *card, const std::string &id, int x) {
     auto it = this->logos_.find(id);
     if (id.empty() || it == this->logos_.end())
       return;
-    lv_obj_t *img = lv_image_create(card);
+    lv_obj_t *m = make_plain(card);
+    lv_obj_set_size(m, disc, disc);
+    lv_obj_set_pos(m, x, (card_h - disc) / 2);
+    lv_obj_set_style_radius(m, LV_RADIUS_CIRCLE, 0);
+    raise_obj(m, lv_color_hex(0xFFFFFF), lv_color_hex(0xAEBBC9), lv_color_hex(0xFFFFFF), 6, 2);
+    lv_obj_t *img = lv_image_create(m);
     lv_image_set_src(img, &it->second.dsc);
-    lv_obj_set_pos(img, x, (card_h - LOGO_PX) / 2);
+    lv_obj_align(img, LV_ALIGN_CENTER, 0, 0);
   };
   y = 0;
   for (const auto &ln : pages[this->fb_page_]) {
@@ -2154,10 +2193,8 @@ void GuitionStudio::render_football_() {
       lv_obj_set_pos(strip, 8, y);
       lv_obj_set_size(strip, card_w, strip_h);
       lv_obj_set_style_radius(strip, 6, 0);
-      lv_obj_set_style_bg_color(strip, lv_color_hex(ln.g->color), 0);
-      lv_obj_set_style_bg_grad_color(strip, darker(ln.g->color, 35), 0);
-      lv_obj_set_style_bg_grad_dir(strip, LV_GRAD_DIR_HOR, 0);
-      lv_obj_set_style_bg_opa(strip, LV_OPA_COVER, 0);
+      raise_obj(strip, lighter(ln.g->color, 12), darker(ln.g->color, 45), lighter(ln.g->color, 55), 8, 3);
+      gloss_obj(strip, card_w, strip_h, 6, LV_OPA_20);
       lv_obj_t *name = make_label(strip, font_px(16), 0xFFFFFF, ln.g->name.c_str());
       lv_obj_align(name, LV_ALIGN_LEFT_MID, 10, 0);
       y += strip_step;
@@ -2168,19 +2205,24 @@ void GuitionStudio::render_football_() {
     lv_obj_set_pos(card, 8, y);
     lv_obj_set_size(card, card_w, card_h);
     lv_obj_set_style_radius(card, 9, 0);
-    lv_obj_set_style_bg_color(card, lv_color_hex(0x121C29), 0);
-    lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(card, 1, 0);
-    lv_obj_set_style_border_color(card, lv_color_hex(r.state == 1 ? 0x7A1B22 : 0x1F2D3E), 0);
+    if (r.state == 1)
+      raise_obj(card, lv_color_hex(0x33202A), lv_color_hex(0x150A0F), lv_color_hex(0xD9434B), 10, 4);
+    else
+      raise_obj(card, lv_color_hex(0x223247), lv_color_hex(0x0B131D), lv_color_hex(0x46607E), 10, 4);
+    gloss_obj(card, card_w, card_h, 9, LV_OPA_10 / 2);
 
     // score box in the middle: kick-off (dark), live (red + minute), finished (grey + "ENDE")
     lv_obj_t *box = make_plain(card);
     lv_obj_set_size(box, box_w, box_h);
     lv_obj_set_pos(box, mid - box_w / 2, (card_h - box_h) / 2);
     lv_obj_set_style_radius(box, 7, 0);
-    lv_obj_set_style_bg_opa(box, LV_OPA_COVER, 0);
-    uint32_t box_bg = r.state == 1 ? 0xD32F2F : (r.state == 0 ? 0x1E3048 : 0x2A3542);
-    lv_obj_set_style_bg_color(box, lv_color_hex(box_bg), 0);
+    if (r.state == 1)
+      raise_obj(box, lv_color_hex(0xF2524B), lv_color_hex(0x9C1A1A), lv_color_hex(0xFFA49E), 8, 3);
+    else if (r.state == 0)
+      raise_obj(box, lv_color_hex(0x33557E), lv_color_hex(0x14233A), lv_color_hex(0x6C93C4), 8, 3);
+    else
+      raise_obj(box, lv_color_hex(0x4A596C), lv_color_hex(0x1D2631), lv_color_hex(0x8193A8), 8, 3);
+    gloss_obj(box, box_w, box_h, 7, LV_OPA_20);
     std::string main = r.first, small;
     size_t colon = r.first.find(':');
     int hs = -1, as = -1;
@@ -2201,17 +2243,21 @@ void GuitionStudio::render_football_() {
         main = r.first.substr(sp + 1);
       }
     }
+    auto embossed = [&](int px, lv_align_t align, int dy) {  // white text with a dark copy 1 px below
+      lv_obj_t *sh = make_label(box, font_px(px), 0x000000, main.c_str());
+      lv_obj_set_style_text_opa(sh, LV_OPA_60, 0);
+      lv_obj_align(sh, align, 1, dy + 1);
+      lv_obj_t *t = make_label(box, font_px(px), 0xFFFFFF, main.c_str());
+      lv_obj_align(t, align, 0, dy);
+    };
     if (small.empty()) {
-      lv_obj_t *t = make_label(box, font_px(20), 0xFFFFFF, main.c_str());
-      lv_obj_align(t, LV_ALIGN_CENTER, 0, 0);
+      embossed(20, LV_ALIGN_CENTER, 0);
     } else if (r.state == 0) {
-      lv_obj_t *d = make_label(box, font_px(12), 0x9FB3C8, small.c_str());
+      lv_obj_t *d = make_label(box, font_px(12), 0xB4C8DE, small.c_str());
       lv_obj_align(d, LV_ALIGN_TOP_MID, 0, 2);
-      lv_obj_t *t = make_label(box, font_px(16), 0xFFFFFF, main.c_str());
-      lv_obj_align(t, LV_ALIGN_BOTTOM_MID, 0, -2);
+      embossed(16, LV_ALIGN_BOTTOM_MID, -2);
     } else {
-      lv_obj_t *t = make_label(box, font_px(20), 0xFFFFFF, main.c_str());
-      lv_obj_align(t, LV_ALIGN_TOP_MID, 0, 0);
+      embossed(20, LV_ALIGN_TOP_MID, 0);
       lv_obj_t *d = make_label(box, font_px(12), r.state == 1 ? 0xFFE3E3 : 0x9FB3C8, small.c_str());
       lv_obj_align(d, LV_ALIGN_BOTTOM_MID, 0, -1);
     }
@@ -2220,7 +2266,7 @@ void GuitionStudio::render_football_() {
     uint32_t home_col = 0xF2F5F8, away_col = 0xF2F5F8;
     if (r.state == 2 && hs >= 0 && as >= 0 && hs != as)
       (hs < as ? home_col : away_col) = 0x7D8B99;
-    int logo_l = mid - box_w / 2 - 8 - LOGO_PX, logo_r = mid + box_w / 2 + 8;
+    int logo_l = mid - box_w / 2 - 8 - disc, logo_r = mid + box_w / 2 + 8;
     put_logo(card, r.home_logo, logo_l);
     put_logo(card, r.away_logo, logo_r);
     lv_obj_t *home = make_label(card, font_px(16), home_col, r.home.c_str());
@@ -2231,7 +2277,7 @@ void GuitionStudio::render_football_() {
     lv_obj_t *away = make_label(card, font_px(16), away_col, r.away.c_str());
     lv_obj_set_width(away, name_w);
     lv_label_set_long_mode(away, LABEL_LONG_DOTS);
-    lv_obj_align(away, LV_ALIGN_LEFT_MID, logo_r + LOGO_PX + 6, 0);
+    lv_obj_align(away, LV_ALIGN_LEFT_MID, logo_r + disc + 6, 0);
     y += card_step;
   }
   (void) l;

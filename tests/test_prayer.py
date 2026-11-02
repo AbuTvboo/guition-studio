@@ -59,3 +59,16 @@ def test_timestamp_uses_home_assistant_time_zone():
         assert format_state("sensor", "2026-11-02T04:31:00+00:00", {"device_class": "timestamp"}) == "05:31"
     finally:
         set_local_timezone(None)
+
+
+def test_prayer_turkish_names_texts_and_background():
+    layout = _layout(PRAYER)
+    layout["settings"]["screensaver"].update(prayer_lang="tr", prayer_bg=False)
+    doc = json.loads(compile_device_layout(validate_layout(layout))[0])["set"]
+    assert doc["spn"] == ["İmsak", "Güneş", "Öğle", "İkindi", "Akşam", "Yatsı"]
+    assert doc["spx"] == ["Sonraki vakit:", " · ", "sa", "dk", "Şimdi:"]
+    assert doc["spb"] == 0
+    # defaults: German names, calligraphy background; unknown language falls back to German
+    layout["settings"]["screensaver"].update(prayer_lang="xx", prayer_bg="ja")
+    doc = json.loads(compile_device_layout(validate_layout(layout))[0])["set"]
+    assert doc["spn"][0] == "Fajr" and doc["spx"][0] == "Nächstes Gebet:" and doc["spb"] == 1

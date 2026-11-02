@@ -3283,6 +3283,26 @@ var xt, St = {
         (Einstellungen → Geräte & Dienste → Integration hinzufügen). Berechnungsmethode, Schule (Asr) und Standort stellst du dort ein.
         Das Display zeigt Uhrzeit, Datum und alle Zeiten. Das nächste Gebet wird hervorgehoben, darüber steht ein Countdown.
       </div>
+      <div class="grid2">
+        <label class="field"><span>Sprache der Namen</span>
+          <select @change=${(t) => this.commit({ screensaver: {
+			...e,
+			prayer_lang: t.target.value
+		} })}>
+            <option value="de" ?selected=${e.prayer_lang !== "tr"}>Deutsch (Fajr, Dhuhr, Asr …)</option>
+            <option value="tr" ?selected=${e.prayer_lang === "tr"}>Türkçe (İmsak, Öğle, İkindi …)</option>
+          </select>
+        </label>
+        <label class="field"><span>Hintergrund</span>
+          <select @change=${(t) => this.commit({ screensaver: {
+			...e,
+			prayer_bg: t.target.value === "1"
+		} })}>
+            <option value="1" ?selected=${e.prayer_bg !== !1}>Islamische Kalligraphie</option>
+            <option value="0" ?selected=${e.prayer_bg === !1}>Schlicht (schwarz)</option>
+          </select>
+        </label>
+      </div>
       ${r === 0 ? c`<div class="notice warn small">Keine Gebetszeit-Sensoren gefunden. Bitte die Integration einrichten oder die Sensoren unten von Hand wählen.</div>` : a}
       ${ct.map((e) => c`<label class="field"><span>${e.label}${e.key === "sunrise" ? " (optional, kein Gebet)" : ""}</span>
           <gs-entity-picker

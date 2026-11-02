@@ -167,6 +167,10 @@ export interface ScreensaverSettings {
   show_clock?: boolean;
   /** prayer mode: timestamp sensors (Islamic Prayer Times integration), key -> entity id */
   prayer?: Partial<Record<PrayerKey, string>>;
+  /** names on the display: "de" (Fajr, Dhuhr …) or "tr" (İmsak, Öğle …) */
+  prayer_lang?: "de" | "tr";
+  /** calligraphy background (firmware >= 0.5.9) */
+  prayer_bg?: boolean;
 }
 
 export type PrayerKey = "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha";

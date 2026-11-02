@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.9 – Gebetszeiten auf Türkisch & mit Kalligraphie
+- **Türkische Namen:** Unter Automatik → Bildschirmschoner → Gebetszeiten lässt sich die Sprache wählen: Deutsch (Fajr, Dhuhr, Asr …) oder **Türkçe** (İmsak, Güneş, Öğle, İkindi, Akşam, Yatsı). Die Countdown-Zeile heißt dann z. B. „Sonraki vakit: Öğle · 1 sa 23 dk“, zur Gebetszeit „Şimdi: Öğle“.
+- **Hintergrund mit islamischer Kalligraphie:** dunkles Blau mit dezentem achtzackigem Sternmuster, ein goldener Bogen (Mihrab) um die Uhr und unten die **Basmala** in Gold, gesetzt in der Schrift Amiri. Das nächste Gebet ist passend dazu golden hervorgehoben. Abschaltbar („Schlicht“). Das Bild steckt in der Firmware, es wird nichts nachgeladen.
+- Die Display-Schriften enthalten jetzt auch die türkischen Buchstaben İ ı Ğ ğ Ş ş.
+- Neue Firmware erforderlich (0.5.9). Ältere Firmware zeigt weiter deutsche Texte ohne Hintergrund.
+
 ## 0.5.8 – Wisch-Kachel
 - **Neue Wisch-Kachel:** bis zu 4 Entitäten in **einer** Kachel. Wischst du auf dem Display über die Kachel nach links oder rechts, zeigt sie die nächste bzw. vorige Entität. Die neue Anzeige gleitet von der Seite herein. Die Seite wechselt dabei nicht. Punkte oben rechts zeigen, welche Entität gerade zu sehen ist.
 - Tippen bedient immer die **gerade angezeigte** Entität (z. B. Licht umschalten). Leuchtet die angezeigte Entität, färbt sich die Kachel ein, wie bei normalen Licht- und Schalterkacheln.

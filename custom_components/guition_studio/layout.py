@@ -105,7 +105,7 @@ def default_screensaver() -> dict[str, Any]:
         # slideshow: pictures streamed from a Home Assistant media folder
         "mode": "clock", "folder": "guition_studio", "interval": 15, "order": "random", "fit": "cover", "show_clock": True,
         # prayer: timestamp sensors of the Islamic Prayer Times integration, key -> entity id
-        "prayer": {},
+        "prayer": {}, "prayer_lang": "de", "prayer_bg": True,
     }  # fmt: skip
 
 
@@ -119,6 +119,16 @@ PRAYER_KEYS: tuple[tuple[str, str], ...] = (
     ("maghrib", "Maghrib"),
     ("isha", "Isha"),
 )
+# Names shown on the display per language ("de" = common transliteration).
+PRAYER_NAMES: dict[str, dict[str, str]] = {
+    "de": dict(PRAYER_KEYS),
+    "tr": {"fajr": "İmsak", "sunrise": "Güneş", "dhuhr": "Öğle", "asr": "İkindi", "maghrib": "Akşam", "isha": "Yatsı"},
+}
+# Texts of the "next prayer" line: prefix, separator before the countdown, hour unit, minute unit, "now" prefix
+PRAYER_TEXTS: dict[str, list[str]] = {
+    "de": ["Nächstes Gebet:", " in ", "h", "min", "Jetzt:"],
+    "tr": ["Sonraki vakit:", " · ", "sa", "dk", "Şimdi:"],
+}
 
 
 def default_style() -> dict[str, Any]:
@@ -427,6 +437,8 @@ def _validate_screensaver(raw: Any, errors: list[str]) -> dict[str, Any]:
             errors.append(f"Bildschirmschoner: ungültige Entity-ID für {label}.")
         else:
             s["prayer"][key] = eid
+    s["prayer_lang"] = raw.get("prayer_lang") if raw.get("prayer_lang") in PRAYER_NAMES else "de"
+    s["prayer_bg"] = _bool(raw.get("prayer_bg"), True)
     if s["enabled"] and s["mode"] == "prayer" and not s["prayer"]:
         errors.append("Bildschirmschoner: Bitte die Gebetszeit-Sensoren auswählen.")
     return s
@@ -884,13 +896,18 @@ def _screensaver_device(settings: dict[str, Any], layout: dict[str, Any], slide_
         out.update(ssm=1, slu=slide_url, sli=ss.get("interval", 15), slc=int(ss.get("show_clock", True)))
     elif ss.get("mode") == "prayer":
         prayer = ss.get("prayer") or {}
-        rows = [(key, label, prayer[key]) for key, label in PRAYER_KEYS if prayer.get(key)]
+        lang = ss.get("prayer_lang") if ss.get("prayer_lang") in PRAYER_NAMES else "de"
+        names = PRAYER_NAMES[lang]
+        rows = [(key, names[key], prayer[key]) for key, _ in PRAYER_KEYS if prayer.get(key)]
         # spk: 1 = real prayer (can be "next"), 0 = sunrise (orientation only)
+        # spx: texts of the countdown line, spb: calligraphy background (firmware >= 0.5.9)
         out.update(
             ssm=2,
             spn=[label for _, label, _ in rows],
             spe=[eid for _, _, eid in rows],
             spk=[0 if key == "sunrise" else 1 for key, _, _ in rows],
+            spx=PRAYER_TEXTS[lang],
+            spb=int(ss.get("prayer_bg", True)),
         )
     return out
 

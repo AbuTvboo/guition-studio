@@ -533,6 +533,12 @@ bool GuitionStudio::parse_layout_(const char *data, size_t len, LayoutCfg &out, 
       out.prayer_names.push_back(std::string(names[i] | "").substr(0, 24));
       out.prayer_kind.push_back((kinds[i] | 1) != 0 ? 1 : 0);
     }
+    JsonArrayConst texts = set["spx"].as<JsonArrayConst>();
+    if (texts.size() == out.prayer_text.size()) {
+      for (size_t i = 0; i < out.prayer_text.size(); i++)
+        out.prayer_text[i] = std::string(texts[i] | "").substr(0, 24);
+    }
+    out.prayer_bg = (set["spb"] | 1) != 0;
     if (out.prayer_entities.empty())
       out.prayer = false;
   }
@@ -1848,20 +1854,31 @@ void GuitionStudio::hide_screensaver_() {
 
 void GuitionStudio::build_prayer_screensaver_(lv_obj_t *parent) {
   const auto &l = this->layout_;
-  // clock + date at the top, "next prayer" line, then one row per time
+  this->ss_prayer_gold_ = false;
+#ifdef USE_GS_PRAYER_BG
+  if (l.prayer_bg && this->prayer_bg_img_ != nullptr) {
+    // calligraphy background behind everything, highlight in gold to match it
+    lv_obj_t *bg = lv_image_create(parent);
+    lv_image_set_src(bg, this->prayer_bg_img_->get_lv_image_dsc());
+    lv_obj_set_pos(bg, 0, 0);
+    lv_obj_move_background(bg);
+    this->ss_prayer_gold_ = true;
+  }
+#endif
+  // clock + date at the top, "next prayer" line, then one row per time (basmala below)
   lv_obj_align(this->ss_clock_, LV_ALIGN_TOP_MID, 0, 22);
   lv_obj_align(this->ss_date_, LV_ALIGN_TOP_MID, 0, 74);
-  this->ss_next_ = make_label(parent, font_px(20), l.accent, "");
+  this->ss_next_ = make_label(parent, font_px(20), this->ss_prayer_gold_ ? 0xE2BF5A : l.accent, "");
   lv_obj_set_width(this->ss_next_, 440);
   lv_obj_set_style_text_align(this->ss_next_, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_align(this->ss_next_, LV_ALIGN_TOP_MID, 0, 108);
   int rows = std::min(static_cast<int>(l.prayer_entities.size()), MAX_PRAYER_ROWS);
   for (int i = 0; i < rows; i++) {
     lv_obj_t *row = make_plain(parent);
-    lv_obj_set_size(row, 400, 46);
-    lv_obj_align(row, LV_ALIGN_TOP_MID, 0, 146 + i * 52);
+    lv_obj_set_size(row, 400, 44);
+    lv_obj_align(row, LV_ALIGN_TOP_MID, 0, 140 + i * 48);
     lv_obj_set_style_radius(row, 12, 0);
-    lv_obj_set_style_bg_color(row, lv_color_hex(l.accent), 0);
+    lv_obj_set_style_bg_color(row, lv_color_hex(this->ss_prayer_gold_ ? 0xC9A14A : l.accent), 0);
     lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
     uint32_t color = l.prayer_kind[i] ? 0xE6EDF3 : l.muted;
     this->ss_pname_[i] = make_label(row, font_px(28), color, l.prayer_names[i].c_str());
@@ -1931,20 +1948,21 @@ void GuitionStudio::update_prayer_(const std::string &hhmm) {
     lv_label_set_text(this->ss_ptime_[i], times[i].c_str());
     bool hl = i == highlight;
     lv_obj_set_style_bg_opa(this->ss_prow_[i], hl ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
-    uint32_t color = hl ? 0xFFFFFF : (l.prayer_kind[i] ? 0xE6EDF3 : l.muted);
+    uint32_t color = hl ? (this->ss_prayer_gold_ ? 0x0B1A24 : 0xFFFFFF) : (l.prayer_kind[i] ? 0xE6EDF3 : l.muted);
     lv_obj_set_style_text_color(this->ss_pname_[i], lv_color_hex(color), 0);
     lv_obj_set_style_text_color(this->ss_ptime_[i], lv_color_hex(color), 0);
   }
+  // e.g. "Nächstes Gebet: Asr in 1 h 23 min" / "Sonraki vakit: İkindi · 1 sa 23 dk"
+  const auto &tx = l.prayer_text;
   std::string text;
   if (current >= 0) {
-    text = "Jetzt: " + l.prayer_names[current];
+    text = tx[4] + " " + l.prayer_names[current];
   } else if (next >= 0) {
-    char buf[40];
+    std::string count;
     if (delta >= 60)
-      snprintf(buf, sizeof(buf), " in %d h %d min", delta / 60, delta % 60);
-    else
-      snprintf(buf, sizeof(buf), " in %d min", delta);
-    text = "Nächstes Gebet: " + l.prayer_names[next] + buf;
+      count = std::to_string(delta / 60) + " " + tx[2] + " ";
+    count += std::to_string(delta % 60) + " " + tx[3];
+    text = tx[0] + " " + l.prayer_names[next] + tx[1] + count;
   }
   lv_label_set_text(this->ss_next_, text.c_str());
 }

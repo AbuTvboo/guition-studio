@@ -1,0 +1,58 @@
+<!--
+  Source of firmware/images/prayer-bg.png (background of the prayer times screensaver, 480x480).
+  Basmala set in Amiri Bold (SIL OFL 1.1, https://github.com/aliftype/amiri) - put Amiri-Bold.ttf next
+  to this file, then render it headless, e.g.:
+    chrome --headless=new --hide-scrollbars --force-device-scale-factor=1 --window-size=480,480            --allow-file-access-from-files --screenshot=prayer-bg.png prayer-bg.html
+  Add class="m" to <body> to preview it with sample prayer times on top.
+-->
+<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face{font-family:Amiri;src:url("Amiri-Bold.ttf")}
+html,body{margin:0;width:480px;height:480px;overflow:hidden;background:#07141d}
+.c{position:relative;width:480px;height:480px;background:radial-gradient(ellipse 120% 80% at 50% 0%,#123247 0%,#0a1c28 55%,#06111a 100%)}
+svg{position:absolute;inset:0}
+.bism{position:absolute;left:0;right:0;bottom:2px;text-align:center;font-family:Amiri;font-size:33px;line-height:46px;direction:rtl;
+ background:linear-gradient(180deg,#f3d98b 0%,#d4af37 55%,#a8822a 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+ filter:drop-shadow(0 1px 0 rgba(0,0,0,.6))}
+.mock{position:absolute;inset:0;font-family:Segoe UI,Arial;color:#e6edf3;display:none}
+body.m .mock{display:block}
+.mock .clk{position:absolute;top:22px;width:100%;text-align:center;font-size:40px;font-weight:600;color:#fff}
+.mock .dt{position:absolute;top:74px;width:100%;text-align:center;font-size:20px;color:#8b98a5}
+.mock .nx{position:absolute;top:108px;width:100%;text-align:center;font-size:20px;color:#e2bf5a}
+.mock .row{position:absolute;left:40px;width:400px;height:44px;border-radius:12px;font-size:26px;display:flex;justify-content:space-between;align-items:center;padding:0 18px;box-sizing:border-box}
+.mock .hl{background:#c9a14a;color:#0b1a24}
+.mock .mu{color:#8b98a5}
+</style></head><body><div class="c">
+<svg width="480" height="480" viewBox="0 0 480 480">
+ <defs>
+  <pattern id="star" width="60" height="60" patternUnits="userSpaceOnUse">
+   <g fill="none" stroke="#c9a14a" stroke-width="1">
+    <rect x="15" y="15" width="30" height="30"/>
+    <rect x="15" y="15" width="30" height="30" transform="rotate(45 30 30)"/>
+    <path d="M0 30 L9 30 M51 30 L60 30 M30 0 L30 9 M30 51 L30 60"/>
+    <circle cx="0" cy="0" r="6"/><circle cx="60" cy="0" r="6"/><circle cx="0" cy="60" r="6"/><circle cx="60" cy="60" r="6"/>
+   </g>
+  </pattern>
+  <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset=".55" stop-color="#fff" stop-opacity=".35"/><stop offset="1" stop-color="#fff" stop-opacity=".7"/></linearGradient>
+  <mask id="m"><rect width="480" height="480" fill="url(#fade)"/></mask>
+  <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f3d98b"/><stop offset="1" stop-color="#a8822a"/></linearGradient>
+ </defs>
+ <rect width="480" height="480" fill="url(#star)" opacity=".09" mask="url(#m)"/>
+ <!-- mihrab arch behind clock -->
+ <g fill="none" stroke="url(#gold)" opacity=".55">
+  <path d="M62 140 L62 78 Q62 30 240 8 Q418 30 418 78 L418 140" stroke-width="1.6"/>
+  <path d="M70 140 L70 80 Q70 38 240 17 Q410 38 410 80 L410 140" stroke-width=".8" opacity=".7"/>
+ </g>
+ <circle cx="240" cy="8" r="2.5" fill="#e2bf5a" opacity=".8"/>
+ <!-- divider above the basmala -->
+ <g opacity=".6"><path d="M70 433 H205 M275 433 H410" stroke="url(#gold)" stroke-width="1"/>
+ <path d="M240 427 l6 6 -6 6 -6 -6 z" fill="#d4af37"/></g>
+</svg>
+<div class="bism">بِسْمِ ٱللَّٰهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</div>
+<div class="mock"><div class="clk">05:42</div><div class="dt">02.11.2026</div><div class="nx">Sonraki vakit: Öğle · 1 sa 23 dk</div>
+<div class="row" style="top:140px"><span>İmsak</span><span>05:31</span></div>
+<div class="row mu" style="top:188px"><span>Güneş</span><span>07:12</span></div>
+<div class="row hl" style="top:236px"><span>Öğle</span><span>12:21</span></div>
+<div class="row" style="top:284px"><span>İkindi</span><span>14:48</span></div>
+<div class="row" style="top:332px"><span>Akşam</span><span>17:07</span></div>
+<div class="row" style="top:380px"><span>Yatsı</span><span>18:41</span></div></div>
+</div></body></html>

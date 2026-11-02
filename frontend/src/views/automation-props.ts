@@ -198,6 +198,20 @@ export class GsAutomationProps extends LitElement {
         (Einstellungen → Geräte & Dienste → Integration hinzufügen). Berechnungsmethode, Schule (Asr) und Standort stellst du dort ein.
         Das Display zeigt Uhrzeit, Datum und alle Zeiten. Das nächste Gebet wird hervorgehoben, darüber steht ein Countdown.
       </div>
+      <div class="grid2">
+        <label class="field"><span>Sprache der Namen</span>
+          <select @change=${(e: Event) => this.commit({ screensaver: { ...ss, prayer_lang: (e.target as HTMLSelectElement).value as "de" | "tr" } })}>
+            <option value="de" ?selected=${ss.prayer_lang !== "tr"}>Deutsch (Fajr, Dhuhr, Asr …)</option>
+            <option value="tr" ?selected=${ss.prayer_lang === "tr"}>Türkçe (İmsak, Öğle, İkindi …)</option>
+          </select>
+        </label>
+        <label class="field"><span>Hintergrund</span>
+          <select @change=${(e: Event) => this.commit({ screensaver: { ...ss, prayer_bg: (e.target as HTMLSelectElement).value === "1" } })}>
+            <option value="1" ?selected=${ss.prayer_bg !== false}>Islamische Kalligraphie</option>
+            <option value="0" ?selected=${ss.prayer_bg === false}>Schlicht (schwarz)</option>
+          </select>
+        </label>
+      </div>
       ${found === 0 ? html`<div class="notice warn small">Keine Gebetszeit-Sensoren gefunden. Bitte die Integration einrichten oder die Sensoren unten von Hand wählen.</div>` : nothing}
       ${PRAYERS.map(
         (p) => html`<label class="field"><span>${p.label}${p.key === "sunrise" ? " (optional, kein Gebet)" : ""}</span>

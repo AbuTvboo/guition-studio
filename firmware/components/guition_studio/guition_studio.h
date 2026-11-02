@@ -21,6 +21,9 @@
 #ifdef USE_GS_SLIDESHOW
 #include "esphome/components/online_image/online_image.h"
 #endif
+#ifdef USE_GS_PRAYER_BG
+#include "esphome/components/image/image.h"
+#endif
 
 #include "esphome/components/lvgl/lvgl_esphome.h"
 #include "esphome/components/touchscreen/touchscreen.h"
@@ -119,6 +122,9 @@ struct LayoutCfg {
   bool prayer{false};
   std::vector<std::string> prayer_names, prayer_entities;
   std::vector<uint8_t> prayer_kind;  // 1 = prayer, 0 = sunrise (orientation only)
+  // countdown line: prefix, separator, hour unit, minute unit, "now" prefix (language from HA)
+  std::array<std::string, 5> prayer_text{"Nächstes Gebet:", " in ", "h", "min", "Jetzt:"};
+  bool prayer_bg{true};  // calligraphy background (if built into the firmware)
   std::string theme;
   std::vector<std::pair<std::string, std::string>> themes;  // id, name
   std::vector<PageCfg> pages;
@@ -195,6 +201,9 @@ class GuitionStudio : public Component {
 #endif
 #ifdef USE_GS_SLIDESHOW
   void set_slideshow_image(online_image::OnlineImage *img) { this->slide_img_ = img; }
+#endif
+#ifdef USE_GS_PRAYER_BG
+  void set_prayer_background(image::Image *img) { this->prayer_bg_img_ = img; }
 #endif
   void add_on_event_callback(std::function<void(const std::string &, const std::string &)> &&cb) {
     this->event_callbacks_.add(std::move(cb));
@@ -346,6 +355,10 @@ class GuitionStudio : public Component {
   lv_obj_t *ss_pname_[MAX_PRAYER_ROWS]{};
   lv_obj_t *ss_ptime_[MAX_PRAYER_ROWS]{};
   std::string ss_prayer_sig_;
+  bool ss_prayer_gold_{false};  // gold highlight on the calligraphy background
+#ifdef USE_GS_PRAYER_BG
+  image::Image *prayer_bg_img_{nullptr};
+#endif
 
   // local overrides (-1 = use layout), persisted in NVS key "ovr"
   int ovr_br_{-1}, ovr_sb_{-1}, ovr_to_{-1}, ovr_ss_{-1}, ovr_rot_{-1};

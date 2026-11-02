@@ -12,3 +12,6 @@ Bundled in `firmware/components/guition_studio/gs_font_*.c`:
 Bundled in `firmware/components/guition_studio/gs_icon_font_*.c` and `gs_font_*.c` (3 symbols):
 - Material Design Icons by Pictogrammers ? Pictogrammers Free License
   (https://pictogrammers.com/docs/general/license/)
+- Amiri by The Amiri Project Authors – SIL Open Font License 1.1
+  (https://github.com/aliftype/amiri). Used to set the basmala in the prayer times
+  background picture `firmware/images/prayer-bg.png` (rendered, the font itself is not shipped).

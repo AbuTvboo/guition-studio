@@ -10,7 +10,7 @@
 substitutions:
   name: guition-studio
   friendly_name: Guition Studio
-  fw_version: "0.5.8"
+  fw_version: "0.5.9"
 
 esphome:
   name: ${name}
@@ -237,11 +237,19 @@ image:
     type: RGB565
     resize: 480x480
     update_interval: never
+  # Background of the prayer times screensaver: Islamic star pattern, mihrab arch and the
+  # basmala in Amiri (SIL OFL 1.1). Source: scripts/prayer-bg.html
+  - platform: file
+    id: gs_prayer_bg
+    file: images/prayer-bg.png
+    type: RGB565
+    resize: 480x480
 
 guition_studio:
   id: studio
   backlight: backlight
   slideshow_image: gs_slide
+  prayer_background: gs_prayer_bg
   touchscreen_id: main_touch
   time_id: ha_time
   hardware: guition-4848s040

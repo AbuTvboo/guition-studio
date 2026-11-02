@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.18 – Gebetszeiten: Markierung passend zur Uhrzeit
+- Die Markierung im Gebetszeiten-Bildschirmschoner steht jetzt auf der **aktuellen Gebetszeit** und bleibt dort, **bis die nächste Zeit erreicht ist** (z. B. von İkindi bis Akşam auf İkindi). Vorher sprang sie 15 Minuten nach Beginn schon auf die nächste Zeit.
+- Ab Sonnenaufgang (Güneş) wandert die Markierung auf Güneş, bis Öğle beginnt; vor İmsak bleibt Yatsı vom Vortag markiert.
+- Die Zeile darüber bleibt wie gehabt: 15 Minuten „Jetzt: …“, danach der Countdown bis zum nächsten Gebet.
+
 ## 0.5.17 – 3D-Kacheln
 - **Kacheln für Lampen, Schalter, Sensoren usw. mit Tiefe** statt flacher Flächen:
   - Licht von oben: Verlauf von etwas heller (oben) nach dunkler (unten) in der Kachelfarbe, dazu eine helle Lichtkante am oberen Rand.

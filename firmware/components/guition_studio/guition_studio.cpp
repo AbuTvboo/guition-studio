@@ -2473,12 +2473,20 @@ void GuitionStudio::update_prayer_(const std::string &hhmm) {
   this->ss_prayer_sig_ = sig;
 
   int now = hhmm_minutes(hhmm);
-  // A prayer stays "current" for 15 minutes after its time, afterwards the next one is shown.
-  int current = -1, next = -1, delta = 0;
+  // The highlight marks the time period we are in: it moves to a row when its time is reached and
+  // stays there until the next row's time (before Fajr the last row of the previous day, Isha, stays
+  // marked). Sunrise counts as a period boundary here (Fajr time ends at sunrise).
+  // The status line shows "Now: X" for 15 minutes after a prayer time, afterwards the countdown.
+  int current = -1, next = -1, delta = 0, active = -1, last_valid = -1;
   if (now >= 0) {
     for (int i = 0; i < rows; i++) {
       int t = hhmm_minutes(times[i]);
-      if (!l.prayer_kind[i] || t < 0)
+      if (t < 0)
+        continue;
+      last_valid = i;
+      if (t <= now)
+        active = i;
+      if (!l.prayer_kind[i])
         continue;
       if (t <= now && now - t < 15)
         current = i;
@@ -2498,7 +2506,7 @@ void GuitionStudio::update_prayer_(const std::string &hhmm) {
       }
     }
   }
-  int highlight = current >= 0 ? current : next;
+  int highlight = active >= 0 ? active : last_valid;
   for (int i = 0; i < rows; i++) {
     if (this->ss_prow_[i] == nullptr)
       continue;

@@ -69,7 +69,14 @@ struct FootballRow {
   std::string home, away;
   std::string minute;  // live: "67'" / half time
   uint8_t state{0};    // 0 upcoming, 1 live, 2 finished, 3 postponed
+  std::string home_logo, away_logo;  // team ids, pictures arrive via gs_logo
 };
+// Team logo (RGB565A8) kept in PSRAM until restart.
+struct TeamLogo {
+  uint8_t *data{nullptr};
+  lv_image_dsc_t dsc{};
+};
+static constexpr int LOGO_PX = 18;
 struct FootballGroup {
   std::string name;
   std::vector<FootballRow> rows;
@@ -238,6 +245,7 @@ class GuitionStudio : public Component {
   void send_hello();
   void set_mode(int32_t night, int32_t brightness, int32_t dim);
   void set_football(const std::string &json);
+  void set_logo(const std::string &key, const std::string &data);
   /// OTA progress screen: state 0 = running (progress 0..100), 1 = done, 2 = failed
   void ota_status(int state, float progress);
   void on_color_event(int code, lv_event_code_t event, lv_obj_t *target);
@@ -394,6 +402,8 @@ class GuitionStudio : public Component {
   uint32_t ss_switch_at_{0};     // mix: next view change
   int fb_page_{0}, fb_pages_{1};
   uint32_t fb_page_at_{0};
+  std::map<std::string, TeamLogo> logos_;
+  bool fb_dirty_{false};  // logos arrived: redraw the list on the next tick
   lv_obj_t *fb_head_{nullptr};
   lv_obj_t *fb_list_{nullptr};
 #ifdef USE_GS_PRAYER_BG

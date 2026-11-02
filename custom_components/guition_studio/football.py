@@ -7,8 +7,9 @@ defensive and unknown fields are ignored. Team names come in English and are lig
 corrected (NAME_FIX).
 
 The display gets one compact JSON document (action gs_football):
-    {"h": "Heute", "g": [["Bundesliga", [[time_or_score, home, away, state, minute], ...]], ...]}
-state: 0 = upcoming, 1 = live, 2 = finished.
+    {"h": "Heute", "g": [["Bundesliga", [[time_or_score, home, away, state, minute, home_logo, away_logo], ...]], ...]}
+state: 0 = upcoming, 1 = live, 2 = finished, 3 = postponed. Logos are ESPN team ids; the
+pictures are sent separately once per boot (action gs_logo, see logo_rgb565a8()).
 """
 
 from __future__ import annotations
@@ -60,6 +61,40 @@ NAME_FIX: dict[str, str] = {
 }  # fmt: skip
 
 
+LOGO_SIZE = 18
+LOGO_URL = "https://a.espncdn.com/i/teamlogos/soccer/500/{id}.png"
+
+
+def logo_rgb565a8(png: bytes, size: int = LOGO_SIZE) -> bytes:
+    """Team logo -> LVGL RGB565A8 (RGB565 little endian plane, then alpha plane), size x size."""
+    from io import BytesIO  # noqa: PLC0415
+
+    from PIL import Image  # noqa: PLC0415
+
+    img = Image.open(BytesIO(png)).convert("RGBA")
+    bbox = img.getbbox()  # trim transparent borders so the crest fills the square
+    if bbox:
+        img = img.crop(bbox)
+    img.thumbnail((size, size), Image.LANCZOS)
+    canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    canvas.paste(img, ((size - img.width) // 2, (size - img.height) // 2), img)
+    rgb = bytearray()
+    alpha = bytearray()
+    px = canvas.tobytes()  # RGBA, works on every Pillow version
+    for i in range(0, len(px), 4):
+        r, g, b, a = px[i], px[i + 1], px[i + 2], px[i + 3]
+        v = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
+        rgb += bytes((v & 0xFF, v >> 8))
+        alpha.append(a)
+    return bytes(rgb + alpha)
+
+
+def _logo_id(comp: dict[str, Any]) -> str:
+    team = comp.get("team") or {}
+    tid = str(team.get("id") or "")
+    return tid if tid.isdigit() else ""
+
+
 def _team(comp: dict[str, Any]) -> str:
     team = comp.get("team") or {}
     name = str(team.get("shortDisplayName") or team.get("displayName") or team.get("abbreviation") or "?")
@@ -90,6 +125,8 @@ def parse_scoreboard(data: Any, tz: tzinfo | None) -> list[dict[str, Any]]:
                 "when": when,
                 "home": _team(home),
                 "away": _team(away),
+                "hl": _logo_id(home),
+                "al": _logo_id(away),
                 "hs": str(home.get("score", "")),
                 "as": str(away.get("score", "")),
                 "state": state,
@@ -146,7 +183,7 @@ def build_payload(
                 if show_day:
                     first_col = f"{days[m['when'].weekday()]} {first_col}"
             minute = tx["ht"] if m["halftime"] else (m["minute"] if m["state"] == 1 else "")
-            rows.append([first_col, m["home"], m["away"], m["state"], minute])
+            rows.append([first_col, m["home"], m["away"], m["state"], minute, m.get("hl", ""), m.get("al", "")])
         if rows:
             groups.append([LEAGUES[code], rows])
     doc = {"h": header, "g": groups}
@@ -166,3 +203,14 @@ def has_live(leagues: dict[str, list[dict[str, Any]] | None], now: datetime) -> 
         if v
         for m in v
     )
+
+
+def logo_ids(doc: dict[str, Any]) -> list[str]:
+    """Team ids whose logos the display needs for this document (in display order)."""
+    out: list[str] = []
+    for _name, rows in doc.get("g", []):
+        for row in rows:
+            for tid in row[5:7]:
+                if tid and tid not in out:
+                    out.append(tid)
+    return out

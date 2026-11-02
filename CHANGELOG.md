@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.13 – Vereinslogos im Fußball-Bildschirmschoner
+- **Vereinslogos** neben den Mannschaftsnamen („Bayern 🛡 – 🛡 Dortmund“). Home Assistant lädt jedes Logo einmal von ESPN, schneidet den transparenten Rand ab und verkleinert es auf 18 × 18 Pixel mit weicher Kante (in der 12-px-Ansicht 13 px). Das Display behält bis zu 120 Logos bis zum nächsten Neustart, jedes Logo wird also nur einmal übertragen (≈ 1 KB).
+- Die Liste erscheint sofort; die Logos werden nachgeladen, sobald sie da sind.
+
 ## 0.5.12 – Fußball-Bildschirmschoner
 - **Neuer Bildschirmschoner „Fußball – heutige Spiele“:** Er zeigt alle heutigen Spiele der gewählten Ligen. Standard sind **1. Bundesliga, Süper Lig und LaLiga**. Wählbar sind außerdem 2. Bundesliga, Premier League, Serie A, Ligue 1 und Champions League.
   - Je Spiel stehen Anstoßzeit, Heim- und Gastmannschaft da. Bei laufenden Spielen kommt der **Live-Spielstand in Grün mit Minute** dazu (oder „HZ“), bei beendeten Spielen das Endergebnis.

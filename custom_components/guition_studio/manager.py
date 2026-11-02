@@ -14,6 +14,7 @@ Communication path (no extra ports, no tokens on the device):
 from __future__ import annotations
 
 import asyncio
+import base64
 from collections import deque
 import json
 import copy
@@ -51,6 +52,7 @@ from .automation import (
 
 from .const import (
     ACTION_FOOTBALL,
+    ACTION_LOGO,
     ACTION_HELLO,
     ACTION_LAYOUT_BEGIN,
     ACTION_LAYOUT_CHUNK,
@@ -68,7 +70,16 @@ from .const import (
     TRANSFER_RETRIES,
     TRANSFER_TIMEOUT,
 )
-from .football import SCOREBOARD_URL, build_payload as football_payload, has_live, parse_scoreboard, scoreboard_params
+from .football import (
+    LOGO_URL,
+    SCOREBOARD_URL,
+    build_payload as football_payload,
+    has_live,
+    logo_ids,
+    logo_rgb565a8,
+    parse_scoreboard,
+    scoreboard_params,
+)
 from .layout import (
     LayoutValidationError,
     compile_device_layout,
@@ -126,6 +137,9 @@ class StudioManager:
         # football: (league, day) -> (fetched at, matches or None); last document sent per display
         self._fixtures: dict[tuple[str, str], tuple[float, list[dict[str, Any]] | None]] = {}
         self._football_sent: dict[str, tuple[float, str]] = {}
+        # team logos: id -> base64 RGB565A8 (None = not available); ids already on each display
+        self._logos: dict[str, str | None] = {}
+        self._logos_sent: dict[str, set[str]] = {}
         self._unsubs: list[CALLBACK_TYPE] = []
         self.debug = False
 
@@ -613,7 +627,42 @@ class StudioManager:
                 self.add_log("debug", f"Spieldaten nicht gesendet: {err}", display_id)
             return False
         self._football_sent[display_id] = (loop_now, doc)
+        self.hass.async_create_task(self._push_logos(display, json.loads(doc)))
         return True
+
+    async def _logo(self, team_id: str) -> str | None:
+        """Team logo as base64 RGB565A8 (downloaded once from ESPN, then cached)."""
+        if team_id in self._logos:
+            return self._logos[team_id]
+        encoded: str | None = None
+        try:
+            session = async_get_clientsession(self.hass)
+            async with asyncio.timeout(15):
+                resp = await session.get(LOGO_URL.format(id=team_id))
+                resp.raise_for_status()
+                png = await resp.read()
+            raw = await self.hass.async_add_executor_job(logo_rgb565a8, png)
+            encoded = base64.b64encode(raw).decode()
+        except (TimeoutError, aiohttp.ClientError, OSError, ValueError) as err:
+            if self.debug:
+                self.add_log("debug", f"Logo {team_id} nicht ladbar: {err}")
+        self._logos[team_id] = encoded
+        return encoded
+
+    async def _push_logos(self, display: dict[str, Any], doc: dict[str, Any]) -> None:
+        """Send the logos the display does not have yet (they live in its RAM until restart)."""
+        sent = self._logos_sent.setdefault(display["id"], set())
+        for team_id in logo_ids(doc):
+            if team_id in sent:
+                continue
+            data = await self._logo(team_id)
+            if data is None:
+                continue
+            try:
+                await self._call(display, ACTION_LOGO, {"key": team_id, "data": data})
+            except (HomeAssistantError, TransferError):
+                return  # firmware without logo support or display offline
+            sent.add(team_id)
 
     def _get_state(self, entity_id: str) -> str | None:
         state = self.hass.states.get(entity_id)
@@ -855,6 +904,7 @@ class StudioManager:
         self.hass.async_create_task(self.async_push_states(display_id))
         self._evaluate_night(display, dt_util.now(), force=True)
         self.hass.async_create_task(self.async_refresh_graphs(display_id))
+        self._logos_sent.pop(display_id, None)  # the display forgot its logos when it restarted
         self.hass.async_create_task(self.async_push_football(display_id, force=True))
 
     async def _safe_resend(self, display_id: str, layout: dict[str, Any]) -> None:

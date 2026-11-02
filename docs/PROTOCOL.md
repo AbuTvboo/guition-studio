@@ -34,7 +34,8 @@ Das Display ruft **niemals** selbst HA-Dienste auf. Es meldet nur `tap`/`hold`/`
 |---|---|
 | `hello` | `{"proto":2,"fw":"0.2.0","hw":"guition-4848s040","rev":3,"crc":…,"page":0,"heap":…,"psram":…,"up":…,"max":32768,"layout":true}` |
 | `ack` | `{"s":session,"ok":true,"rev":3,"crc":…,"err":""}`, Fehlercodes: `crc, size, oom, sequence, overflow, incomplete, session, nvs, version, json:*, schema:*` |
-| *(HA → Display, Aktion `gs_football`)* | `{"h":"Heute","g":[["Bundesliga",[["15:30","Bayern","Dortmund",0,""],["2:1","Leipzig","Freiburg",1,"67'"]]]]}`: Spiele für den Fußball-Bildschirmschoner (Zustand 0 = anstehend, 1 = live, 2 = beendet, 3 = abgesagt); Quelle ESPN, alle 10 min bzw. jede Minute bei laufenden Spielen |
+| *(HA → Display, Aktion `gs_football`)* | `{"h":"Heute","g":[["Bundesliga",[["15:30","Bayern","Dortmund",0,"","132","124"],…]]]}`: Spiele für den Fußball-Bildschirmschoner (Zustand 0 = anstehend, 1 = live, 2 = beendet, 3 = abgesagt; zuletzt die ESPN-Team-IDs der Logos); Quelle ESPN, alle 10 min bzw. jede Minute bei laufenden Spielen |
+| *(HA → Display, Aktion `gs_logo`)* | `key` = Team-ID, `data` = Base64 eines 18×18-Logos im LVGL-Format RGB565A8 (972 Byte); einmal pro Display-Start, das Display hält bis zu 120 Logos im PSRAM |
 | `tap` / `hold` | `{"t":"t_ab12cd34","p":"p_…"}`; bei der Wisch-Kachel zusätzlich `"i":1` = Index der gerade angezeigten Entität (HA bedient genau diese) |
 | *(Layout, Kachel `swipe`)* | `"it":[[entity, titel, icon], …]`: bis zu 4 Entitäten; `e` = erste Entität; `"sd":1` = hoch/runter wischen |
 | `set` | `{"t":"t_…","p":"p_…","v":35}`: Schieberegler losgelassen (nur `dimmer`, 0–100; 0 = aus) |

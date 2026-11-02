@@ -5,7 +5,11 @@ import json
 
 import pytest
 
-from gs_pure.football import build_payload, has_live, parse_scoreboard
+from io import BytesIO
+
+from PIL import Image
+
+from gs_pure.football import LOGO_SIZE, build_payload, has_live, logo_ids, logo_rgb565a8, parse_scoreboard
 from gs_pure.layout import LayoutValidationError, compile_device_layout, default_layout, football_settings, validate_layout
 
 TZ = timezone(timedelta(hours=1))
@@ -19,8 +23,8 @@ def _event(eid, iso, home, away, state="pre", name="STATUS_SCHEDULED", clock="0'
             {
                 "status": {"displayClock": clock, "type": {"state": state, "name": name}},
                 "competitors": [
-                    {"homeAway": "home", "score": hs, "team": {"shortDisplayName": home}},
-                    {"homeAway": "away", "score": as_, "team": {"shortDisplayName": away}},
+                    {"homeAway": "home", "score": hs, "team": {"id": f"{eid}1", "shortDisplayName": home}},
+                    {"homeAway": "away", "score": as_, "team": {"id": f"{eid}2", "shortDisplayName": away}},
                 ],
             }
         ],
@@ -52,9 +56,14 @@ def test_payload_today_with_live_and_finished():
     assert doc["h"] == "Heute"
     assert doc["g"][0] == [
         "Bundesliga",
-        [["2:1", "Leipzig", "Freiburg", 1, "67'"], ["0:0", "Köln", "Mainz", 1, "HZ"], ["18:30", "Bayern", "Dortmund", 0, ""]],
+        [
+            ["2:1", "Leipzig", "Freiburg", 1, "67'", "11", "12"],
+            ["0:0", "Köln", "Mainz", 1, "HZ", "31", "32"],
+            ["18:30", "Bayern", "Dortmund", 0, "", "21", "22"],
+        ],
     ]
-    assert doc["g"][1] == ["Süper Lig", [["3:2", "Beşiktaş", "Fenerbahçe", 2, ""]]]
+    assert doc["g"][1] == ["Süper Lig", [["3:2", "Beşiktaş", "Fenerbahçe", 2, "", "91", "92"]]]
+    assert logo_ids(doc) == ["11", "12", "31", "32", "21", "22", "91", "92"]
     assert len(doc["g"]) == 2  # LaLiga without matches is left out
     assert has_live(data, now)
 
@@ -90,3 +99,16 @@ def test_football_and_mix_settings():
     assert football_settings(validate_layout(_layout("prayer"))) is None
     with pytest.raises(LayoutValidationError):
         validate_layout(_layout("football", leagues=[]))
+
+
+def test_logo_is_trimmed_and_converted_to_rgb565a8():
+    img = Image.new("RGBA", (100, 60), (0, 0, 0, 0))
+    img.paste((255, 0, 0, 255), (20, 10, 80, 50))  # red crest with a transparent border
+    buf = BytesIO()
+    img.save(buf, "PNG")
+    raw = logo_rgb565a8(buf.getvalue())
+    n = LOGO_SIZE * LOGO_SIZE
+    assert len(raw) == n * 3
+    centre = (LOGO_SIZE // 2) * LOGO_SIZE + LOGO_SIZE // 2
+    assert raw[centre * 2 : centre * 2 + 2] == bytes((0x00, 0xF8))  # red, little endian
+    assert raw[2 * n + centre] == 255 and raw[2 * n] == 0  # opaque centre, transparent corner

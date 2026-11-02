@@ -963,9 +963,8 @@ var xe = r`
   }
   /* 3D tiles (like the display): light from above, bright top edge, drop shadow */
   .d3 .t-inner {
+    /* flat fill like on the device (a gradient bands on the 16-bit panel), light top edge + shadow */
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-    /* over the inline background colour (important beats the inline shorthand) */
-    background-image: linear-gradient(rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.38)) !important;
   }
   .t-inner.unavailable {
     filter: grayscale(0.8);

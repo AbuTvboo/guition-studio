@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.19 – 3D-Kacheln ohne Farbstreifen
+- Die 3D-Kacheln haben auf dem Panel **wieder genau die gewählte Farbe** – ohne den Verlauf von hell nach dunkel. Das 16-Bit-Display (RGB565) hat den weichen Verlauf in Stufen dargestellt; vor allem bei Grau gab es dadurch leicht rot-, grün- und blaustichige waagerechte Streifen.
+- Der 3D-Eindruck bleibt durch die helle Lichtkante oben, den Schlagschatten und den Drück-Effekt. Die Designer-Vorschau zeigt es jetzt genauso.
+
 ## 0.5.18 – Gebetszeiten: Markierung passend zur Uhrzeit
 - Die Markierung im Gebetszeiten-Bildschirmschoner steht jetzt auf der **aktuellen Gebetszeit** und bleibt dort, **bis die nächste Zeit erreicht ist** (z. B. von İkindi bis Akşam auf İkindi). Vorher sprang sie 15 Minuten nach Beginn schon auf die nächste Zeit.
 - Ab Sonnenaufgang (Güneş) wandert die Markierung auf Güneş, bis Öğle beginnt; vor İmsak bleibt Yatsı vom Vortag markiert.

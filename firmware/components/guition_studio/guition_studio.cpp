@@ -1005,21 +1005,13 @@ static lv_color_t mix_white(uint32_t rgb, int pct) {
   return lv_color_hex((r << 16) | (g << 8) | b);
 }
 
-static lv_color_t mix_black(uint32_t rgb, int keep_pct) {
-  uint32_t r = ((rgb >> 16) & 0xFF) * keep_pct / 100, g = ((rgb >> 8) & 0xFF) * keep_pct / 100,
-           b = (rgb & 0xFF) * keep_pct / 100;
-  return lv_color_hex((r << 16) | (g << 8) | b);
-}
-
-/// Tile background; with 3D tiles lit from above (lighter top, darker bottom, bright top edge).
+/// Tile background in exactly the chosen colour; 3D tiles add a bright top edge (shadow: tile_depth_).
+/// No vertical gradient: on the 16-bit RGB565 panel R/B (5 bit) and G (6 bit) step on different rows,
+/// so a smooth grey gradient shows reddish/greenish/bluish horizontal stripes.
 void GuitionStudio::paint_tile_(lv_obj_t *o, const TileCfg &t, uint32_t bg) {
-  if (!this->layout_.depth) {
-    lv_obj_set_style_bg_color(o, lv_color_hex(bg), 0);
+  lv_obj_set_style_bg_color(o, lv_color_hex(bg), 0);
+  if (!this->layout_.depth)
     return;
-  }
-  lv_obj_set_style_bg_color(o, mix_white(bg, 10), 0);
-  lv_obj_set_style_bg_grad_color(o, mix_black(bg, 62), 0);
-  lv_obj_set_style_bg_grad_dir(o, LV_GRAD_DIR_VER, 0);
   if (t.border == 0)
     lv_obj_set_style_border_color(o, mix_white(bg, 38), 0);
 }

@@ -8,6 +8,19 @@ import { fireEvent, sharedStyles } from "../ui";
 import "./entity-picker";
 
 export const DEFAULT_NIGHT: NightSettings = { enabled: false, mode: "time", start: "22:00", end: "06:30", brightness: 15, dim: 30, page: null };
+/** Football competitions (ESPN codes, = FOOTBALL_LEAGUES in layout.py). */
+const FOOTBALL_LEAGUES = [
+  { code: "ger.1", name: "1. Bundesliga" },
+  { code: "ger.2", name: "2. Bundesliga" },
+  { code: "tur.1", name: "Süper Lig" },
+  { code: "esp.1", name: "LaLiga" },
+  { code: "eng.1", name: "Premier League" },
+  { code: "ita.1", name: "Serie A" },
+  { code: "fra.1", name: "Ligue 1" },
+  { code: "uefa.champions", name: "Champions League" },
+];
+const DEFAULT_LEAGUES = ["ger.1", "tur.1", "esp.1"];
+
 /** Calligraphy backgrounds built into the firmware (keys = PRAYER_BACKGROUNDS in layout.py). */
 const PRAYER_BACKGROUNDS = [
   { key: "basmala", label: "Basmala", hint: "Mihrab-Bogen, Sternmuster und Basmala" },
@@ -165,18 +178,22 @@ export class GsAutomationProps extends LitElement {
               <label class="field"><span>Anzeige</span>
                 <select @change=${(e: Event) => {
                   const mode = (e.target as HTMLSelectElement).value as ScreensaverSettings["mode"];
-                  const prayer = mode === "prayer" && !Object.values(ss.prayer ?? {}).some(Boolean) ? detectPrayerSensors(this.hass) : ss.prayer;
+                  const prayer = (mode === "prayer" || mode === "mix") && !Object.values(ss.prayer ?? {}).some(Boolean) ? detectPrayerSensors(this.hass) : ss.prayer;
                   this.commit({ screensaver: { ...ss, mode, prayer } });
                   if (mode === "slideshow" && !this.folders) this.loadFolders();
                 }}>
                   <option value="clock" ?selected=${ss.mode !== "slideshow"}>Uhr, Datum & Werte</option>
                   <option value="slideshow" ?selected=${ss.mode === "slideshow"}>Diashow (Bilder aus Home Assistant)</option>
                   <option value="prayer" ?selected=${ss.mode === "prayer"}>Islamische Gebetszeiten</option>
+                  <option value="football" ?selected=${ss.mode === "football"}>Fußball – heutige Spiele</option>
+                  <option value="mix" ?selected=${ss.mode === "mix"}>Gebetszeiten & Fußball im Wechsel</option>
                 </select>
               </label>
               ${ss.mode === "slideshow" ? this.renderSlideshow(ss) : nothing}
-              ${ss.mode === "prayer" ? this.renderPrayer(ss) : nothing}
-              ${ss.mode !== "slideshow" && ss.mode !== "prayer" ? [0, 1].map(
+              ${ss.mode === "mix" ? this.renderMix(ss) : nothing}
+              ${ss.mode === "football" || ss.mode === "mix" ? this.renderFootball(ss) : nothing}
+              ${ss.mode === "prayer" || ss.mode === "mix" ? this.renderPrayer(ss) : nothing}
+              ${ss.mode === "clock" || !ss.mode ? [0, 1].map(
                 (i) => html`<label class="field"><span>Wert ${i + 1} (optional)</span>
                   <input list="gs-auto-entities" placeholder="z. B. sensor.aussentemperatur" .value=${ss.entities[i] ?? ""}
                     @change=${(e: Event) => {
@@ -194,6 +211,35 @@ export class GsAutomationProps extends LitElement {
 
   protected firstUpdated(): void {
     if (this.screensaver.mode === "slideshow") this.loadFolders();
+  }
+
+  private renderMix(ss: ScreensaverSettings) {
+    return html`<label class="field"><span>Wechsel alle</span>
+      <select @change=${(e: Event) => this.commit({ screensaver: { ...ss, mix_interval: +(e.target as HTMLSelectElement).value } })}>
+        ${[[10, "10 Sekunden"], [20, "20 Sekunden"], [30, "30 Sekunden"], [60, "1 Minute"], [120, "2 Minuten"]].map(
+          ([v, l]) => html`<option value=${v} ?selected=${(ss.mix_interval ?? 20) === v}>${l}</option>`
+        )}
+      </select>
+    </label>`;
+  }
+
+  private renderFootball(ss: ScreensaverSettings) {
+    const leagues = ss.leagues ?? DEFAULT_LEAGUES;
+    const toggle = (code: string, on: boolean) =>
+      this.commit({ screensaver: { ...ss, leagues: FOOTBALL_LEAGUES.map((l) => l.code).filter((c) => (c === code ? on : leagues.includes(c))) } });
+    return html`<div class="field"><span class="muted small">Ligen</span>
+        <div class="league-grid">
+          ${FOOTBALL_LEAGUES.map(
+            (l) => html`<label class="check"><input type="checkbox" .checked=${leagues.includes(l.code)} @change=${(e: Event) => toggle(l.code, (e.target as HTMLInputElement).checked)} /> ${l.name}</label>`
+          )}
+        </div>
+      </div>
+      ${leagues.length === 0 ? html`<div class="notice warn small">Bitte mindestens eine Liga auswählen.</div>` : nothing}
+      <div class="notice small">
+        Home Assistant holt die Spiele von ESPN (öffentlich, ohne Konto) – alle 10 Minuten, während Spiele laufen jede Minute.
+        Gezeigt werden die heutigen Spiele mit Anstoß, Live-Spielstand und Minute; an Tagen ohne Spiele die nächsten Spiele mit Wochentag.
+        Die Schrift wird so klein gewählt, dass möglichst viele Spiele auf den Bildschirm passen; reicht der Platz nicht, blättert die Liste alle 8 Sekunden weiter.
+      </div>`;
   }
 
   private renderPrayerBackgrounds(ss: ScreensaverSettings) {
@@ -289,6 +335,12 @@ export class GsAutomationProps extends LitElement {
   static styles = [
     sharedStyles,
     css`
+      .league-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0 12px;
+        margin: 6px 0 4px;
+      }
       .bg-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));

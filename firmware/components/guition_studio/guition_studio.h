@@ -63,6 +63,18 @@ enum TileAction : uint8_t {
   ACTION_COLOR = 8,     // local: open the colour picker of an RGB tile
 };
 
+// Football screensaver: one match line and one competition (sent by HA via gs_football).
+struct FootballRow {
+  std::string first;   // kick-off "15:30" / "Sa 15:30" or score "2:1"
+  std::string home, away;
+  std::string minute;  // live: "67'" / half time
+  uint8_t state{0};    // 0 upcoming, 1 live, 2 finished, 3 postponed
+};
+struct FootballGroup {
+  std::string name;
+  std::vector<FootballRow> rows;
+};
+
 // One entity of a swipe tile.
 struct SwipeItem {
   std::string entity;
@@ -123,6 +135,9 @@ struct LayoutCfg {
   bool slide_clock{true};
   // screensaver mode 2: Islamic prayer times (timestamp sensors, shown as HH:MM by HA)
   bool prayer{false};
+  bool football{false};    // screensaver mode 3: today's football matches
+  bool mix{false};         // mode 4: prayer times and football alternate
+  int mix_interval{20};    // seconds per view in mix mode
   std::vector<std::string> prayer_names, prayer_entities;
   std::vector<uint8_t> prayer_kind;  // 1 = prayer, 0 = sunrise (orientation only)
   // countdown line: prefix, separator, hour unit, minute unit, "now" prefix (language from HA)
@@ -222,6 +237,7 @@ class GuitionStudio : public Component {
   void rollback();
   void send_hello();
   void set_mode(int32_t night, int32_t brightness, int32_t dim);
+  void set_football(const std::string &json);
   /// OTA progress screen: state 0 = running (progress 0..100), 1 = done, 2 = failed
   void ota_status(int state, float progress);
   void on_color_event(int code, lv_event_code_t event, lv_obj_t *target);
@@ -250,6 +266,10 @@ class GuitionStudio : public Component {
   void hide_screensaver_();
   void update_screensaver_(const std::string &hhmm, const std::string &date);
   void build_prayer_screensaver_(lv_obj_t *parent);
+  void build_ss_content_();
+  void reset_ss_refs_();
+  void build_football_(lv_obj_t *parent);
+  void render_football_();
   void update_prayer_(const std::string &hhmm);
   void apply_night_overlay_();
   void slide_next_();
@@ -367,6 +387,15 @@ class GuitionStudio : public Component {
   lv_obj_t *ss_ptime_[MAX_PRAYER_ROWS]{};
   std::string ss_prayer_sig_;
   bool ss_prayer_gold_{false};  // gold highlight on the calligraphy background
+  // football view (also used alternately with the prayer times in mix mode)
+  std::string fb_header_;
+  std::vector<FootballGroup> fb_groups_;
+  int ss_view_{0};               // 0 = clock/prayer, 1 = football
+  uint32_t ss_switch_at_{0};     // mix: next view change
+  int fb_page_{0}, fb_pages_{1};
+  uint32_t fb_page_at_{0};
+  lv_obj_t *fb_head_{nullptr};
+  lv_obj_t *fb_list_{nullptr};
 #ifdef USE_GS_PRAYER_BG
   // decoded background (RGB565 in PSRAM), kept while the same picture is selected
   uint16_t *prayer_bg_buf_{nullptr};

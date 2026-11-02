@@ -332,6 +332,17 @@ void GuitionStudio::loop() {
     this->refresh_settings_();
     if (this->ss_obj_ != nullptr && this->ss_img_ != nullptr && !this->slide_pending_ && now >= this->slide_next_at_)
       this->slide_next_();
+    if (this->ss_obj_ != nullptr && this->layout_.mix && now >= this->ss_switch_at_) {
+      // mix: prayer times <-> football
+      this->ss_view_ = 1 - this->ss_view_;
+      this->ss_switch_at_ = now + static_cast<uint32_t>(this->layout_.mix_interval) * 1000u;
+      this->build_ss_content_();
+      this->update_status_();
+    } else if (this->fb_list_ != nullptr && this->fb_pages_ > 1 && now >= this->fb_page_at_) {
+      this->fb_page_ = (this->fb_page_ + 1) % this->fb_pages_;
+      this->render_football_();
+      this->update_status_();
+    }
     if (this->ss_obj_ == nullptr && !this->slide_pending_ && this->slide_buf_[0] != nullptr)
       this->slide_stop_();
     if (this->ota_obj_ != nullptr && this->ota_hide_at_ != 0 && now > this->ota_hide_at_) {
@@ -529,7 +540,11 @@ bool GuitionStudio::parse_layout_(const char *data, size_t len, LayoutCfg &out, 
     out.slideshow = false;
   out.slide_interval = clampi(set["sli"] | 15, 5, 600);
   out.slide_clock = (set["slc"] | 1) != 0;
-  out.prayer = (set["ssm"] | 0) == 2;
+  int ssm = set["ssm"] | 0;
+  out.prayer = ssm == 2 || ssm == 4;
+  out.football = ssm == 3;
+  out.mix = ssm == 4;
+  out.mix_interval = clampi(set["smi"] | 20, 5, 600);
   out.prayer_names.clear();
   out.prayer_entities.clear();
   out.prayer_kind.clear();
@@ -1896,6 +1911,26 @@ void GuitionStudio::show_screensaver_() {
   lv_obj_set_style_bg_color(o, lv_color_hex(0x000000), 0);
   lv_obj_set_style_bg_opa(o, LV_OPA_COVER, 0);
   lv_obj_add_flag(o, LV_OBJ_FLAG_CLICKABLE);  // swallows the waking tap
+  this->ss_view_ = l.football ? 1 : 0;  // mix starts with the prayer times
+  this->ss_switch_at_ = millis() + static_cast<uint32_t>(l.mix_interval) * 1000u;
+  this->build_ss_content_();
+  if (this->night_obj_ != nullptr)
+    lv_obj_move_foreground(this->night_obj_);
+  if (this->notify_obj_ != nullptr)
+    lv_obj_move_foreground(this->notify_obj_);
+  this->update_status_();
+}
+
+/// (Re)build the screensaver content for the current view (mix mode switches views).
+void GuitionStudio::build_ss_content_() {
+  const auto &l = this->layout_;
+  lv_obj_t *o = this->ss_obj_;
+  lv_obj_clean(o);
+  this->reset_ss_refs_();
+  if (this->ss_view_ == 1) {
+    this->build_football_(o);
+    return;
+  }
   bool slides = false;
 #ifdef USE_GS_SLIDESHOW
   slides = l.slideshow && this->slide_img_ != nullptr;
@@ -1938,11 +1973,153 @@ void GuitionStudio::show_screensaver_() {
       lv_obj_align(this->ss_lines_[i], LV_ALIGN_CENTER, 0, 70 + i * 44);
     }
   }
-  if (this->night_obj_ != nullptr)
-    lv_obj_move_foreground(this->night_obj_);
-  if (this->notify_obj_ != nullptr)
-    lv_obj_move_foreground(this->notify_obj_);
-  this->update_status_();
+}
+
+void GuitionStudio::reset_ss_refs_() {
+  this->ss_img_ = nullptr;
+  this->ss_clock_ = this->ss_date_ = nullptr;
+  this->ss_lines_[0] = this->ss_lines_[1] = nullptr;
+  this->ss_next_ = nullptr;
+  for (int i = 0; i < MAX_PRAYER_ROWS; i++)
+    this->ss_prow_[i] = this->ss_pname_[i] = this->ss_ptime_[i] = nullptr;
+  this->ss_prayer_sig_.clear();
+  this->fb_head_ = this->fb_list_ = nullptr;
+}
+
+// ---------------------------------------------------------------- football screensaver
+
+void GuitionStudio::set_football(const std::string &json) {
+  JsonDocument doc(&psram_allocator);
+  if (deserializeJson(doc, json)) {
+    ESP_LOGW(TAG, "Invalid football payload");
+    return;
+  }
+  this->fb_header_ = std::string(doc["h"] | "").substr(0, 48);
+  this->fb_groups_.clear();
+  size_t total = 0;
+  for (JsonArrayConst g : doc["g"].as<JsonArrayConst>()) {
+    FootballGroup group;
+    group.name = std::string(g[0] | "").substr(0, 32);
+    for (JsonArrayConst r : g[1].as<JsonArrayConst>()) {
+      if (++total > 60)
+        break;
+      group.rows.push_back({std::string(r[0] | "").substr(0, 12), std::string(r[1] | "").substr(0, 24),
+                            std::string(r[2] | "").substr(0, 24), std::string(r[4] | "").substr(0, 8),
+                            static_cast<uint8_t>(clampi(r[3] | 0, 0, 3))});
+    }
+    if (!group.rows.empty())
+      this->fb_groups_.push_back(std::move(group));
+  }
+  if (this->fb_list_ != nullptr)
+    this->render_football_();
+}
+
+void GuitionStudio::build_football_(lv_obj_t *parent) {
+  // header: time · date · "Heute"; the list below is rendered page by page
+  this->fb_head_ = make_label(parent, font_px(20), 0xFFFFFF, "");
+  lv_obj_set_width(this->fb_head_, SCREEN_W - 16);
+  lv_obj_set_style_text_align(this->fb_head_, LV_TEXT_ALIGN_CENTER, 0);
+  lv_label_set_long_mode(this->fb_head_, LABEL_LONG_DOTS);
+  lv_obj_align(this->fb_head_, LV_ALIGN_TOP_MID, 0, 8);
+  lv_obj_t *line = make_plain(parent);
+  lv_obj_set_size(line, SCREEN_W - 16, 1);
+  lv_obj_set_pos(line, 8, 38);
+  lv_obj_set_style_bg_color(line, lv_color_hex(this->layout_.accent), 0);
+  lv_obj_set_style_bg_opa(line, LV_OPA_60, 0);
+  this->fb_list_ = make_plain(parent);
+  lv_obj_set_pos(this->fb_list_, 0, 44);
+  lv_obj_set_size(this->fb_list_, SCREEN_W, SCREEN_H - 44);
+  this->fb_page_ = 0;
+  this->render_football_();
+}
+
+/// Lay out all lines with the largest font that fits (16 px, else 12 px) and show one page.
+void GuitionStudio::render_football_() {
+  if (this->fb_list_ == nullptr)
+    return;
+  lv_obj_clean(this->fb_list_);
+  const auto &l = this->layout_;
+  const int avail = SCREEN_H - 44 - 4;
+  int lines = 0;
+  for (const auto &g : this->fb_groups_)
+    lines += 1 + static_cast<int>(g.rows.size());
+  if (lines == 0) {
+    lv_obj_t *msg = make_label(this->fb_list_, font_px(20), l.muted, this->fb_header_.empty() ? "…" : this->fb_header_.c_str());
+    lv_obj_set_width(msg, SCREEN_W - 40);
+    lv_obj_set_style_text_align(msg, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(msg, LV_ALIGN_CENTER, 0, -20);
+    this->fb_pages_ = 1;
+    return;
+  }
+  bool big = lines * 22 + static_cast<int>(this->fb_groups_.size()) * 4 <= avail;
+  int px = big ? 16 : 12;
+  int row_h = big ? 22 : 16;
+  int head_h = row_h + 4;
+  // columns: kick-off/score | home (right aligned) | – | away | minute
+  int c1 = big ? 78 : 62, cm = big ? 46 : 36;
+  int team_w = (SCREEN_W - 16 - c1 - cm - 14) / 2;
+
+  // paginate: a league header is never the last line of a page
+  struct Line {
+    const FootballGroup *g;
+    const FootballRow *r;
+  };
+  std::vector<std::vector<Line>> pages(1);
+  int y = 0;
+  for (const auto &g : this->fb_groups_) {
+    if (y + head_h + row_h > avail) {
+      pages.emplace_back();
+      y = 0;
+    }
+    pages.back().push_back({&g, nullptr});
+    y += head_h;
+    for (const auto &r : g.rows) {
+      if (y + row_h > avail) {
+        pages.emplace_back();
+        pages.back().push_back({&g, nullptr});  // repeat the league name on the new page
+        y = head_h;
+      }
+      pages.back().push_back({&g, &r});
+      y += row_h;
+    }
+  }
+  this->fb_pages_ = static_cast<int>(pages.size());
+  if (this->fb_page_ >= this->fb_pages_)
+    this->fb_page_ = 0;
+  this->fb_page_at_ = millis() + 8000;
+
+  y = 0;
+  for (const auto &ln : pages[this->fb_page_]) {
+    if (ln.r == nullptr) {
+      lv_obj_t *h = make_label(this->fb_list_, font_px(px), l.accent, ln.g->name.c_str());
+      lv_obj_set_pos(h, 8, y + 2);
+      y += head_h;
+      continue;
+    }
+    const FootballRow &r = *ln.r;
+    uint32_t col = r.state == 1 ? 0x3FB950 : (r.state >= 2 ? l.muted : 0xE6EDF3);
+    uint32_t team_col = r.state == 2 ? 0xC9D1D9 : 0xE6EDF3;
+    lv_obj_t *a = make_label(this->fb_list_, font_px(px), col, r.first.c_str());
+    lv_obj_set_pos(a, 8, y);
+    lv_obj_t *home = make_label(this->fb_list_, font_px(px), team_col, r.home.c_str());
+    lv_obj_set_width(home, team_w);
+    lv_label_set_long_mode(home, LABEL_LONG_DOTS);
+    lv_obj_set_style_text_align(home, LV_TEXT_ALIGN_RIGHT, 0);
+    lv_obj_set_pos(home, 8 + c1, y);
+    lv_obj_t *dash = make_label(this->fb_list_, font_px(px), l.muted, "–");
+    lv_obj_set_pos(dash, 8 + c1 + team_w + 3, y);
+    lv_obj_t *away = make_label(this->fb_list_, font_px(px), team_col, r.away.c_str());
+    lv_obj_set_width(away, team_w);
+    lv_label_set_long_mode(away, LABEL_LONG_DOTS);
+    lv_obj_set_pos(away, 8 + c1 + team_w + 14, y);
+    if (!r.minute.empty()) {
+      lv_obj_t *m = make_label(this->fb_list_, font_px(px), 0x3FB950, r.minute.c_str());
+      lv_obj_set_width(m, cm);
+      lv_obj_set_style_text_align(m, LV_TEXT_ALIGN_RIGHT, 0);
+      lv_obj_set_pos(m, SCREEN_W - 8 - cm, y);
+    }
+    y += row_h;
+  }
 }
 
 void GuitionStudio::hide_screensaver_() {
@@ -1950,14 +2127,8 @@ void GuitionStudio::hide_screensaver_() {
     return;
   GS_OBJ_DELETE(this->ss_obj_);
   this->ss_obj_ = nullptr;
-  this->ss_img_ = nullptr;
   this->slide_stop_();
-  this->ss_clock_ = this->ss_date_ = nullptr;
-  this->ss_lines_[0] = this->ss_lines_[1] = nullptr;
-  this->ss_next_ = nullptr;
-  for (int i = 0; i < MAX_PRAYER_ROWS; i++)
-    this->ss_prow_[i] = this->ss_pname_[i] = this->ss_ptime_[i] = nullptr;
-  this->ss_prayer_sig_.clear();
+  this->reset_ss_refs_();
 }
 
 void GuitionStudio::build_prayer_screensaver_(lv_obj_t *parent) {
@@ -2142,6 +2313,16 @@ void GuitionStudio::update_prayer_(const std::string &hhmm) {
 
 void GuitionStudio::update_screensaver_(const std::string &hhmm, const std::string &date) {
   if (this->ss_obj_ == nullptr)
+    return;
+  if (this->fb_head_ != nullptr) {
+    std::string head = hhmm + "  ·  " + date;
+    if (!this->fb_header_.empty() && !this->fb_groups_.empty())
+      head += "  ·  " + this->fb_header_;
+    if (this->fb_pages_ > 1)
+      head += "  " + std::to_string(this->fb_page_ + 1) + "/" + std::to_string(this->fb_pages_);
+    lv_label_set_text(this->fb_head_, head.c_str());
+  }
+  if (this->ss_clock_ == nullptr)
     return;
   lv_label_set_text(this->ss_clock_, hhmm.c_str());
   lv_label_set_text(this->ss_date_, date.c_str());

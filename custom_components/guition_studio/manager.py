@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 from collections import deque
+import json
 import copy
 from datetime import datetime, timedelta, timezone
 from functools import partial
@@ -22,10 +23,12 @@ import logging
 import secrets
 from typing import Any
 
+import aiohttp
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 from homeassistant.helpers.event import (
@@ -47,6 +50,7 @@ from .automation import (
 )
 
 from .const import (
+    ACTION_FOOTBALL,
     ACTION_HELLO,
     ACTION_LAYOUT_BEGIN,
     ACTION_LAYOUT_CHUNK,
@@ -64,10 +68,12 @@ from .const import (
     TRANSFER_RETRIES,
     TRANSFER_TIMEOUT,
 )
+from .football import SCOREBOARD_URL, build_payload as football_payload, has_live, parse_scoreboard, scoreboard_params
 from .layout import (
     LayoutValidationError,
     compile_device_layout,
     find_tile,
+    football_settings,
     layout_entities,
     resolve_action,
     resolve_control,
@@ -89,6 +95,7 @@ from .store import StudioStore
 from .themes import THEMES
 
 _LOGGER = logging.getLogger(__name__)
+
 ESPHOME = "esphome"
 NON_RETRYABLE = ("schema:", "json:", "version", "size")
 
@@ -116,6 +123,9 @@ class StudioManager:
         self._push_pending: dict[str, set[str]] = {}
         self._push_timer: dict[str, CALLBACK_TYPE] = {}
         self._forecasts: dict[str, tuple[float, list[dict[str, Any]] | None]] = {}
+        # football: (league, day) -> (fetched at, matches or None); last document sent per display
+        self._fixtures: dict[tuple[str, str], tuple[float, list[dict[str, Any]] | None]] = {}
+        self._football_sent: dict[str, tuple[float, str]] = {}
         self._unsubs: list[CALLBACK_TYPE] = []
         self.debug = False
 
@@ -333,6 +343,8 @@ class StudioManager:
             self._evaluate_night(display, local)
             for rule in time_rules_due(self._rules(display), local):
                 self.hass.async_create_task(self._apply_rule(display, rule))
+            if football_settings(display["applied"]["layout"]):
+                self.hass.async_create_task(self.async_push_football(display["id"]))
 
     @callback
     def _evaluate_night(self, display: dict[str, Any], local: datetime, force: bool = False) -> None:
@@ -528,6 +540,81 @@ class StudioManager:
         self._forecasts[entity_id] = (now, forecast)
         return forecast
 
+    # ------------------------------------------------------------------ football
+
+    async def _fixtures_for(self, league: str, day: Any, max_age: float) -> list[dict[str, Any]] | None:
+        """Matches of one league on one day (ESPN), cached for max_age seconds."""
+        key = (league, day.isoformat())
+        now = self.hass.loop.time()
+        cached = self._fixtures.get(key)
+        if cached and now - cached[0] < max_age:
+            return cached[1]
+        matches: list[dict[str, Any]] | None
+        try:
+            session = async_get_clientsession(self.hass)
+            async with asyncio.timeout(15):
+                resp = await session.get(SCOREBOARD_URL.format(league=league), params=scoreboard_params(day))
+                resp.raise_for_status()
+                data = await resp.json(content_type=None)
+            matches = parse_scoreboard(data, dt_util.get_default_time_zone())
+        except (TimeoutError, aiohttp.ClientError, ValueError) as err:
+            if self.debug:
+                self.add_log("debug", f"Spielplan {league} {day} nicht abrufbar: {err}")
+            matches = cached[1] if cached else None  # keep the last good data
+        self._fixtures[key] = (now, matches)
+        if len(self._fixtures) > 200:
+            for old in sorted(self._fixtures, key=lambda k: self._fixtures[k][0])[:100]:
+                self._fixtures.pop(old, None)
+        return matches
+
+    async def async_push_football(self, display_id: str, force: bool = False) -> bool:
+        """Send today's (or the next) matches to a display that shows football in its screensaver."""
+        display = self.store.get_display(display_id)
+        if not display or not display.get("applied") or not self.has_actions(display):
+            return False
+        conf = football_settings(display["applied"]["layout"])
+        if conf is None:
+            return False
+        leagues, lang = conf
+        now = dt_util.now()
+        sent_at, last_doc = self._football_sent.get(display_id, (0.0, ""))
+        loop_now = self.hass.loop.time()
+        today = now.date()
+        data = {code: await self._fixtures_for(code, today, 600) for code in leagues}
+        live = has_live(data, now)
+        if live:  # refresh running matches every minute
+            data = {code: await self._fixtures_for(code, today, 55) for code in leagues}
+        if not force and not live and loop_now - sent_at < 600:
+            return False
+        if not any(any(m["when"].date() == today for m in v) for v in data.values() if v):
+            # nothing today: look ahead day by day (cached for an hour)
+            for offset in range(1, 8):
+                day = today + timedelta(days=offset)
+                for code in leagues:
+                    extra = await self._fixtures_for(code, day, 3600)
+                    if extra and data.get(code) is not None:
+                        data[code] = [*(data[code] or []), *extra]
+                if any(any(m["when"].date() > today for m in v) for v in data.values() if v):
+                    # include two more days so leagues playing on different days show up together
+                    for extra_day in (day + timedelta(days=1), day + timedelta(days=2)):
+                        for code in leagues:
+                            extra = await self._fixtures_for(code, extra_day, 3600)
+                            if extra and data.get(code) is not None:
+                                data[code] = [*(data[code] or []), *extra]
+                    break
+        doc = json.dumps(football_payload(data, lang, now), ensure_ascii=False, separators=(",", ":"))
+        if doc == last_doc and not force:
+            self._football_sent[display_id] = (loop_now, doc)
+            return False
+        try:
+            await self._call(display, ACTION_FOOTBALL, {"data": doc})
+        except (HomeAssistantError, TransferError) as err:
+            if self.debug:  # firmware < 0.5.12 has no football action
+                self.add_log("debug", f"Spieldaten nicht gesendet: {err}", display_id)
+            return False
+        self._football_sent[display_id] = (loop_now, doc)
+        return True
+
     def _get_state(self, entity_id: str) -> str | None:
         state = self.hass.states.get(entity_id)
         return state.state if state else None
@@ -627,6 +714,7 @@ class StudioManager:
                         await self.async_push_states(display_id)
                         self._evaluate_night(display, dt_util.now(), force=True)
                         self.hass.async_create_task(self.async_refresh_graphs(display_id))
+                        self.hass.async_create_task(self.async_push_football(display_id, force=True))
                         return {"ok": True, "revision": layout.get("revision"), "size": len(raw), "crc": crc, "attempts": attempt}
                     code = str(ack.get("err") or "")
                     last_error = describe_device_error(code)
@@ -767,6 +855,7 @@ class StudioManager:
         self.hass.async_create_task(self.async_push_states(display_id))
         self._evaluate_night(display, dt_util.now(), force=True)
         self.hass.async_create_task(self.async_refresh_graphs(display_id))
+        self.hass.async_create_task(self.async_push_football(display_id, force=True))
 
     async def _safe_resend(self, display_id: str, layout: dict[str, Any]) -> None:
         try:

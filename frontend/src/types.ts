@@ -161,7 +161,7 @@ export interface ScreensaverSettings {
   enabled: boolean;
   after: number;
   entities: string[];
-  mode?: "clock" | "slideshow" | "prayer";
+  mode?: "clock" | "slideshow" | "prayer" | "football" | "mix";
   folder?: string;
   interval?: number;
   order?: "random" | "sequential";
@@ -173,6 +173,10 @@ export interface ScreensaverSettings {
   prayer_lang?: "de" | "tr";
   /** calligraphy background: "none" or one of PRAYER_BACKGROUNDS (0.5.9 stored a boolean) */
   prayer_bg?: string | boolean;
+  /** football: ESPN league codes, e.g. "ger.1" */
+  leagues?: string[];
+  /** mix: seconds per view (prayer times / football) */
+  mix_interval?: number;
 }
 
 export type PrayerKey = "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha";

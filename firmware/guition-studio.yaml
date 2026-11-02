@@ -10,7 +10,7 @@
 substitutions:
   name: guition-studio
   friendly_name: Guition Studio
-  fw_version: "0.5.11"
+  fw_version: "0.5.12"
 
 esphome:
   name: ${name}
@@ -114,6 +114,11 @@ api:
         dim: int
       then:
         - lambda: id(studio).set_mode(night, brightness, dim);
+    - action: gs_football
+      variables:
+        data: string
+      then:
+        - lambda: id(studio).set_football(data);
     - action: gs_rollback
       then:
         - lambda: id(studio).rollback();

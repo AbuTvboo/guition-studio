@@ -106,6 +106,8 @@ def default_screensaver() -> dict[str, Any]:
         "mode": "clock", "folder": "guition_studio", "interval": 15, "order": "random", "fit": "cover", "show_clock": True,
         # prayer: timestamp sensors of the Islamic Prayer Times integration, key -> entity id
         "prayer": {}, "prayer_lang": "de", "prayer_bg": "basmala",
+        # football: ESPN league codes (see football.LEAGUES); mix: prayer/football alternate every n seconds
+        "leagues": ["ger.1", "tur.1", "esp.1"], "mix_interval": 20,
     }  # fmt: skip
 
 
@@ -124,6 +126,10 @@ PRAYER_NAMES: dict[str, dict[str, str]] = {
     "de": dict(PRAYER_KEYS),
     "tr": {"fajr": "İmsak", "sunrise": "Güneş", "dhuhr": "Öğle", "asr": "İkindi", "maghrib": "Akşam", "isha": "Yatsı"},
 }
+# clock: time + 2 values, slideshow: pictures, prayer: prayer times, football: today's matches,
+# mix: prayer times and football alternating
+SCREENSAVER_MODES = ("clock", "slideshow", "prayer", "football", "mix")
+FOOTBALL_LEAGUES = ("ger.1", "ger.2", "tur.1", "esp.1", "eng.1", "ita.1", "fra.1", "uefa.champions")  # = football.LEAGUES
 # Calligraphy backgrounds built into the firmware (order = index on the device, 1-based; 0 = none)
 PRAYER_BACKGROUNDS: tuple[str, ...] = ("basmala", "mosque")
 # Texts of the "next prayer" line: prefix, separator before the countdown, hour unit, minute unit, "now" prefix
@@ -421,7 +427,7 @@ def _validate_screensaver(raw: Any, errors: list[str]) -> dict[str, Any]:
             errors.append(f"Bildschirmschoner: ungültige Entity-ID „{e}“.")
         else:
             s["entities"].append(e)
-    s["mode"] = raw.get("mode") if raw.get("mode") in ("clock", "slideshow", "prayer") else "clock"
+    s["mode"] = raw.get("mode") if raw.get("mode") in SCREENSAVER_MODES else "clock"
     folder = raw.get("folder", s["folder"])
     if not isinstance(folder, str) or ".." in folder or not FOLDER_RE.match(folder):
         errors.append("Bildschirmschoner: ungültiger Bilderordner.")
@@ -445,8 +451,14 @@ def _validate_screensaver(raw: Any, errors: list[str]) -> dict[str, Any]:
     if isinstance(bg, bool):  # 0.5.9 stored on/off
         bg = "basmala" if bg else "none"
     s["prayer_bg"] = bg if bg in PRAYER_BACKGROUNDS or bg == "none" else "basmala"
-    if s["enabled"] and s["mode"] == "prayer" and not s["prayer"]:
+    if s["enabled"] and s["mode"] in ("prayer", "mix") and not s["prayer"]:
         errors.append("Bildschirmschoner: Bitte die Gebetszeit-Sensoren auswählen.")
+    leagues = raw.get("leagues", s["leagues"])
+    if isinstance(leagues, list):
+        s["leagues"] = [code for code in FOOTBALL_LEAGUES if code in leagues]  # known codes, fixed order
+    if s["enabled"] and s["mode"] in ("football", "mix") and not s["leagues"]:
+        errors.append("Bildschirmschoner: Bitte mindestens eine Liga auswählen.")
+    s["mix_interval"] = _int(raw.get("mix_interval"), 20, 5, 600)
     return s
 
 
@@ -904,7 +916,9 @@ def _screensaver_device(settings: dict[str, Any], layout: dict[str, Any], slide_
     out = {"ss": ss["after"], "sse": ss.get("entities", []), "sst": titles}
     if ss.get("mode") == "slideshow" and slide_url:
         out.update(ssm=1, slu=slide_url, sli=ss.get("interval", 15), slc=int(ss.get("show_clock", True)))
-    elif ss.get("mode") == "prayer":
+    elif ss.get("mode") == "football":
+        out.update(ssm=3)
+    elif ss.get("mode") in ("prayer", "mix"):
         prayer = ss.get("prayer") or {}
         lang = ss.get("prayer_lang") if ss.get("prayer_lang") in PRAYER_NAMES else "de"
         names = PRAYER_NAMES[lang]
@@ -919,6 +933,8 @@ def _screensaver_device(settings: dict[str, Any], layout: dict[str, Any], slide_
             spx=PRAYER_TEXTS[lang],
             spb=PRAYER_BACKGROUNDS.index(bg) + 1 if (bg := ss.get("prayer_bg", "basmala")) in PRAYER_BACKGROUNDS else 0,
         )
+        if ss.get("mode") == "mix":  # firmware < 0.5.12 shows prayer times only
+            out.update(ssm=4, smi=ss.get("mix_interval", 20))
     return out
 
 
@@ -926,7 +942,7 @@ def layout_entities(layout: dict[str, Any]) -> set[str]:
     """All entity ids the display shows (tiles, visibility conditions, screensaver)."""
     ss = (layout.get("settings") or {}).get("screensaver", {}) or {}
     out: set[str] = set(ss.get("entities", []))
-    if ss.get("enabled") and ss.get("mode") == "prayer":
+    if ss.get("enabled") and ss.get("mode") in ("prayer", "mix"):
         out.update(e for e in (ss.get("prayer") or {}).values() if e)
     for page in layout.get("pages", []):
         for tile in page.get("tiles", []):
@@ -967,3 +983,11 @@ def regenerate_ids(layout: dict[str, Any]) -> dict[str, Any]:
     if settings.get("home_page") in mapping:
         settings["home_page"] = mapping[settings["home_page"]]
     return out
+
+
+def football_settings(layout: dict[str, Any]) -> tuple[list[str], str] | None:
+    """(leagues, language) if the display's screensaver shows football, else None."""
+    ss = (layout.get("settings") or {}).get("screensaver") or {}
+    if not ss.get("enabled") or ss.get("mode") not in ("football", "mix") or not ss.get("leagues"):
+        return None
+    return list(ss["leagues"]), ss.get("prayer_lang", "de")

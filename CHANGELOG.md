@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.12 – Fußball-Bildschirmschoner
+- **Neuer Bildschirmschoner „Fußball – heutige Spiele“:** Er zeigt alle heutigen Spiele der gewählten Ligen. Standard sind **1. Bundesliga, Süper Lig und LaLiga**. Wählbar sind außerdem 2. Bundesliga, Premier League, Serie A, Ligue 1 und Champions League.
+  - Je Spiel stehen Anstoßzeit, Heim- und Gastmannschaft da. Bei laufenden Spielen kommt der **Live-Spielstand in Grün mit Minute** dazu (oder „HZ“), bei beendeten Spielen das Endergebnis.
+  - Die Schrift ist so klein wie nötig, damit möglichst viele Spiele auf den Bildschirm passen: 16 px, bei vielen Spielen 12 px. Reicht der Platz trotzdem nicht, blättert die Liste alle 8 Sekunden weiter (Anzeige oben „1/2“).
+  - An Tagen ohne Spiele erscheinen die **nächsten Spiele mit Wochentag**.
+  - Die Daten holt Home Assistant von ESPN (öffentlich, ohne Konto): alle 10 Minuten, während Spiele laufen jede Minute. Bekannte Namen werden eingedeutscht bzw. ins Türkische korrigiert (Köln, Beşiktaş, Fenerbahçe …).
+- **Neuer Modus „Gebetszeiten & Fußball im Wechsel“:** Die beiden Ansichten wechseln sich ab, alle 10 s bis 2 min einstellbar. Gebetszeiten allein und Fußball allein gibt es weiterhin.
+- Mit Türkisch als Sprache stehen auch die Fußball-Texte auf Türkisch („Bugün“, „Sonraki maçlar“, „İY“).
+
 ## 0.5.11 – Schnelles Update & zweites Kalligraphie-Design
 - **Firmware wieder klein (≈ 1,6 MB statt 3,3 MB):** Die Hintergründe stecken jetzt als JPEG in der Firmware (zusammen 48 KB statt 1,8 MB) und werden erst beim Öffnen des Bildschirmschoners in den PSRAM entpackt (etwa 0,2 s, danach zwischengespeichert). Firmware-Updates dauern dadurch wieder so lange wie vor 0.5.10.
 - Größerer Empfangspuffer (4 KB statt 512 Byte) für Firmware-Updates und Diashow-Bilder.

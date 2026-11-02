@@ -126,6 +126,7 @@ export class GsSettings extends StudioView {
               <label class="check"><input type="checkbox" .checked=${s.swipe} @change=${(e: Event) => this.set({ swipe: (e.target as HTMLInputElement).checked })} /> Seitenwechsel durch Wischen</label>
               <label class="check"><input type="checkbox" .checked=${s.show_dots} @change=${(e: Event) => this.set({ show_dots: (e.target as HTMLInputElement).checked })} /> Seitenpunkte anzeigen</label>
               <label class="check"><input type="checkbox" .checked=${s.show_header} @change=${(e: Event) => this.set({ show_header: (e.target as HTMLInputElement).checked })} /> Kopfzeile anzeigen</label>
+              <label class="check"><input type="checkbox" .checked=${s.tile_depth ?? true} @change=${(e: Event) => this.set({ tile_depth: (e.target as HTMLInputElement).checked })} /> 3D-Kacheln (Schatten & Licht von oben)</label>
               <label class="field"><span>Sprache der Displaytexte</span>
                 <select @change=${(e: Event) => this.set({ language: (e.target as HTMLSelectElement).value as "de" | "en" })}>
                   <option value="de" ?selected=${s.language === "de"}>Deutsch</option>

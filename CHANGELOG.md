@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.17 – 3D-Kacheln
+- **Kacheln für Lampen, Schalter, Sensoren usw. mit Tiefe** statt flacher Flächen:
+  - Licht von oben: Verlauf von etwas heller (oben) nach dunkler (unten) in der Kachelfarbe, dazu eine helle Lichtkante am oberen Rand.
+  - Schlagschatten unter jeder Kachel – die Kacheln schweben über dem Hintergrund.
+  - **Drück-Effekt:** Beim Antippen sinkt die Kachel 3 px ein und der Schatten wird kleiner, wie ein echter Taster.
+  - Gilt für An- und Aus-Farbe gleichermaßen; eigene Rahmen bleiben erhalten.
+- Neuer Schalter **„3D-Kacheln (Schatten & Licht)“** in den Displayeinstellungen des Designers und unter Einstellungen – standardmäßig an, ausschalten gibt den flachen Look zurück. Die Designer-Vorschau zeigt den Effekt ebenfalls.
+
 ## 0.5.16 – Fußball-Karten mit 3D-Tiefe
 - Der Fußball-Bildschirmschoner bekommt **Tiefe statt flacher Flächen**:
   - Spielkarten, Liga-Balken, Ergebnis-Boxen und Kopfleiste mit **Licht von oben** (Verlauf hell → dunkel, heller Rand oben) und **Schlagschatten** darunter – sie wirken, als würden sie über dem Hintergrund schweben.

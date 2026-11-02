@@ -584,6 +584,12 @@ export const screenStyles = css`
     inset: 0;
     overflow: hidden;
   }
+  /* 3D tiles (like the display): light from above, bright top edge, drop shadow */
+  .d3 .t-inner {
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    /* over the inline background colour (important beats the inline shorthand) */
+    background-image: linear-gradient(rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.38)) !important;
+  }
   .t-inner.unavailable {
     filter: grayscale(0.8);
   }
@@ -643,7 +649,7 @@ export function renderScreen(layout: Layout, page: Page, themes: Record<string, 
   const theme = themes[layout.settings.theme] ?? Object.values(themes)[0];
   const geo = pageGeometry(layout.settings, layout.pages.length);
   const index = layout.pages.indexOf(page);
-  return html`<div class="screen" style="background:${theme.header_bg}">
+  return html`<div class="screen ${layout.settings.tile_depth ?? true ? "d3" : ""}" style="background:${theme.header_bg}">
     ${layout.settings.show_header
       ? html`<div class="s-header" style="color:${theme.header_text}">
           <span class="name">${page.name}</span><span>${new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}</span>

@@ -138,6 +138,8 @@ export interface DisplaySettings {
   home_page: string | null;
   show_header: boolean;
   show_dots: boolean;
+  /** 3D tiles: light from above + drop shadow (default on) */
+  tile_depth?: boolean;
   swipe: boolean;
   language: "de" | "en";
   rotation?: 0 | 90 | 180 | 270;

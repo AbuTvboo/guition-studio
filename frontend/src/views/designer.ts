@@ -762,6 +762,7 @@ export class GsDesigner extends LitElement {
         </label>
         <label class="check"><input type="checkbox" .checked=${s.show_header} @change=${(e: Event) => set({ show_header: (e.target as HTMLInputElement).checked })} /> Kopfzeile mit Uhr & Status</label>
         <label class="check"><input type="checkbox" .checked=${s.show_dots} @change=${(e: Event) => set({ show_dots: (e.target as HTMLInputElement).checked })} /> Seitenpunkte anzeigen</label>
+        <label class="check"><input type="checkbox" .checked=${s.tile_depth ?? true} @change=${(e: Event) => set({ tile_depth: (e.target as HTMLInputElement).checked })} /> 3D-Kacheln (Schatten & Licht)</label>
         <label class="check"><input type="checkbox" .checked=${s.swipe} @change=${(e: Event) => set({ swipe: (e.target as HTMLInputElement).checked })} /> Wischen zum Seitenwechsel</label>
       </details>
     </aside>`;
@@ -836,7 +837,7 @@ export class GsDesigner extends LitElement {
           </div>
           <div class="canvas-wrap" style="width:${SCREEN * z}px;height:${SCREEN * z}px">
             <div
-              class="screen canvas ${d ? "dragging" : ""}"
+              class="screen canvas ${d ? "dragging" : ""} ${layout.settings.tile_depth ?? true ? "d3" : ""}"
               data-page=${page.id}
               style="transform:scale(${z});background:${theme.header_bg}"
               @pointerdown=${() => {

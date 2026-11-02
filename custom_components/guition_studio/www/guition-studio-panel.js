@@ -961,6 +961,12 @@ var xe = r`
     inset: 0;
     overflow: hidden;
   }
+  /* 3D tiles (like the display): light from above, bright top edge, drop shadow */
+  .d3 .t-inner {
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    /* over the inline background colour (important beats the inline shorthand) */
+    background-image: linear-gradient(rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.38)) !important;
+  }
   .t-inner.unavailable {
     filter: grayscale(0.8);
   }
@@ -1016,7 +1022,7 @@ var xe = r`
 `;
 function Se(e, t, n, r) {
 	let i = n[e.settings.theme] ?? Object.values(n)[0], o = x(e.settings, e.pages.length), s = e.pages.indexOf(t);
-	return c`<div class="screen" style="background:${i.header_bg}">
+	return c`<div class="screen ${e.settings.tile_depth ?? !0 ? "d3" : ""}" style="background:${i.header_bg}">
     ${e.settings.show_header ? c`<div class="s-header" style="color:${i.header_text}">
           <span class="name">${t.name}</span><span>${(/* @__PURE__ */ new Date()).toLocaleTimeString("de-DE", {
 		hour: "2-digit",
@@ -4204,6 +4210,7 @@ var Dt, q = [], J = (Dt = class extends t {
         </label>
         <label class="check"><input type="checkbox" .checked=${t.show_header} @change=${(e) => n({ show_header: e.target.checked })} /> Kopfzeile mit Uhr & Status</label>
         <label class="check"><input type="checkbox" .checked=${t.show_dots} @change=${(e) => n({ show_dots: e.target.checked })} /> Seitenpunkte anzeigen</label>
+        <label class="check"><input type="checkbox" .checked=${t.tile_depth ?? !0} @change=${(e) => n({ tile_depth: e.target.checked })} /> 3D-Kacheln (Schatten & Licht)</label>
         <label class="check"><input type="checkbox" .checked=${t.swipe} @change=${(e) => n({ swipe: e.target.checked })} /> Wischen zum Seitenwechsel</label>
       </details>
     </aside>`;
@@ -4265,7 +4272,7 @@ var Dt, q = [], J = (Dt = class extends t {
           </div>
           <div class="canvas-wrap" style="width:${480 * r}px;height:${480 * r}px">
             <div
-              class="screen canvas ${i ? "dragging" : ""}"
+              class="screen canvas ${i ? "dragging" : ""} ${e.settings.tile_depth ?? !0 ? "d3" : ""}"
               data-page=${o.id}
               style="transform:scale(${r});background:${t.header_bg}"
               @pointerdown=${() => {
@@ -5345,6 +5352,7 @@ var Mt = class extends N {
               <label class="check"><input type="checkbox" .checked=${t.swipe} @change=${(e) => this.set({ swipe: e.target.checked })} /> Seitenwechsel durch Wischen</label>
               <label class="check"><input type="checkbox" .checked=${t.show_dots} @change=${(e) => this.set({ show_dots: e.target.checked })} /> Seitenpunkte anzeigen</label>
               <label class="check"><input type="checkbox" .checked=${t.show_header} @change=${(e) => this.set({ show_header: e.target.checked })} /> Kopfzeile anzeigen</label>
+              <label class="check"><input type="checkbox" .checked=${t.tile_depth ?? !0} @change=${(e) => this.set({ tile_depth: e.target.checked })} /> 3D-Kacheln (Schatten & Licht von oben)</label>
               <label class="field"><span>Sprache der Displaytexte</span>
                 <select @change=${(e) => this.set({ language: e.target.value })}>
                   <option value="de" ?selected=${t.language === "de"}>Deutsch</option>

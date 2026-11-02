@@ -127,6 +127,7 @@ struct LayoutCfg {
   int home{0};
   bool header{true};
   bool dots{true};
+  bool depth{false};  // 3D tiles: light from above, drop shadow, press-in effect
   bool swipe{true};
   uint32_t header_bg{0x0B0F14}, header_fg{0xE6EDF3}, muted{0x8B98A5}, accent{0x3D8BFD};
   uint32_t ok_color{0x2EA043}, err_color{0xF85149};
@@ -308,6 +309,8 @@ class GuitionStudio : public Component {
   void hold_cancel_();
   void hold_update_(uint32_t now);
   void update_tile_(TileView &view);
+  void paint_tile_(lv_obj_t *o, const TileCfg &t, uint32_t bg);
+  void tile_depth_(lv_obj_t *o, bool pressed);
   void swipe_item_(int index, int step);
   void swipe_animate_(TileView &view, int from, int to, uint32_t ms, bool out);
   void swipe_finish_(TileView &view);

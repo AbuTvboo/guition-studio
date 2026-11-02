@@ -523,6 +523,7 @@ bool GuitionStudio::parse_layout_(const char *data, size_t len, LayoutCfg &out, 
   out.home_after_s = clampi(set["ret"] | 0, 0, 86400);
   out.header = (set["hdr"] | 1) != 0;
   out.dots = (set["dots"] | 1) != 0;
+  out.depth = (set["t3d"] | 0) != 0;
   out.swipe = (set["swp"] | 1) != 0;
   out.header_bg = parse_color(set["hbg"], out.header_bg);
   out.header_fg = parse_color(set["hfg"], out.header_fg);
@@ -996,6 +997,42 @@ void GuitionStudio::build_ui_() {
   this->update_status_();
 }
 
+static lv_color_t mix_white(uint32_t rgb, int pct) {
+  uint32_t r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, b = rgb & 0xFF;
+  r += (255 - r) * pct / 100;
+  g += (255 - g) * pct / 100;
+  b += (255 - b) * pct / 100;
+  return lv_color_hex((r << 16) | (g << 8) | b);
+}
+
+static lv_color_t mix_black(uint32_t rgb, int keep_pct) {
+  uint32_t r = ((rgb >> 16) & 0xFF) * keep_pct / 100, g = ((rgb >> 8) & 0xFF) * keep_pct / 100,
+           b = (rgb & 0xFF) * keep_pct / 100;
+  return lv_color_hex((r << 16) | (g << 8) | b);
+}
+
+/// Tile background; with 3D tiles lit from above (lighter top, darker bottom, bright top edge).
+void GuitionStudio::paint_tile_(lv_obj_t *o, const TileCfg &t, uint32_t bg) {
+  if (!this->layout_.depth) {
+    lv_obj_set_style_bg_color(o, lv_color_hex(bg), 0);
+    return;
+  }
+  lv_obj_set_style_bg_color(o, mix_white(bg, 10), 0);
+  lv_obj_set_style_bg_grad_color(o, mix_black(bg, 62), 0);
+  lv_obj_set_style_bg_grad_dir(o, LV_GRAD_DIR_VER, 0);
+  if (t.border == 0)
+    lv_obj_set_style_border_color(o, mix_white(bg, 38), 0);
+}
+
+/// 3D tiles: drop shadow; pressed = pushed in (moves down, shadow shrinks).
+void GuitionStudio::tile_depth_(lv_obj_t *o, bool pressed) {
+  if (!this->layout_.depth)
+    return;
+  lv_obj_set_style_shadow_width(o, pressed ? 6 : 16, 0);
+  lv_obj_set_style_shadow_offset_y(o, pressed ? 1 : 6, 0);
+  lv_obj_set_style_translate_y(o, pressed ? 3 : 0, 0);
+}
+
 void GuitionStudio::build_tile_(int page_index, lv_obj_t *parent, const TileCfg &t) {
   const auto &page = this->layout_.pages[page_index];
   int area_w = SCREEN_W - 2 * MARGIN;
@@ -1016,10 +1053,20 @@ void GuitionStudio::build_tile_(int page_index, lv_obj_t *parent, const TileCfg 
   lv_obj_set_size(o, pw, ph);
   lv_obj_set_style_radius(o, t.radius, 0);
   lv_obj_set_style_bg_opa(o, LV_OPA_COVER, 0);
-  lv_obj_set_style_bg_color(o, lv_color_hex(t.bg), 0);
   lv_obj_set_style_border_width(o, t.border, 0);
   lv_obj_set_style_border_color(o, lv_color_hex(t.border_color), 0);
   lv_obj_set_style_border_opa(o, LV_OPA_COVER, 0);
+  if (this->layout_.depth) {
+    if (t.border == 0) {  // thin highlight along the top edge only
+      lv_obj_set_style_border_width(o, 1, 0);
+      lv_obj_set_style_border_side(o, LV_BORDER_SIDE_TOP, 0);
+      lv_obj_set_style_border_opa(o, LV_OPA_70, 0);
+    }
+    lv_obj_set_style_shadow_color(o, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_shadow_opa(o, LV_OPA_60, 0);
+    this->tile_depth_(o, false);
+  }
+  this->paint_tile_(o, t, t.bg);
   lv_obj_set_style_opa(o, static_cast<lv_opa_t>(t.opacity * 255 / 100), 0);
   lv_obj_set_style_clip_corner(o, true, 0);
 
@@ -1454,7 +1501,7 @@ void GuitionStudio::update_tile_(TileView &view) {
 
   uint32_t bg = (on && stateful) ? t.on_bg : t.bg;
   uint32_t fg = (on && stateful) ? t.on_fg : t.fg;
-  lv_obj_set_style_bg_color(view.obj, lv_color_hex(bg), 0);
+  this->paint_tile_(view.obj, t, bg);
   if (view.title != nullptr)
     lv_obj_set_style_text_color(view.title, lv_color_hex(fg), 0);
   if (view.value != nullptr)
@@ -1665,8 +1712,11 @@ void GuitionStudio::on_tile_event(int index, lv_event_code_t code) {
         view.drag_on = false;
         view.drag = 0;
       }
-      if (!this->begin_press_())
+      if (!this->begin_press_()) {
         lv_obj_set_style_opa(view.obj, static_cast<lv_opa_t>(t.opacity * 255 / 100 * 7 / 10), 0);
+        if (!swipe)
+          this->tile_depth_(view.obj, true);
+      }
       break;
     case LV_EVENT_PRESSING: {
       if (indev == nullptr || this->swallow_)
@@ -1678,6 +1728,7 @@ void GuitionStudio::on_tile_event(int index, lv_event_code_t code) {
         // moved too far for a tap: this touch is a swipe, never a click / long press
         this->press_moved_ = true;
         lv_obj_set_style_opa(view.obj, static_cast<lv_opa_t>(t.opacity * 255 / 100), 0);
+        this->tile_depth_(view.obj, false);
       }
       if (!swipe)
         break;
@@ -1706,6 +1757,7 @@ void GuitionStudio::on_tile_event(int index, lv_event_code_t code) {
           this->swipe_animate_(view, view.drag, 0, 160, false);  // snap back
         }
       }
+      this->tile_depth_(view.obj, false);
       this->update_tile_(view);
       if (t.entity.empty())
         lv_obj_set_style_opa(view.obj, static_cast<lv_opa_t>(t.opacity * 255 / 100), 0);

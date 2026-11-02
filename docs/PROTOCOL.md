@@ -61,7 +61,7 @@ Das Display ruft **niemals** selbst HA-Dienste auf. Es meldet nur `tap`/`hold`/`
 {
   "schema": 1, "revision": 4,
   "settings": { "theme": "modern_dark", "brightness": 80, "standby_brightness": 10, "timeout": 60,
-                "home_after": 0, "home_page": "p_…", "show_header": true, "show_dots": true, "swipe": true, "language": "de" },
+                "home_after": 0, "home_page": "p_…", "show_header": true, "show_dots": true, "tile_depth": true, "swipe": true, "language": "de" },
   "pages": [{ "id": "p_…", "name": "Wohnzimmer", "background": null, "cols": 3, "rows": 3,
     "tiles": [{ "id": "t_…", "type": "light", "x": 0, "y": 1, "w": 1, "h": 1, "entity": "light.decke",
       "title": "Decke", "icon": "power", "format": "",

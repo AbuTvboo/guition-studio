@@ -80,6 +80,7 @@ static constexpr int LOGO_PX = 24;  // must match LOGO_SIZE in football.py
 struct FootballGroup {
   std::string name;
   std::vector<FootballRow> rows;
+  uint32_t color{0x1F6FEB};  // competition strip
 };
 
 // One entity of a swipe tile.
@@ -397,6 +398,8 @@ class GuitionStudio : public Component {
   bool ss_prayer_gold_{false};  // gold highlight on the calligraphy background
   // football view (also used alternately with the prayer times in mix mode)
   std::string fb_header_;
+  std::string fb_title_{"FUSSBALL"}, fb_end_{"ENDE"}, fb_off_{"ABGESAGT"};
+  lv_obj_t *fb_clock_{nullptr};
   std::vector<FootballGroup> fb_groups_;
   int ss_view_{0};               // 0 = clock/prayer, 1 = football
   uint32_t ss_switch_at_{0};     // mix: next view change

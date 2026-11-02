@@ -1934,6 +1934,8 @@ void GuitionStudio::build_ss_content_() {
   lv_obj_t *o = this->ss_obj_;
   lv_obj_clean(o);
   this->reset_ss_refs_();
+  lv_obj_set_style_bg_color(o, lv_color_hex(0x000000), 0);
+  lv_obj_set_style_bg_grad_dir(o, LV_GRAD_DIR_NONE, 0);
   if (this->ss_view_ == 1) {
     this->build_football_(o);
     return;
@@ -1990,7 +1992,7 @@ void GuitionStudio::reset_ss_refs_() {
   for (int i = 0; i < MAX_PRAYER_ROWS; i++)
     this->ss_prow_[i] = this->ss_pname_[i] = this->ss_ptime_[i] = nullptr;
   this->ss_prayer_sig_.clear();
-  this->fb_head_ = this->fb_list_ = nullptr;
+  this->fb_head_ = this->fb_list_ = this->fb_clock_ = nullptr;
 }
 
 // ---------------------------------------------------------------- football screensaver
@@ -2015,8 +2017,15 @@ void GuitionStudio::set_football(const std::string &json) {
                             static_cast<uint8_t>(clampi(r[3] | 0, 0, 3)), std::string(r[5] | "").substr(0, 12),
                             std::string(r[6] | "").substr(0, 12)});
     }
+    group.color = parse_color(g[2], group.color);
     if (!group.rows.empty())
       this->fb_groups_.push_back(std::move(group));
+  }
+  JsonArrayConst texts = doc["t"].as<JsonArrayConst>();
+  if (texts.size() >= 3) {
+    this->fb_title_ = std::string(texts[0] | "").substr(0, 24);
+    this->fb_end_ = std::string(texts[1] | "").substr(0, 16);
+    this->fb_off_ = std::string(texts[2] | "").substr(0, 16);
   }
   if (this->fb_list_ != nullptr)
     this->render_football_();
@@ -2050,73 +2059,56 @@ void GuitionStudio::set_logo(const std::string &key, const std::string &data) {
   this->fb_dirty_ = true;
 }
 
+static lv_color_t darker(uint32_t rgb, int pct) {
+  uint32_t r = ((rgb >> 16) & 0xFF) * pct / 100, g = ((rgb >> 8) & 0xFF) * pct / 100, b = (rgb & 0xFF) * pct / 100;
+  return lv_color_hex((r << 16) | (g << 8) | b);
+}
+
 void GuitionStudio::build_football_(lv_obj_t *parent) {
-  // header: time · date · "Heute"; the list below is rendered page by page
-  this->fb_head_ = make_label(parent, font_px(20), 0xFFFFFF, "");
-  lv_obj_set_width(this->fb_head_, SCREEN_W - 16);
-  lv_obj_set_style_text_align(this->fb_head_, LV_TEXT_ALIGN_CENTER, 0);
-  lv_label_set_long_mode(this->fb_head_, LABEL_LONG_DOTS);
-  lv_obj_align(this->fb_head_, LV_ALIGN_TOP_MID, 0, 8);
+  // sports TV look: dark gradient, header bar with a red line, competition strips, match cards
+  lv_obj_set_style_bg_color(parent, lv_color_hex(0x060A10), 0);
+  lv_obj_set_style_bg_grad_color(parent, lv_color_hex(0x0E1826), 0);
+  lv_obj_set_style_bg_grad_dir(parent, LV_GRAD_DIR_VER, 0);
+  lv_obj_t *bar = make_plain(parent);
+  lv_obj_set_size(bar, SCREEN_W, 42);
+  lv_obj_set_style_bg_color(bar, lv_color_hex(0x0B1524), 0);
+  lv_obj_set_style_bg_grad_color(bar, lv_color_hex(0x173250), 0);
+  lv_obj_set_style_bg_grad_dir(bar, LV_GRAD_DIR_HOR, 0);
+  lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, 0);
   lv_obj_t *line = make_plain(parent);
-  lv_obj_set_size(line, SCREEN_W - 16, 1);
-  lv_obj_set_pos(line, 8, 38);
-  lv_obj_set_style_bg_color(line, lv_color_hex(this->layout_.accent), 0);
-  lv_obj_set_style_bg_opa(line, LV_OPA_60, 0);
+  lv_obj_set_size(line, SCREEN_W, 3);
+  lv_obj_set_pos(line, 0, 42);
+  lv_obj_set_style_bg_color(line, lv_color_hex(0xE11D2A), 0);
+  lv_obj_set_style_bg_opa(line, LV_OPA_COVER, 0);
+  this->fb_head_ = make_label(bar, font_px(16), 0xFFFFFF, "");
+  lv_obj_set_width(this->fb_head_, SCREEN_W - 110);
+  lv_label_set_long_mode(this->fb_head_, LABEL_LONG_DOTS);
+  lv_obj_align(this->fb_head_, LV_ALIGN_LEFT_MID, 12, 0);
+  this->fb_clock_ = make_label(bar, font_px(28), 0xFFFFFF, "--:--");
+  lv_obj_align(this->fb_clock_, LV_ALIGN_RIGHT_MID, -12, 0);
   this->fb_list_ = make_plain(parent);
-  lv_obj_set_pos(this->fb_list_, 0, 44);
-  lv_obj_set_size(this->fb_list_, SCREEN_W, SCREEN_H - 44);
+  lv_obj_set_pos(this->fb_list_, 0, 51);
+  lv_obj_set_size(this->fb_list_, SCREEN_W, SCREEN_H - 51);
   this->fb_page_ = 0;
   this->render_football_();
 }
 
-/// Lay out all lines with the largest font that fits (16 px, else 12 px) and show one page.
+/// One page of competition strips and match cards; more matches -> more pages (8 s each).
 void GuitionStudio::render_football_() {
   if (this->fb_list_ == nullptr)
     return;
   lv_obj_clean(this->fb_list_);
   const auto &l = this->layout_;
-  const int avail = SCREEN_H - 44 - 4;
-  int lines = 0;
-  for (const auto &g : this->fb_groups_)
-    lines += 1 + static_cast<int>(g.rows.size());
-  if (lines == 0) {
-    lv_obj_t *msg = make_label(this->fb_list_, font_px(20), l.muted, this->fb_header_.empty() ? "…" : this->fb_header_.c_str());
+  const int avail = SCREEN_H - 51 - 4;
+  if (this->fb_groups_.empty()) {
+    lv_obj_t *msg = make_label(this->fb_list_, font_px(20), 0x9FB3C8, this->fb_header_.empty() ? "…" : this->fb_header_.c_str());
     lv_obj_set_width(msg, SCREEN_W - 40);
     lv_obj_set_style_text_align(msg, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align(msg, LV_ALIGN_CENTER, 0, -20);
+    lv_obj_align(msg, LV_ALIGN_CENTER, 0, -30);
     this->fb_pages_ = 1;
     return;
   }
-  // 20 px rows with 24 px logos; only when that does not fit on one page 16 px / 18 px
-  bool big = lines * 28 + static_cast<int>(this->fb_groups_.size()) * 4 <= avail;
-  int px = big ? 20 : 16;
-  int row_h = big ? 28 : 22;
-  int head_h = row_h + 4;
-  // columns: kick-off/score | home (right aligned) | – | away | minute
-  // first column only as wide as needed: "18:30" or "Cmt 18:30" (next match days)
-  bool with_day = false;
-  for (const auto &g : this->fb_groups_)
-    for (const auto &r : g.rows)
-      with_day |= r.first.find(' ') != std::string::npos;
-  int c1 = with_day ? (big ? 104 : 84) : (big ? 64 : 52), cm = big ? 52 : 42;
-  int logo = big ? LOGO_PX : 18;  // drawn size (scaled down for 16 px rows)
-  int dash_w = big ? 14 : 11;
-  // home | 4 | logo | 3 | – | logo | 4 | away
-  int team_w = (SCREEN_W - 16 - c1 - cm - (11 + dash_w) - 2 * logo) / 2;
-  auto put_logo = [&](const std::string &id, int x, int y) {
-    auto it = this->logos_.find(id);
-    if (id.empty() || it == this->logos_.end())
-      return;
-    lv_obj_t *img = lv_image_create(this->fb_list_);
-    lv_image_set_src(img, &it->second.dsc);
-    if (logo != LOGO_PX) {
-      lv_image_set_scale(img, static_cast<uint32_t>(256 * logo / LOGO_PX));
-      lv_image_set_pivot(img, 0, 0);
-    }
-    lv_obj_set_pos(img, x, y + (row_h - logo) / 2);
-  };
-
-  // paginate: a league header is never the last line of a page
+  const int strip_h = 26, strip_step = 31, card_h = 48, card_step = 53;
   struct Line {
     const FootballGroup *g;
     const FootballRow *r;
@@ -2124,20 +2116,20 @@ void GuitionStudio::render_football_() {
   std::vector<std::vector<Line>> pages(1);
   int y = 0;
   for (const auto &g : this->fb_groups_) {
-    if (y + head_h + row_h > avail) {
+    if (y + strip_step + card_step > avail) {
       pages.emplace_back();
       y = 0;
     }
     pages.back().push_back({&g, nullptr});
-    y += head_h;
+    y += strip_step;
     for (const auto &r : g.rows) {
-      if (y + row_h > avail) {
+      if (y + card_step > avail) {
         pages.emplace_back();
-        pages.back().push_back({&g, nullptr});  // repeat the league name on the new page
-        y = head_h;
+        pages.back().push_back({&g, nullptr});  // competition strip again on the new page
+        y = strip_step;
       }
       pages.back().push_back({&g, &r});
-      y += row_h;
+      y += card_step;
     }
   }
   this->fb_pages_ = static_cast<int>(pages.size());
@@ -2145,44 +2137,104 @@ void GuitionStudio::render_football_() {
     this->fb_page_ = 0;
   this->fb_page_at_ = millis() + 8000;
 
+  const int card_w = SCREEN_W - 16, mid = card_w / 2, box_w = 84, box_h = 40;
+  const int name_w = mid - box_w / 2 - 8 - LOGO_PX - 6 - 8;
+  auto put_logo = [&](lv_obj_t *card, const std::string &id, int x) {
+    auto it = this->logos_.find(id);
+    if (id.empty() || it == this->logos_.end())
+      return;
+    lv_obj_t *img = lv_image_create(card);
+    lv_image_set_src(img, &it->second.dsc);
+    lv_obj_set_pos(img, x, (card_h - LOGO_PX) / 2);
+  };
   y = 0;
   for (const auto &ln : pages[this->fb_page_]) {
     if (ln.r == nullptr) {
-      lv_obj_t *h = make_label(this->fb_list_, font_px(px), l.accent, ln.g->name.c_str());
-      lv_obj_set_pos(h, 8, y + 2);
-      y += head_h;
+      lv_obj_t *strip = make_plain(this->fb_list_);
+      lv_obj_set_pos(strip, 8, y);
+      lv_obj_set_size(strip, card_w, strip_h);
+      lv_obj_set_style_radius(strip, 6, 0);
+      lv_obj_set_style_bg_color(strip, lv_color_hex(ln.g->color), 0);
+      lv_obj_set_style_bg_grad_color(strip, darker(ln.g->color, 35), 0);
+      lv_obj_set_style_bg_grad_dir(strip, LV_GRAD_DIR_HOR, 0);
+      lv_obj_set_style_bg_opa(strip, LV_OPA_COVER, 0);
+      lv_obj_t *name = make_label(strip, font_px(16), 0xFFFFFF, ln.g->name.c_str());
+      lv_obj_align(name, LV_ALIGN_LEFT_MID, 10, 0);
+      y += strip_step;
       continue;
     }
     const FootballRow &r = *ln.r;
-    uint32_t col = r.state == 1 ? 0x3FB950 : (r.state >= 2 ? l.muted : 0xE6EDF3);
-    uint32_t team_col = r.state == 2 ? 0xC9D1D9 : 0xE6EDF3;
-    lv_obj_t *a = make_label(this->fb_list_, font_px(px), col, r.first.c_str());
-    lv_obj_set_pos(a, 8, y);
-    lv_obj_t *home = make_label(this->fb_list_, font_px(px), team_col, r.home.c_str());
-    lv_obj_set_width(home, team_w);
+    lv_obj_t *card = make_plain(this->fb_list_);
+    lv_obj_set_pos(card, 8, y);
+    lv_obj_set_size(card, card_w, card_h);
+    lv_obj_set_style_radius(card, 9, 0);
+    lv_obj_set_style_bg_color(card, lv_color_hex(0x121C29), 0);
+    lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(card, 1, 0);
+    lv_obj_set_style_border_color(card, lv_color_hex(r.state == 1 ? 0x7A1B22 : 0x1F2D3E), 0);
+
+    // score box in the middle: kick-off (dark), live (red + minute), finished (grey + "ENDE")
+    lv_obj_t *box = make_plain(card);
+    lv_obj_set_size(box, box_w, box_h);
+    lv_obj_set_pos(box, mid - box_w / 2, (card_h - box_h) / 2);
+    lv_obj_set_style_radius(box, 7, 0);
+    lv_obj_set_style_bg_opa(box, LV_OPA_COVER, 0);
+    uint32_t box_bg = r.state == 1 ? 0xD32F2F : (r.state == 0 ? 0x1E3048 : 0x2A3542);
+    lv_obj_set_style_bg_color(box, lv_color_hex(box_bg), 0);
+    std::string main = r.first, small;
+    size_t colon = r.first.find(':');
+    int hs = -1, as = -1;
+    if (r.state == 1 || r.state == 2) {
+      if (colon != std::string::npos) {
+        hs = atoi(r.first.substr(0, colon).c_str());
+        as = atoi(r.first.substr(colon + 1).c_str());
+        main = r.first.substr(0, colon) + " : " + r.first.substr(colon + 1);
+      }
+      small = r.state == 1 ? (r.minute.empty() ? std::string("LIVE") : r.minute) : this->fb_end_;
+    } else if (r.state == 3) {
+      main = "–";
+      small = this->fb_off_;
+    } else {
+      size_t sp = r.first.find(' ');  // "CMT 19:00" -> day above the time
+      if (sp != std::string::npos) {
+        small = r.first.substr(0, sp);
+        main = r.first.substr(sp + 1);
+      }
+    }
+    if (small.empty()) {
+      lv_obj_t *t = make_label(box, font_px(20), 0xFFFFFF, main.c_str());
+      lv_obj_align(t, LV_ALIGN_CENTER, 0, 0);
+    } else if (r.state == 0) {
+      lv_obj_t *d = make_label(box, font_px(12), 0x9FB3C8, small.c_str());
+      lv_obj_align(d, LV_ALIGN_TOP_MID, 0, 2);
+      lv_obj_t *t = make_label(box, font_px(16), 0xFFFFFF, main.c_str());
+      lv_obj_align(t, LV_ALIGN_BOTTOM_MID, 0, -2);
+    } else {
+      lv_obj_t *t = make_label(box, font_px(20), 0xFFFFFF, main.c_str());
+      lv_obj_align(t, LV_ALIGN_TOP_MID, 0, 0);
+      lv_obj_t *d = make_label(box, font_px(12), r.state == 1 ? 0xFFE3E3 : 0x9FB3C8, small.c_str());
+      lv_obj_align(d, LV_ALIGN_BOTTOM_MID, 0, -1);
+    }
+
+    // teams: the loser of a finished match is dimmed
+    uint32_t home_col = 0xF2F5F8, away_col = 0xF2F5F8;
+    if (r.state == 2 && hs >= 0 && as >= 0 && hs != as)
+      (hs < as ? home_col : away_col) = 0x7D8B99;
+    int logo_l = mid - box_w / 2 - 8 - LOGO_PX, logo_r = mid + box_w / 2 + 8;
+    put_logo(card, r.home_logo, logo_l);
+    put_logo(card, r.away_logo, logo_r);
+    lv_obj_t *home = make_label(card, font_px(16), home_col, r.home.c_str());
+    lv_obj_set_width(home, name_w);
     lv_label_set_long_mode(home, LABEL_LONG_DOTS);
     lv_obj_set_style_text_align(home, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_pos(home, 8 + c1, y);
-    int x = 8 + c1 + team_w + 4;
-    put_logo(r.home_logo, x, y);
-    x += logo + 3;
-    lv_obj_t *dash = make_label(this->fb_list_, font_px(px), l.muted, "–");
-    lv_obj_set_pos(dash, x, y);
-    x += dash_w;
-    put_logo(r.away_logo, x, y);
-    x += logo + 4;
-    lv_obj_t *away = make_label(this->fb_list_, font_px(px), team_col, r.away.c_str());
-    lv_obj_set_width(away, team_w);
+    lv_obj_align(home, LV_ALIGN_LEFT_MID, 8, 0);
+    lv_obj_t *away = make_label(card, font_px(16), away_col, r.away.c_str());
+    lv_obj_set_width(away, name_w);
     lv_label_set_long_mode(away, LABEL_LONG_DOTS);
-    lv_obj_set_pos(away, x, y);
-    if (!r.minute.empty()) {
-      lv_obj_t *m = make_label(this->fb_list_, font_px(px), 0x3FB950, r.minute.c_str());
-      lv_obj_set_width(m, cm);
-      lv_obj_set_style_text_align(m, LV_TEXT_ALIGN_RIGHT, 0);
-      lv_obj_set_pos(m, SCREEN_W - 8 - cm, y);
-    }
-    y += row_h;
+    lv_obj_align(away, LV_ALIGN_LEFT_MID, logo_r + LOGO_PX + 6, 0);
+    y += card_step;
   }
+  (void) l;
 }
 
 void GuitionStudio::hide_screensaver_() {
@@ -2378,12 +2430,14 @@ void GuitionStudio::update_screensaver_(const std::string &hhmm, const std::stri
   if (this->ss_obj_ == nullptr)
     return;
   if (this->fb_head_ != nullptr) {
-    std::string head = hhmm + "  ·  " + date;
-    if (!this->fb_header_.empty() && !this->fb_groups_.empty())
+    // "FUSSBALL · HEUTE  1/2" on the left, the clock on the right
+    std::string head = this->fb_title_;
+    if (!this->fb_groups_.empty() && !this->fb_header_.empty())
       head += "  ·  " + this->fb_header_;
     if (this->fb_pages_ > 1)
-      head += "  " + std::to_string(this->fb_page_ + 1) + "/" + std::to_string(this->fb_pages_);
+      head += "   " + std::to_string(this->fb_page_ + 1) + "/" + std::to_string(this->fb_pages_);
     lv_label_set_text(this->fb_head_, head.c_str());
+    lv_label_set_text(this->fb_clock_, hhmm.c_str());
   }
   if (this->ss_clock_ == nullptr)
     return;

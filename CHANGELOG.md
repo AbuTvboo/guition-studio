@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.15 – Fußball im Sport-TV-Look
+- **Neues Design des Fußball-Bildschirmschoners** im Stil einer Sport-TV-Einblendung:
+  - Kopfleiste mit Farbverlauf und rotem Strich: links „FUSSBALL · HEUTE“, rechts groß die Uhrzeit.
+  - **Liga-Balken in der Farbe der Liga** (Bundesliga rot, LaLiga orange, Süper Lig rot, Premier League lila, Serie A blau …).
+  - Jedes Spiel als **Karte**: Heimteam mit Logo | **Ergebnis-Box** | Logo mit Gastteam.
+  - Box anstehend: dunkelblau mit Anstoßzeit (an späteren Tagen mit Wochentag darüber); **live: rot mit Spielstand und Minute**, die Karte bekommt einen roten Rand; beendet: grau mit Ergebnis und „ENDE“, der Verlierer wird abgedunkelt; abgesagt: „ABGESAGT“.
+  - Auf Türkisch: „FUTBOL · BUGÜN“, „BİTTİ“, „ERTELENDİ“.
+- Etwa 7 Spiele pro Seite, bei mehr Spielen wird alle 8 Sekunden weitergeblättert (Anzeige „1/2“ in der Kopfleiste).
+
 ## 0.5.14 – Größere Schrift und Logos im Fußball-Bildschirmschoner
 - Spielzeilen jetzt in **20 px** mit **24-px-Logos** (vorher 16 px / 18 px). Nur wenn sehr viele Spiele anstehen, wird auf 16 px mit 18-px-Logos verkleinert; die 12-px-Stufe entfällt, stattdessen blättert die Liste öfter weiter.
 - Die Spalte für die Anstoßzeit ist nur noch so breit wie nötig – mehr Platz für die Vereinsnamen.

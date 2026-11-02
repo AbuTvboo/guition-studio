@@ -7,7 +7,8 @@ defensive and unknown fields are ignored. Team names come in English and are lig
 corrected (NAME_FIX).
 
 The display gets one compact JSON document (action gs_football):
-    {"h": "Heute", "g": [["Bundesliga", [[time_or_score, home, away, state, minute, home_logo, away_logo], ...]], ...]}
+    {"h": "HEUTE", "t": ["FUSSBALL", "ENDE", "ABGESAGT"],
+     "g": [["BUNDESLIGA", [[time_or_score, home, away, state, minute, home_logo, away_logo], ...], "D20515"], ...]}
 state: 0 = upcoming, 1 = live, 2 = finished, 3 = postponed. Logos are ESPN team ids; the
 pictures are sent separately once per boot (action gs_logo, see logo_rgb565a8()).
 """
@@ -32,15 +33,27 @@ LEAGUES: dict[str, str] = {
     "uefa.champions": "Champions League",
 }
 DEFAULT_LEAGUES = ["ger.1", "tur.1", "esp.1"]
+# colour of the competition strip (sports TV look), bright enough on the dark background
+LEAGUE_COLORS: dict[str, str] = {
+    "ger.1": "D20515", "ger.2": "B0121F", "tur.1": "E30A17", "esp.1": "EE5A24",
+    "eng.1": "6A1B9A", "ita.1": "1565C0", "fra.1": "2E5AAC", "uefa.champions": "1A3A8F",
+}  # fmt: skip
 LOOKAHEAD_DAYS = 7  # without matches today, the next match day within a week is shown
 MAX_MATCHES = 40
 MAX_PAYLOAD = 6000
 
 TEXTS: dict[str, dict[str, str]] = {
-    "de": {"today": "Heute", "next": "Nächste Spiele", "none": "Keine Spiele in den nächsten 7 Tagen", "ht": "HZ",
-           "error": "Keine Spieldaten erreichbar", "days": "Mo Di Mi Do Fr Sa So"},
-    "tr": {"today": "Bugün", "next": "Sonraki maçlar", "none": "Önümüzdeki 7 günde maç yok", "ht": "İY",
-           "error": "Maç verisine ulaşılamıyor", "days": "Pzt Sal Çar Per Cum Cmt Paz"},
+    "de": {"today": "HEUTE", "next": "NÄCHSTE SPIELE", "none": "Keine Spiele in den nächsten 7 Tagen", "ht": "HZ",
+           "error": "Keine Spieldaten erreichbar", "days": "MO DI MI DO FR SA SO",
+           "title": "FUSSBALL", "end": "ENDE", "off": "ABGESAGT"},
+    "tr": {"today": "BUGÜN", "next": "SONRAKİ MAÇLAR", "none": "Önümüzdeki 7 günde maç yok", "ht": "İY",
+           "error": "Maç verisine ulaşılamıyor", "days": "PZT SAL ÇAR PER CUM CMT PAZ",
+           "title": "FUTBOL", "end": "BİTTİ", "off": "ERTELENDİ"},
+}  # fmt: skip
+# competition names in capitals (str.upper() would turn the Turkish "i" into a dotless "I")
+LEAGUE_TITLES: dict[str, str] = {
+    "ger.1": "BUNDESLIGA", "ger.2": "2. BUNDESLIGA", "tur.1": "SÜPER LİG", "esp.1": "LALIGA",
+    "eng.1": "PREMIER LEAGUE", "ita.1": "SERIE A", "fra.1": "LIGUE 1", "uefa.champions": "CHAMPIONS LEAGUE",
 }  # fmt: skip
 
 
@@ -185,8 +198,8 @@ def build_payload(
             minute = tx["ht"] if m["halftime"] else (m["minute"] if m["state"] == 1 else "")
             rows.append([first_col, m["home"], m["away"], m["state"], minute, m.get("hl", ""), m.get("al", "")])
         if rows:
-            groups.append([LEAGUES[code], rows])
-    doc = {"h": header, "g": groups}
+            groups.append([LEAGUE_TITLES[code], rows, LEAGUE_COLORS[code]])
+    doc = {"h": header, "t": [tx["title"], tx["end"], tx["off"]], "g": groups}
     while len(json.dumps(doc, ensure_ascii=False).encode()) > MAX_PAYLOAD and groups:
         groups[-1][1].pop()  # keep the document small for the API action
         if not groups[-1][1]:
@@ -208,8 +221,8 @@ def has_live(leagues: dict[str, list[dict[str, Any]] | None], now: datetime) -> 
 def logo_ids(doc: dict[str, Any]) -> list[str]:
     """Team ids whose logos the display needs for this document (in display order)."""
     out: list[str] = []
-    for _name, rows in doc.get("g", []):
-        for row in rows:
+    for group in doc.get("g", []):  # [name, rows, colour]
+        for row in group[1]:
             for tid in row[5:7]:
                 if tid and tid not in out:
                     out.append(tid)

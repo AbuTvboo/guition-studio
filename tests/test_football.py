@@ -53,16 +53,17 @@ def test_payload_today_with_live_and_finished():
     data = {"ger.1": parse_scoreboard(BUNDESLIGA, TZ), "tur.1": parse_scoreboard(SUPERLIG, TZ), "esp.1": []}
     now = datetime(2026, 11, 7, 16, 0, tzinfo=TZ)
     doc = build_payload(data, "de", now)
-    assert doc["h"] == "Heute"
+    assert doc["h"] == "HEUTE" and doc["t"] == ["FUSSBALL", "ENDE", "ABGESAGT"]
     assert doc["g"][0] == [
-        "Bundesliga",
+        "BUNDESLIGA",
         [
             ["2:1", "Leipzig", "Freiburg", 1, "67'", "11", "12"],
             ["0:0", "Köln", "Mainz", 1, "HZ", "31", "32"],
             ["18:30", "Bayern", "Dortmund", 0, "", "21", "22"],
         ],
+        "D20515",
     ]
-    assert doc["g"][1] == ["Süper Lig", [["3:2", "Beşiktaş", "Fenerbahçe", 2, "", "91", "92"]]]
+    assert doc["g"][1] == ["SÜPER LİG", [["3:2", "Beşiktaş", "Fenerbahçe", 2, "", "91", "92"]], "E30A17"]
     assert logo_ids(doc) == ["11", "12", "31", "32", "21", "22", "91", "92"]
     assert len(doc["g"]) == 2  # LaLiga without matches is left out
     assert has_live(data, now)
@@ -71,8 +72,8 @@ def test_payload_today_with_live_and_finished():
 def test_payload_next_match_day_and_errors():
     data = {"ger.1": parse_scoreboard(BUNDESLIGA, TZ)}
     doc = build_payload(data, "tr", datetime(2026, 11, 5, 9, 0, tzinfo=TZ))
-    assert doc["h"] == "Sonraki maçlar"
-    assert doc["g"][0][1][-1][:3] == ["Cmt 18:30", "Bayern", "Dortmund"]  # weekday + kick-off
+    assert doc["h"] == "SONRAKİ MAÇLAR" and doc["t"][0] == "FUTBOL"
+    assert doc["g"][0][1][-1][:3] == ["CMT 18:30", "Bayern", "Dortmund"]  # weekday + kick-off
     assert build_payload({"ger.1": None}, "de", datetime(2026, 11, 5, tzinfo=TZ)) == {"h": "Keine Spieldaten erreichbar", "g": []}
     assert build_payload({"ger.1": []}, "de", datetime(2026, 11, 5, tzinfo=TZ))["g"] == []
     upcoming = {"ger.1": [m for m in data["ger.1"] if m["state"] == 0]}

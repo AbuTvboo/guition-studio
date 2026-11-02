@@ -166,7 +166,13 @@ export class GsTileProps extends LitElement {
     const items = this.tile.items ?? [];
     const set = (next: SwipeItem[]) => this.patch({ items: next, entity: next[0]?.entity ?? null });
     return html`<div class="field-like">
-      <span class="muted small">Entitäten (bis ${MAX_SWIPE_ITEMS}). Auf dem Display nach links/rechts über die Kachel wischen, um zur nächsten zu wechseln. Tippen bedient die gerade angezeigte Entität.</span>
+      <label class="field"><span>Wischrichtung</span>
+        <select @change=${(e: Event) => this.patch({ swipe_dir: (e.target as HTMLSelectElement).value as "h" | "v" })}>
+          <option value="h" ?selected=${this.tile.swipe_dir !== "v"}>⇆ Links / rechts</option>
+          <option value="v" ?selected=${this.tile.swipe_dir === "v"}>⇅ Hoch / runter</option>
+        </select>
+      </label>
+      <span class="muted small">Entitäten (bis ${MAX_SWIPE_ITEMS}). Auf dem Display über die Kachel wischen, um zur nächsten zu wechseln – der Inhalt folgt dem Finger. Tippen bedient die gerade angezeigte Entität; beim Wischen wird nichts ausgelöst.</span>
       ${items.map(
         (it, i) => html`<div class="swipe-item">
           <span class="swipe-no">${i + 1}</span>

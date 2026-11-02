@@ -85,6 +85,7 @@ struct TileCfg {
   int tap_page{-1}, hold_page{-1};
   uint8_t wopts{0x2F};  // weather: 1 condition, 2 high/low, 4 humidity, 8 wind, 16 pressure, 32 forecast
   std::vector<SwipeItem> items;  // swipe tile: entities shown one at a time
+  bool vertical{false};          // swipe tile: swipe up/down instead of left/right
 };
 
 struct PageCfg {
@@ -124,7 +125,7 @@ struct LayoutCfg {
   std::vector<uint8_t> prayer_kind;  // 1 = prayer, 0 = sunrise (orientation only)
   // countdown line: prefix, separator, hour unit, minute unit, "now" prefix (language from HA)
   std::array<std::string, 5> prayer_text{"Nächstes Gebet:", " in ", "h", "min", "Jetzt:"};
-  bool prayer_bg{true};  // calligraphy background (if built into the firmware)
+  int prayer_bg{1};  // calligraphy background: 0 = none, n = n-th picture built into the firmware
   std::string theme;
   std::vector<std::pair<std::string, std::string>> themes;  // id, name
   std::vector<PageCfg> pages;
@@ -178,6 +179,9 @@ struct TileView {
   int item{0};
   lv_obj_t *content{nullptr};
   lv_obj_t *dots[MAX_SWIPE_ITEMS]{};
+  bool drag_on{false};   // the finger is dragging the content
+  int drag{0};           // current offset along the swipe axis
+  int pending_step{0};   // item change waiting for the slide-out animation
   bool dragging{false};
   bool visible{true};
 };
@@ -203,7 +207,7 @@ class GuitionStudio : public Component {
   void set_slideshow_image(online_image::OnlineImage *img) { this->slide_img_ = img; }
 #endif
 #ifdef USE_GS_PRAYER_BG
-  void set_prayer_background(image::Image *img) { this->prayer_bg_img_ = img; }
+  void add_prayer_background(image::Image *img) { this->prayer_bgs_.push_back(img); }
 #endif
   void add_on_event_callback(std::function<void(const std::string &, const std::string &)> &&cb) {
     this->event_callbacks_.add(std::move(cb));
@@ -277,6 +281,11 @@ class GuitionStudio : public Component {
   void hold_update_(uint32_t now);
   void update_tile_(TileView &view);
   void swipe_item_(int index, int step);
+  void swipe_animate_(TileView &view, int from, int to, uint32_t ms, bool out);
+  void swipe_finish_(TileView &view);
+ public:
+  void on_swipe_out_done(lv_obj_t *content);
+ protected:
   void update_status_();
   void show_page_(int index, bool remember);
   void handle_gesture_();
@@ -335,6 +344,9 @@ class GuitionStudio : public Component {
   bool dimmed_{false};
   bool swallow_{false};
   bool gesture_{false};
+  // start of the current touch; a touch that moved too far is a swipe, never a tap
+  lv_point_t press_start_{};
+  bool press_moved_{false};
   bool returned_home_{true};
   uint32_t last_tick_{0};
   uint32_t last_idle_check_{0};
@@ -357,7 +369,7 @@ class GuitionStudio : public Component {
   std::string ss_prayer_sig_;
   bool ss_prayer_gold_{false};  // gold highlight on the calligraphy background
 #ifdef USE_GS_PRAYER_BG
-  image::Image *prayer_bg_img_{nullptr};
+  std::vector<image::Image *> prayer_bgs_;
 #endif
 
   // local overrides (-1 = use layout), persisted in NVS key "ovr"

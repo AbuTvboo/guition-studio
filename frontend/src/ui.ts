@@ -505,7 +505,9 @@ export function renderTileContent(tile: Tile, theme: Theme, hass: Hass | undefin
             </div>`
           : nothing}
         ${items.length > 1
-          ? html`<div style="position:absolute;right:${pad}px;top:${pad + 4}px;display:flex;gap:5px">
+          ? html`<div style=${tile.swipe_dir === "v"
+              ? `position:absolute;right:${pad - 2}px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:5px`
+              : `position:absolute;right:${pad}px;top:${pad + 4}px;display:flex;gap:5px`}>
               ${items.map((_, i) => html`<span style="width:7px;height:7px;border-radius:4px;background:${c.fg};opacity:${i === Math.min(item, items.length - 1) ? 1 : 0.4}"></span>`)}
             </div>`
           : nothing}`;

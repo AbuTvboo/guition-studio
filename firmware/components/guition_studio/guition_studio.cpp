@@ -538,7 +538,7 @@ bool GuitionStudio::parse_layout_(const char *data, size_t len, LayoutCfg &out, 
       for (size_t i = 0; i < out.prayer_text.size(); i++)
         out.prayer_text[i] = std::string(texts[i] | "").substr(0, 24);
     }
-    out.prayer_bg = (set["spb"] | 1) != 0;
+    out.prayer_bg = clampi(set["spb"] | 1, 0, 16);
     if (out.prayer_entities.empty())
       out.prayer = false;
   }
@@ -653,6 +653,7 @@ bool GuitionStudio::parse_layout_(const char *data, size_t len, LayoutCfg &out, 
           return false;
         }
         tile.entity = tile.items[0].entity;
+        tile.vertical = (t["sd"] | 0) == 1;
       }
       page.tiles.push_back(std::move(tile));
     }
@@ -1176,11 +1177,16 @@ void GuitionStudio::build_tile_(int page_index, lv_obj_t *parent, const TileCfg 
         lv_obj_set_style_radius(d, 4, 0);
         lv_obj_set_style_bg_color(d, lv_color_hex(t.fg), 0);
         lv_obj_set_style_bg_opa(d, i == 0 ? LV_OPA_COVER : LV_OPA_40, 0);
-        lv_obj_set_pos(d, pw - pad - (n - i) * 12 + 5, pad + 4);
+        if (t.vertical)  // column on the right edge, centred
+          lv_obj_set_pos(d, pw - pad - 2, ph / 2 - n * 6 + i * 12);
+        else
+          lv_obj_set_pos(d, pw - pad - (n - i) * 12 + 5, pad + 4);
         view.dots[i] = d;
       }
-      // the tile handles horizontal swipes itself, they must not switch the page
+      // the tile handles its swipes itself (they must not switch the page); keep the
+      // touch while the finger leaves the tile during a drag
       GS_REMOVE_FLAG(o, LV_OBJ_FLAG_GESTURE_BUBBLE);
+      lv_obj_add_flag(o, LV_OBJ_FLAG_PRESS_LOCK);
     }
   } else {  // light, dimmer, rgb, switch and generic entity tiles
     bool rgb = t.kind == "rgb";
@@ -1235,13 +1241,74 @@ void GuitionStudio::build_tile_(int page_index, lv_obj_t *parent, const TileCfg 
   }
 }
 
-static void anim_translate_x(void *obj, int32_t v) {
-  lv_obj_set_style_translate_x(static_cast<lv_obj_t *>(obj), v, 0);
+// Offset of a swipe tile's content along its axis; the content fades with the distance.
+static void swipe_fade(lv_obj_t *o, int32_t v, int32_t size) {
+  int32_t a = v < 0 ? -v : v;
+  int32_t opa = 255 - (size > 0 ? a * 230 / size : 0);
+  lv_obj_set_style_opa(o, static_cast<lv_opa_t>(opa < 25 ? 25 : opa), 0);
+}
+static void swipe_offset_x(void *obj, int32_t v) {
+  auto *o = static_cast<lv_obj_t *>(obj);
+  lv_obj_set_style_translate_x(o, v, 0);
+  swipe_fade(o, v, lv_obj_get_width(o));
+}
+static void swipe_offset_y(void *obj, int32_t v) {
+  auto *o = static_cast<lv_obj_t *>(obj);
+  lv_obj_set_style_translate_y(o, v, 0);
+  swipe_fade(o, v, lv_obj_get_height(o));
+}
+static void swipe_out_done_cb(lv_anim_t *a) {
+  static_cast<GuitionStudio *>(lv_anim_get_user_data(a))->on_swipe_out_done(static_cast<lv_obj_t *>(a->var));
+}
+
+void GuitionStudio::swipe_animate_(TileView &view, int from, int to, uint32_t ms, bool out) {
+  lv_anim_t a;
+  lv_anim_init(&a);
+  lv_anim_set_var(&a, view.content);
+  lv_anim_set_values(&a, from, to);
+  lv_anim_set_exec_cb(&a, view.cfg->vertical ? swipe_offset_y : swipe_offset_x);
+  lv_anim_set_path_cb(&a, out ? lv_anim_path_ease_in : lv_anim_path_ease_out);
+#if LVGL_VERSION_MAJOR >= 9
+  lv_anim_set_duration(&a, ms);
+#else
+  lv_anim_set_time(&a, ms);
+#endif
+  if (out) {
+    lv_anim_set_user_data(&a, this);
+    lv_anim_set_ready_cb(&a, swipe_out_done_cb);
+  }
+  lv_anim_start(&a);
+}
+
+/// Old content has left the tile: show the next item and let it slide in from the other side.
+void GuitionStudio::on_swipe_out_done(lv_obj_t *content) {
+  for (auto &view : this->views_) {
+    if (view.content != content || view.pending_step == 0)
+      continue;
+    int step = view.pending_step;
+    this->swipe_item_(static_cast<int>(&view - this->views_.data()), step);
+    int size = view.cfg->vertical ? lv_obj_get_height(view.obj) : lv_obj_get_width(view.obj);
+    this->swipe_animate_(view, step * size / 2, 0, 200, false);
+    return;
+  }
+}
+
+/// A new touch while an animation still runs: finish it immediately.
+void GuitionStudio::swipe_finish_(TileView &view) {
+#if LVGL_VERSION_MAJOR >= 9
+  lv_anim_delete(view.content, nullptr);
+#else
+  lv_anim_del(view.content, nullptr);
+#endif
+  if (view.pending_step != 0)
+    this->swipe_item_(static_cast<int>(&view - this->views_.data()), view.pending_step);
+  (view.cfg->vertical ? swipe_offset_y : swipe_offset_x)(view.content, 0);
 }
 
 void GuitionStudio::swipe_item_(int index, int step) {
   TileView &view = this->views_[index];
   const TileCfg &t = *view.cfg;
+  view.pending_step = 0;
   int n = static_cast<int>(t.items.size());
   if (n < 2)
     return;
@@ -1249,21 +1316,6 @@ void GuitionStudio::swipe_item_(int index, int step) {
   if (view.title != nullptr)
     lv_label_set_text(view.title, t.items[view.item].title.c_str());
   this->update_tile_(view);
-  if (view.content != nullptr) {
-    // new content slides in from the side the finger came from
-    lv_anim_t a;
-    lv_anim_init(&a);
-    lv_anim_set_var(&a, view.content);
-    lv_anim_set_values(&a, step * lv_obj_get_width(view.obj) / 3, 0);
-    lv_anim_set_exec_cb(&a, anim_translate_x);
-    lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
-#if LVGL_VERSION_MAJOR >= 9
-    lv_anim_set_duration(&a, 220);
-#else
-    lv_anim_set_time(&a, 220);
-#endif
-    lv_anim_start(&a);
-  }
 }
 
 void GuitionStudio::add_buttons_(int index, lv_obj_t *tile, const TileCfg &t, const uint8_t *codes, int count, int pad,
@@ -1570,25 +1622,72 @@ void GuitionStudio::on_tile_event(int index, lv_event_code_t code) {
     return;
   TileView &view = this->views_[index];
   const TileCfg &t = *view.cfg;
+  bool swipe = t.kind == "swipe" && t.items.size() > 1 && view.content != nullptr;
+  lv_indev_t *indev = GS_INDEV_ACTIVE();
   switch (code) {
     case LV_EVENT_PRESSED:
+      this->press_moved_ = false;
+      if (indev != nullptr)
+        lv_indev_get_point(indev, &this->press_start_);
+      if (swipe) {
+        this->swipe_finish_(view);
+        view.drag_on = false;
+        view.drag = 0;
+      }
       if (!this->begin_press_())
         lv_obj_set_style_opa(view.obj, static_cast<lv_opa_t>(t.opacity * 255 / 100 * 7 / 10), 0);
       break;
+    case LV_EVENT_PRESSING: {
+      if (indev == nullptr || this->swallow_)
+        break;
+      lv_point_t p;
+      lv_indev_get_point(indev, &p);
+      int dx = p.x - this->press_start_.x, dy = p.y - this->press_start_.y;
+      if (!this->press_moved_ && (dx * dx + dy * dy) > 14 * 14) {
+        // moved too far for a tap: this touch is a swipe, never a click / long press
+        this->press_moved_ = true;
+        lv_obj_set_style_opa(view.obj, static_cast<lv_opa_t>(t.opacity * 255 / 100), 0);
+      }
+      if (!swipe)
+        break;
+      int along = t.vertical ? dy : dx, across = t.vertical ? dx : dy;
+      if (!view.drag_on && (along > 10 || along < -10) && (along < 0 ? -along : along) >= (across < 0 ? -across : across)) {
+        view.drag_on = true;
+        this->gesture_ = true;  // no page change, no tap
+      }
+      if (view.drag_on) {
+        view.drag = along;
+        (t.vertical ? swipe_offset_y : swipe_offset_x)(view.content, along);  // content follows the finger
+      }
+      break;
+    }
     case LV_EVENT_RELEASED:
     case LV_EVENT_PRESS_LOST:
+      if (swipe && view.drag_on) {
+        view.drag_on = false;
+        int size = t.vertical ? lv_obj_get_height(view.obj) : lv_obj_get_width(view.obj);
+        int threshold = std::max(24, size / 5);
+        if (view.drag <= -threshold || view.drag >= threshold) {
+          // far enough: slide out to that side, then the next/previous item comes in
+          view.pending_step = view.drag < 0 ? 1 : -1;
+          this->swipe_animate_(view, view.drag, view.drag < 0 ? -size : size, 120, true);
+        } else {
+          this->swipe_animate_(view, view.drag, 0, 160, false);  // snap back
+        }
+      }
       this->update_tile_(view);
       if (t.entity.empty())
         lv_obj_set_style_opa(view.obj, static_cast<lv_opa_t>(t.opacity * 255 / 100), 0);
       break;
     case LV_EVENT_GESTURE:
-      if (t.kind == "swipe" && t.items.size() > 1) {
-        // horizontal swipe = next/previous entity of this tile, never a page change
-        lv_indev_t *indev = GS_INDEV_ACTIVE();
+      if (swipe) {
+        // the tile's own axis is handled by dragging; a vertical tile still lets a
+        // horizontal swipe change the page
         lv_dir_t dir = indev != nullptr ? lv_indev_get_gesture_dir(indev) : LV_DIR_NONE;
-        if (!this->gesture_ && !this->swallow_ && (dir == LV_DIR_LEFT || dir == LV_DIR_RIGHT)) {
+        if (t.vertical && !view.drag_on && !this->gesture_ && !this->swallow_ &&
+            (dir == LV_DIR_LEFT || dir == LV_DIR_RIGHT)) {
           this->gesture_ = true;
-          this->swipe_item_(index, dir == LV_DIR_LEFT ? 1 : -1);
+          this->handle_gesture_();
         }
         break;
       }
@@ -1598,11 +1697,11 @@ void GuitionStudio::on_tile_event(int index, lv_event_code_t code) {
       }
       break;
     case LV_EVENT_SHORT_CLICKED:
-      if (!this->swallow_ && !this->gesture_)
+      if (!this->swallow_ && !this->gesture_ && !this->press_moved_)
         this->do_action_(view, t.tap, t.tap_page, false);
       break;
     case LV_EVENT_LONG_PRESSED:
-      if (!this->swallow_ && !this->gesture_)
+      if (!this->swallow_ && !this->gesture_ && !this->press_moved_)
         this->do_action_(view, t.hold, t.hold_page, true);
       break;
     default:
@@ -1856,10 +1955,12 @@ void GuitionStudio::build_prayer_screensaver_(lv_obj_t *parent) {
   const auto &l = this->layout_;
   this->ss_prayer_gold_ = false;
 #ifdef USE_GS_PRAYER_BG
-  if (l.prayer_bg && this->prayer_bg_img_ != nullptr) {
+  if (l.prayer_bg > 0 && !this->prayer_bgs_.empty()) {
     // calligraphy background behind everything, highlight in gold to match it
+    size_t pick = static_cast<size_t>(l.prayer_bg - 1);
+    image::Image *img = this->prayer_bgs_[pick < this->prayer_bgs_.size() ? pick : 0];
     lv_obj_t *bg = lv_image_create(parent);
-    lv_image_set_src(bg, this->prayer_bg_img_->get_lv_image_dsc());
+    lv_image_set_src(bg, img->get_lv_image_dsc());
     lv_obj_set_pos(bg, 0, 0);
     lv_obj_move_background(bg);
     this->ss_prayer_gold_ = true;

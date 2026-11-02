@@ -69,6 +69,13 @@ def test_prayer_turkish_names_texts_and_background():
     assert doc["spx"] == ["Sonraki vakit:", " · ", "sa", "dk", "Şimdi:"]
     assert doc["spb"] == 0
     # defaults: German names, calligraphy background; unknown language falls back to German
-    layout["settings"]["screensaver"].update(prayer_lang="xx", prayer_bg="ja")
+    layout["settings"]["screensaver"].update(prayer_lang="xx", prayer_bg="gibt-es-nicht")
     doc = json.loads(compile_device_layout(validate_layout(layout))[0])["set"]
     assert doc["spn"][0] == "Fajr" and doc["spx"][0] == "Nächstes Gebet:" and doc["spb"] == 1
+
+
+@pytest.mark.parametrize(("value", "spb"), [("basmala", 1), ("verse", 2), ("shahada", 3), ("hamd", 4), ("none", 0), (True, 1), (False, 0)])
+def test_prayer_background_choice(value, spb):
+    layout = _layout(PRAYER)
+    layout["settings"]["screensaver"]["prayer_bg"] = value
+    assert json.loads(compile_device_layout(validate_layout(layout))[0])["set"]["spb"] == spb

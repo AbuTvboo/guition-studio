@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.10 – Wisch-Kachel folgt dem Finger, hoch/runter & mehr Kalligraphie
+- **Wisch-Kachel folgt dem Finger:** Der Inhalt bewegt sich beim Wischen mit und wird dabei blasser. Nach dem Loslassen gleitet er hinaus, und die nächste Entität gleitet von der anderen Seite herein. Bei zu kurzem Weg federt er zurück.
+- **Kein versehentliches Schalten mehr:** Bewegt sich der Finger mehr als ein paar Millimeter, gilt die Berührung als Wischen. Tippen und langes Drücken werden dann nicht ausgelöst. Das gilt für alle Kacheln, auch beim Seitenwechsel.
+- **Wisch-Kachel hoch/runter:** neue Einstellung *Wischrichtung* (⇆ links/rechts oder ⇅ hoch/runter). In der Bibliothek gibt es beide Varianten direkt. Bei hoch/runter stehen die Punkte senkrecht am rechten Rand, und waagerechtes Wischen wechselt weiterhin die Seite.
+- **Vier Kalligraphie-Hintergründe** für die Gebetszeiten, im Designer per Vorschaubild wählbar:
+  - **Basmala** (Nachtblau)
+  - **Gebetsvers** Sure 4:103 „Das Gebet ist den Gläubigen zu festgesetzten Zeiten vorgeschrieben“ (Smaragdgrün)
+  - **Schahada** mit den Medaillons „Allah“ und „Muhammad“ (Bordeaux)
+  - **Al-Hamdu** „Al-ḥamdu li-llāhi rabbi l-ʿālamīn“ (Violett)
+  - oder **schlicht**
+- Die Firmware ist durch die Bilder größer (≈ 3,3 MB), ein Update dauert etwas länger.
+
 ## 0.5.9 – Gebetszeiten auf Türkisch & mit Kalligraphie
 - **Türkische Namen:** Unter Automatik → Bildschirmschoner → Gebetszeiten lässt sich die Sprache wählen: Deutsch (Fajr, Dhuhr, Asr …) oder **Türkçe** (İmsak, Güneş, Öğle, İkindi, Akşam, Yatsı). Die Countdown-Zeile heißt dann z. B. „Sonraki vakit: Öğle · 1 sa 23 dk“, zur Gebetszeit „Şimdi: Öğle“.
 - **Hintergrund mit islamischer Kalligraphie:** dunkles Blau mit dezentem achtzackigem Sternmuster, ein goldener Bogen (Mihrab) um die Uhr und unten die **Basmala** in Gold, gesetzt in der Schrift Amiri. Das nächste Gebet ist passend dazu golden hervorgehoben. Abschaltbar („Schlicht“). Das Bild steckt in der Firmware, es wird nichts nachgeladen.

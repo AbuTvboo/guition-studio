@@ -96,6 +96,8 @@ export interface Tile {
   weather?: WeatherOptions;
   /** swipe tile: up to 4 entities, one shown at a time */
   items?: SwipeItem[];
+  /** swipe tile: "h" = left/right (default), "v" = up/down */
+  swipe_dir?: "h" | "v";
 }
 
 export interface SwipeItem {
@@ -169,8 +171,8 @@ export interface ScreensaverSettings {
   prayer?: Partial<Record<PrayerKey, string>>;
   /** names on the display: "de" (Fajr, Dhuhr …) or "tr" (İmsak, Öğle …) */
   prayer_lang?: "de" | "tr";
-  /** calligraphy background (firmware >= 0.5.9) */
-  prayer_bg?: boolean;
+  /** calligraphy background: "none" or one of PRAYER_BACKGROUNDS (0.5.9 stored a boolean) */
+  prayer_bg?: string | boolean;
 }
 
 export type PrayerKey = "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha";

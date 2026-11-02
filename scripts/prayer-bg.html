@@ -1,18 +1,25 @@
+<!doctype html>
 <!--
-  Source of firmware/images/prayer-bg.png (background of the prayer times screensaver, 480x480).
-  Basmala set in Amiri Bold (SIL OFL 1.1, https://github.com/aliftype/amiri) - put Amiri-Bold.ttf next
-  to this file, then render it headless, e.g.:
-    chrome --headless=new --hide-scrollbars --force-device-scale-factor=1 --window-size=480,480            --allow-file-access-from-files --screenshot=prayer-bg.png prayer-bg.html
-  Add class="m" to <body> to preview it with sample prayer times on top.
+  Source of the prayer times screensaver backgrounds (480x480):
+    firmware/images/prayer-bg-<key>.png  (compiled into the firmware)
+    custom_components/guition_studio/www/prayer/<key>.jpg  (small previews in the designer)
+  Arabic text set in Amiri Bold (SIL OFL 1.1, https://github.com/aliftype/amiri): put Amiri-Bold.ttf
+  next to this file and render each preset headless, e.g.
+    chrome --headless=new --hide-scrollbars --force-device-scale-factor=1 --window-size=480,480 \
+           --allow-file-access-from-files --screenshot=prayer-bg-basmala.png "prayer-bg.html?t=basmala"
+  Add &mock=1 to preview with sample prayer times on top.
+  Keys and order must match PRAYER_BACKGROUNDS in custom_components/guition_studio/layout.py.
 -->
-<!doctype html><html><head><meta charset="utf-8"><style>
+<html><head><meta charset="utf-8"><style>
 @font-face{font-family:Amiri;src:url("Amiri-Bold.ttf")}
-html,body{margin:0;width:480px;height:480px;overflow:hidden;background:#07141d}
-.c{position:relative;width:480px;height:480px;background:radial-gradient(ellipse 120% 80% at 50% 0%,#123247 0%,#0a1c28 55%,#06111a 100%)}
+html,body{margin:0;width:480px;height:480px;overflow:hidden;background:#000}
+.c{position:relative;width:480px;height:480px}
 svg{position:absolute;inset:0}
-.bism{position:absolute;left:0;right:0;bottom:2px;text-align:center;font-family:Amiri;font-size:33px;line-height:46px;direction:rtl;
+.text{position:absolute;left:0;right:0;bottom:2px;text-align:center;font-family:Amiri;line-height:46px;direction:rtl;white-space:nowrap;
  background:linear-gradient(180deg,#f3d98b 0%,#d4af37 55%,#a8822a 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
  filter:drop-shadow(0 1px 0 rgba(0,0,0,.6))}
+.roundel{position:absolute;top:16px;width:50px;height:50px;border-radius:50%;display:grid;place-items:center;font-family:Amiri;font-size:21px;line-height:1;
+ color:#f0d27a;border:1.5px solid rgba(212,175,55,.75);box-shadow:inset 0 0 0 4px rgba(0,0,0,.25),inset 0 0 0 5px rgba(212,175,55,.35)}
 .mock{position:absolute;inset:0;font-family:Segoe UI,Arial;color:#e6edf3;display:none}
 body.m .mock{display:block}
 .mock .clk{position:absolute;top:22px;width:100%;text-align:center;font-size:40px;font-weight:600;color:#fff}
@@ -21,7 +28,7 @@ body.m .mock{display:block}
 .mock .row{position:absolute;left:40px;width:400px;height:44px;border-radius:12px;font-size:26px;display:flex;justify-content:space-between;align-items:center;padding:0 18px;box-sizing:border-box}
 .mock .hl{background:#c9a14a;color:#0b1a24}
 .mock .mu{color:#8b98a5}
-</style></head><body><div class="c">
+</style></head><body><div class="c" id="c">
 <svg width="480" height="480" viewBox="0 0 480 480">
  <defs>
   <pattern id="star" width="60" height="60" patternUnits="userSpaceOnUse">
@@ -37,17 +44,15 @@ body.m .mock{display:block}
   <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f3d98b"/><stop offset="1" stop-color="#a8822a"/></linearGradient>
  </defs>
  <rect width="480" height="480" fill="url(#star)" opacity=".09" mask="url(#m)"/>
- <!-- mihrab arch behind clock -->
  <g fill="none" stroke="url(#gold)" opacity=".55">
   <path d="M62 140 L62 78 Q62 30 240 8 Q418 30 418 78 L418 140" stroke-width="1.6"/>
   <path d="M70 140 L70 80 Q70 38 240 17 Q410 38 410 80 L410 140" stroke-width=".8" opacity=".7"/>
  </g>
  <circle cx="240" cy="8" r="2.5" fill="#e2bf5a" opacity=".8"/>
- <!-- divider above the basmala -->
  <g opacity=".6"><path d="M70 433 H205 M275 433 H410" stroke="url(#gold)" stroke-width="1"/>
  <path d="M240 427 l6 6 -6 6 -6 -6 z" fill="#d4af37"/></g>
 </svg>
-<div class="bism">بِسْمِ ٱللَّٰهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</div>
+<div class="text" id="text"></div>
 <div class="mock"><div class="clk">05:42</div><div class="dt">02.11.2026</div><div class="nx">Sonraki vakit: Öğle · 1 sa 23 dk</div>
 <div class="row" style="top:140px"><span>İmsak</span><span>05:31</span></div>
 <div class="row mu" style="top:188px"><span>Güneş</span><span>07:12</span></div>
@@ -55,4 +60,32 @@ body.m .mock{display:block}
 <div class="row" style="top:284px"><span>İkindi</span><span>14:48</span></div>
 <div class="row" style="top:332px"><span>Akşam</span><span>17:07</span></div>
 <div class="row" style="top:380px"><span>Yatsı</span><span>18:41</span></div></div>
-</div></body></html>
+</div>
+<script>
+const PRESETS = {
+  // Basmala – night blue
+  basmala: { bg: ["#123247", "#0a1c28", "#06111a"], text: "بِسْمِ ٱللَّٰهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ", size: 33 },
+  // Qur'an 4:103 "Indeed, prayer has been decreed upon the believers at fixed times" – emerald
+  verse: { bg: ["#0f3b2e", "#0a271f", "#051510"], text: "إِنَّ ٱلصَّلَوٰةَ كَانَتْ عَلَى ٱلْمُؤْمِنِينَ كِتَٰبًا مَّوْقُوتًا", size: 25 },
+  // Shahada with the roundels "Allah" and "Muhammad" – burgundy
+  shahada: { bg: ["#4a1622", "#2e0d15", "#19070b"], text: "لَا إِلَٰهَ إِلَّا ٱللَّٰهُ مُحَمَّدٌ رَسُولُ ٱللَّٰهِ", size: 29, roundels: ["ٱللَّٰه", "مُحَمَّد"] },
+  // Alhamdulillah – violet night
+  hamd: { bg: ["#2c2350", "#1a1533", "#0d0b1c"], text: "ٱلْحَمْدُ لِلَّٰهِ رَبِّ ٱلْعَٰلَمِينَ", size: 31 },
+};
+const q = new URLSearchParams(location.search);
+const p = PRESETS[q.get("t")] || PRESETS.basmala;
+document.getElementById("c").style.background =
+  `radial-gradient(ellipse 120% 80% at 50% 0%, ${p.bg[0]} 0%, ${p.bg[1]} 55%, ${p.bg[2]} 100%)`;
+const t = document.getElementById("text");
+t.textContent = p.text;
+t.style.fontSize = p.size + "px";
+(p.roundels || []).forEach((txt, i) => {
+  const r = document.createElement("div");
+  r.className = "roundel";
+  r.textContent = txt;
+  r.style[i === 0 ? "right" : "left"] = "6px";  // right-to-left: Allah on the right, Muhammad on the left
+  document.getElementById("c").appendChild(r);
+});
+if (q.get("mock")) document.body.classList.add("m");
+</script>
+</body></html>

@@ -19,7 +19,7 @@ Das Display ruft **niemals** selbst HA-Dienste auf. Es meldet nur `tap`/`hold`/`
 | `gs_states` | `data:string` | `{"e":{"light.x":{"o":1,"a":1,"d":"An · 50 %","n":50}},"v":{"t_1":0}}` (o = an, a = verfügbar, d = Anzeigetext, optional n = 0–100 für Helligkeit/Position/Lautstärke, s = Zweitzeile wie Zieltemperatur oder Medientitel, i = Icon für Wetter; v = Sichtbarkeit pro Kachel), ≤ 1500 Bytes je Nachricht |
 | `gs_page` | `page:int` | Seite anzeigen (weckt das Display, beendet den Bildschirmschoner) |
 | *(Layout `set`)* | `ss, sse, sst, ssm, slu, sli, slc` | Bildschirmschoner: Zeit, Werte, Titel; Modus (`ssm` 1 = Diashow, 2 = Gebetszeiten), Bild-URL (mit Display-Schlüssel), Intervall, Uhr |
-| *(Layout `set`, `ssm`=2)* | `spn, spe, spk, spx, spb` | Gebetszeiten: Namen, Timestamp-Sensoren (HA sendet sie als `HH:MM` in der HA-Zeitzone), Art (1 = Gebet, 0 = Sonnenaufgang), Texte der Countdown-Zeile (Präfix, Trenner, Stunden-/Minuteneinheit, „Jetzt“-Präfix), Kalligraphie-Hintergrund an/aus |
+| *(Layout `set`, `ssm`=2)* | `spn, spe, spk, spx, spb` | Gebetszeiten: Namen, Timestamp-Sensoren (HA sendet sie als `HH:MM` in der HA-Zeitzone), Art (1 = Gebet, 0 = Sonnenaufgang), Texte der Countdown-Zeile (Präfix, Trenner, Stunden-/Minuteneinheit, „Jetzt“-Präfix), Hintergrund (`spb`: 0 = schlicht, 1–4 = Basmala, Gebetsvers, Schahada, Al-Hamdu) |
 | `gs_mode` | `night:int, brightness:int, dim:int` | Nachtmodus an/aus, max. Helligkeit in %, Abdunklung 0–80 % |
 | `gs_notify` | `title, message:string, seconds:int` | Pop-up |
 | `gs_rollback` | – | vorheriges Layout aktivieren |
@@ -35,7 +35,7 @@ Das Display ruft **niemals** selbst HA-Dienste auf. Es meldet nur `tap`/`hold`/`
 | `hello` | `{"proto":2,"fw":"0.2.0","hw":"guition-4848s040","rev":3,"crc":…,"page":0,"heap":…,"psram":…,"up":…,"max":32768,"layout":true}` |
 | `ack` | `{"s":session,"ok":true,"rev":3,"crc":…,"err":""}`, Fehlercodes: `crc, size, oom, sequence, overflow, incomplete, session, nvs, version, json:*, schema:*` |
 | `tap` / `hold` | `{"t":"t_ab12cd34","p":"p_…"}`; bei der Wisch-Kachel zusätzlich `"i":1` = Index der gerade angezeigten Entität (HA bedient genau diese) |
-| *(Layout, Kachel `swipe`)* | `"it":[[entity, titel, icon], …]`: bis zu 4 Entitäten; `e` = erste Entität |
+| *(Layout, Kachel `swipe`)* | `"it":[[entity, titel, icon], …]`: bis zu 4 Entitäten; `e` = erste Entität; `"sd":1` = hoch/runter wischen |
 | `set` | `{"t":"t_…","p":"p_…","v":35}`: Schieberegler losgelassen (nur `dimmer`, 0–100; 0 = aus) |
 | `btn` | `{"t":"t_…","p":"p_…","b":"down"}`: Taste in einer Kachel. `cover`: up/stop/down · `thermostat`: minus/plus · `media`: prev/play/next/vol_down/vol_up |
 | `page` | `{"page":1,"id":"p_…"}` |

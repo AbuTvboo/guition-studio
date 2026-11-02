@@ -8,6 +8,15 @@ import { fireEvent, sharedStyles } from "../ui";
 import "./entity-picker";
 
 export const DEFAULT_NIGHT: NightSettings = { enabled: false, mode: "time", start: "22:00", end: "06:30", brightness: 15, dim: 30, page: null };
+/** Calligraphy backgrounds built into the firmware (keys = PRAYER_BACKGROUNDS in layout.py). */
+const PRAYER_BACKGROUNDS = [
+  { key: "basmala", label: "Basmala", hint: "Bismillāhi r-raḥmāni r-raḥīm – Nachtblau" },
+  { key: "verse", label: "Gebetsvers", hint: "Sure 4:103: Das Gebet ist den Gläubigen zu festgesetzten Zeiten vorgeschrieben – Smaragdgrün" },
+  { key: "shahada", label: "Schahada", hint: "Glaubensbekenntnis mit den Medaillons „Allah“ und „Muhammad“ – Bordeaux" },
+  { key: "hamd", label: "Al-Hamdu", hint: "Al-ḥamdu li-llāhi rabbi l-ʿālamīn – Violett" },
+  { key: "none", label: "Schlicht", hint: "Schwarzer Hintergrund" },
+];
+
 export const DEFAULT_SCREENSAVER: ScreensaverSettings = {
   enabled: false,
   after: 120,
@@ -189,6 +198,20 @@ export class GsAutomationProps extends LitElement {
     if (this.screensaver.mode === "slideshow") this.loadFolders();
   }
 
+  private renderPrayerBackgrounds(ss: ScreensaverSettings) {
+    const current = ss.prayer_bg === false ? "none" : ss.prayer_bg === true || !ss.prayer_bg ? "basmala" : ss.prayer_bg;
+    return html`<div class="field"><span class="muted small">Hintergrund</span>
+      <div class="bg-grid">
+        ${PRAYER_BACKGROUNDS.map(
+          (b) => html`<button class="bg-card ${current === b.key ? "active" : ""}" title=${b.hint} @click=${() => this.commit({ screensaver: { ...ss, prayer_bg: b.key } })}>
+            ${b.key === "none" ? html`<span class="bg-none">Aa</span>` : html`<img src="/guition_studio_static/prayer/${b.key}.jpg" alt="" loading="lazy" />`}
+            <span>${b.label}</span>
+          </button>`
+        )}
+      </div>
+    </div>`;
+  }
+
   private renderPrayer(ss: ScreensaverSettings) {
     const prayer = ss.prayer ?? {};
     const set = (next: ScreensaverSettings["prayer"]) => this.commit({ screensaver: { ...ss, prayer: next } });
@@ -198,20 +221,13 @@ export class GsAutomationProps extends LitElement {
         (Einstellungen → Geräte & Dienste → Integration hinzufügen). Berechnungsmethode, Schule (Asr) und Standort stellst du dort ein.
         Das Display zeigt Uhrzeit, Datum und alle Zeiten. Das nächste Gebet wird hervorgehoben, darüber steht ein Countdown.
       </div>
-      <div class="grid2">
-        <label class="field"><span>Sprache der Namen</span>
+      <label class="field"><span>Sprache der Namen</span>
           <select @change=${(e: Event) => this.commit({ screensaver: { ...ss, prayer_lang: (e.target as HTMLSelectElement).value as "de" | "tr" } })}>
             <option value="de" ?selected=${ss.prayer_lang !== "tr"}>Deutsch (Fajr, Dhuhr, Asr …)</option>
             <option value="tr" ?selected=${ss.prayer_lang === "tr"}>Türkçe (İmsak, Öğle, İkindi …)</option>
           </select>
         </label>
-        <label class="field"><span>Hintergrund</span>
-          <select @change=${(e: Event) => this.commit({ screensaver: { ...ss, prayer_bg: (e.target as HTMLSelectElement).value === "1" } })}>
-            <option value="1" ?selected=${ss.prayer_bg !== false}>Islamische Kalligraphie</option>
-            <option value="0" ?selected=${ss.prayer_bg === false}>Schlicht (schwarz)</option>
-          </select>
-        </label>
-      </div>
+      ${this.renderPrayerBackgrounds(ss)}
       ${found === 0 ? html`<div class="notice warn small">Keine Gebetszeit-Sensoren gefunden. Bitte die Integration einrichten oder die Sensoren unten von Hand wählen.</div>` : nothing}
       ${PRAYERS.map(
         (p) => html`<label class="field"><span>${p.label}${p.key === "sunrise" ? " (optional, kein Gebet)" : ""}</span>
@@ -275,6 +291,41 @@ export class GsAutomationProps extends LitElement {
   static styles = [
     sharedStyles,
     css`
+      .bg-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+        gap: 8px;
+        margin: 6px 0 12px;
+      }
+      .bg-card {
+        display: grid;
+        gap: 4px;
+        padding: 4px;
+        min-height: 0;
+        height: auto;
+        border-radius: 10px;
+        font-size: 12px;
+        white-space: normal;
+      }
+      .bg-card img,
+      .bg-none {
+        width: 100%;
+        aspect-ratio: 1;
+        border-radius: 7px;
+        display: block;
+      }
+      .bg-none {
+        display: grid;
+        place-items: center;
+        background: #000;
+        color: #8b98a5;
+        font-size: 20px;
+      }
+      .bg-card.active {
+        border-color: var(--gs-primary);
+        box-shadow: 0 0 0 2px var(--gs-primary);
+        font-weight: 600;
+      }
       section {
         border-top: 1px solid var(--gs-border);
         padding-top: 12px;

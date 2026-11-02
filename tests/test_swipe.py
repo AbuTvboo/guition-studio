@@ -69,3 +69,13 @@ def test_swipe_tile_validation():
         validate_layout(_layout([{"entity": "kein sensor"}])[0])
     with pytest.raises(LayoutValidationError):
         validate_layout(_layout([{"entity": "light.a", "icon": "gibt-es-nicht"}])[0])
+
+
+def test_swipe_direction():
+    layout, tid = _layout(ITEMS)
+    assert "sd" not in _device_tile(validate_layout(layout), tid)  # default: left/right
+    layout["pages"][0]["tiles"][-1]["swipe_dir"] = "v"
+    valid = validate_layout(layout)
+    assert _device_tile(valid, tid)["sd"] == 1
+    layout["pages"][0]["tiles"][-1]["swipe_dir"] = "diagonal"
+    assert "sd" not in _device_tile(validate_layout(layout), tid)

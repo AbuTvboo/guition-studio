@@ -886,7 +886,7 @@ function be(e, t, n, r, i, o = /* @__PURE__ */ new Date(), s = 0) {
 				"#BF5AF2"
 			].map((e) => c`<span style="border-radius:${m}px;background:${e}"></span>`)}
             </div>` : a}
-        ${l.length > 1 ? c`<div style="position:absolute;right:${p}px;top:${p + 4}px;display:flex;gap:5px">
+        ${l.length > 1 ? c`<div style=${e.swipe_dir === "v" ? `position:absolute;right:${p - 2}px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:5px` : `position:absolute;right:${p}px;top:${p + 4}px;display:flex;gap:5px`}>
               ${l.map((e, t) => c`<span style="width:7px;height:7px;border-radius:4px;background:${d.fg};opacity:${t === Math.min(s, l.length - 1) ? 1 : .4}"></span>`)}
             </div>` : a}`;
 		}
@@ -1762,6 +1762,7 @@ function R(e, t = 0, n = 0, r = 1, i = 1, a = {}) {
 		hours: 24,
 		weather: { ..._e },
 		items: [],
+		swipe_dir: "h",
 		...a
 	};
 }
@@ -2640,7 +2641,13 @@ var ht, gt, _t = {
 			entity: e[0]?.entity ?? null
 		});
 		return c`<div class="field-like">
-      <span class="muted small">Entitäten (bis ${4}). Auf dem Display nach links/rechts über die Kachel wischen, um zur nächsten zu wechseln. Tippen bedient die gerade angezeigte Entität.</span>
+      <label class="field"><span>Wischrichtung</span>
+        <select @change=${(e) => this.patch({ swipe_dir: e.target.value })}>
+          <option value="h" ?selected=${this.tile.swipe_dir !== "v"}>⇆ Links / rechts</option>
+          <option value="v" ?selected=${this.tile.swipe_dir === "v"}>⇅ Hoch / runter</option>
+        </select>
+      </label>
+      <span class="muted small">Entitäten (bis ${4}). Auf dem Display über die Kachel wischen, um zur nächsten zu wechseln – der Inhalt folgt dem Finger. Tippen bedient die gerade angezeigte Entität; beim Wischen wird nichts ausgelöst.</span>
       ${e.map((n, r) => c`<div class="swipe-item">
           <span class="swipe-no">${r + 1}</span>
           <div style="flex:1;min-width:0;display:grid;gap:4px">
@@ -3051,7 +3058,33 @@ var xt, St = {
 	brightness: 15,
 	dim: 30,
 	page: null
-}, Ct = {
+}, Ct = [
+	{
+		key: "basmala",
+		label: "Basmala",
+		hint: "Bismillāhi r-raḥmāni r-raḥīm – Nachtblau"
+	},
+	{
+		key: "verse",
+		label: "Gebetsvers",
+		hint: "Sure 4:103: Das Gebet ist den Gläubigen zu festgesetzten Zeiten vorgeschrieben – Smaragdgrün"
+	},
+	{
+		key: "shahada",
+		label: "Schahada",
+		hint: "Glaubensbekenntnis mit den Medaillons „Allah“ und „Muhammad“ – Bordeaux"
+	},
+	{
+		key: "hamd",
+		label: "Al-Hamdu",
+		hint: "Al-ḥamdu li-llāhi rabbi l-ʿālamīn – Violett"
+	},
+	{
+		key: "none",
+		label: "Schlicht",
+		hint: "Schwarzer Hintergrund"
+	}
+], wt = {
 	enabled: !1,
 	after: 120,
 	entities: [],
@@ -3081,7 +3114,7 @@ var xt, St = {
 	}
 	get screensaver() {
 		return {
-			...Ct,
+			...wt,
 			...this.layout.settings.screensaver ?? {}
 		};
 	}
@@ -3273,6 +3306,20 @@ var xt, St = {
 	firstUpdated() {
 		this.screensaver.mode === "slideshow" && this.loadFolders();
 	}
+	renderPrayerBackgrounds(e) {
+		let t = e.prayer_bg === !1 ? "none" : e.prayer_bg === !0 || !e.prayer_bg ? "basmala" : e.prayer_bg;
+		return c`<div class="field"><span class="muted small">Hintergrund</span>
+      <div class="bg-grid">
+        ${Ct.map((n) => c`<button class="bg-card ${t === n.key ? "active" : ""}" title=${n.hint} @click=${() => this.commit({ screensaver: {
+			...e,
+			prayer_bg: n.key
+		} })}>
+            ${n.key === "none" ? c`<span class="bg-none">Aa</span>` : c`<img src="/guition_studio_static/prayer/${n.key}.jpg" alt="" loading="lazy" />`}
+            <span>${n.label}</span>
+          </button>`)}
+      </div>
+    </div>`;
+	}
 	renderPrayer(e) {
 		let t = e.prayer ?? {}, n = (t) => this.commit({ screensaver: {
 			...e,
@@ -3283,8 +3330,7 @@ var xt, St = {
         (Einstellungen → Geräte & Dienste → Integration hinzufügen). Berechnungsmethode, Schule (Asr) und Standort stellst du dort ein.
         Das Display zeigt Uhrzeit, Datum und alle Zeiten. Das nächste Gebet wird hervorgehoben, darüber steht ein Countdown.
       </div>
-      <div class="grid2">
-        <label class="field"><span>Sprache der Namen</span>
+      <label class="field"><span>Sprache der Namen</span>
           <select @change=${(t) => this.commit({ screensaver: {
 			...e,
 			prayer_lang: t.target.value
@@ -3293,16 +3339,7 @@ var xt, St = {
             <option value="tr" ?selected=${e.prayer_lang === "tr"}>Türkçe (İmsak, Öğle, İkindi …)</option>
           </select>
         </label>
-        <label class="field"><span>Hintergrund</span>
-          <select @change=${(t) => this.commit({ screensaver: {
-			...e,
-			prayer_bg: t.target.value === "1"
-		} })}>
-            <option value="1" ?selected=${e.prayer_bg !== !1}>Islamische Kalligraphie</option>
-            <option value="0" ?selected=${e.prayer_bg === !1}>Schlicht (schwarz)</option>
-          </select>
-        </label>
-      </div>
+      ${this.renderPrayerBackgrounds(e)}
       ${r === 0 ? c`<div class="notice warn small">Keine Gebetszeit-Sensoren gefunden. Bitte die Integration einrichten oder die Sensoren unten von Hand wählen.</div>` : a}
       ${ct.map((e) => c`<label class="field"><span>${e.label}${e.key === "sunrise" ? " (optional, kein Gebet)" : ""}</span>
           <gs-entity-picker
@@ -3365,6 +3402,41 @@ var xt, St = {
       <label class="check"><input type="checkbox" .checked=${e.show_clock !== !1} @change=${(e) => t({ show_clock: e.target.checked })} /> Uhrzeit & Datum über den Bildern</label>`;
 	}
 }, xt.styles = [w, r`
+      .bg-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+        gap: 8px;
+        margin: 6px 0 12px;
+      }
+      .bg-card {
+        display: grid;
+        gap: 4px;
+        padding: 4px;
+        min-height: 0;
+        height: auto;
+        border-radius: 10px;
+        font-size: 12px;
+        white-space: normal;
+      }
+      .bg-card img,
+      .bg-none {
+        width: 100%;
+        aspect-ratio: 1;
+        border-radius: 7px;
+        display: block;
+      }
+      .bg-none {
+        display: grid;
+        place-items: center;
+        background: #000;
+        color: #8b98a5;
+        font-size: 20px;
+      }
+      .bg-card.active {
+        border-color: var(--gs-primary);
+        box-shadow: 0 0 0 2px var(--gs-primary);
+        font-weight: 600;
+      }
       section {
         border-top: 1px solid var(--gs-border);
         padding-top: 12px;
@@ -3399,7 +3471,7 @@ var xt, St = {
     `], xt);
 M([s({ attribute: !1 })], K.prototype, "hass", void 0), M([s({ attribute: !1 })], K.prototype, "layout", void 0), M([s({ attribute: !1 })], K.prototype, "api", void 0), M([e()], K.prototype, "folders", void 0), M([e()], K.prototype, "mediaRoot", void 0), K = M([u("gs-automation-props")], K);
 // src/views/designer.ts
-var wt, q = [], J = (wt = class extends t {
+var Tt, q = [], J = (Tt = class extends t {
 	constructor(...e) {
 		super(...e), this.displays = [], this.displayId = null, this.layout = null, this.activePage = "", this.selection = [], this.zoom = .8, this.showGrid = !0, this.multi = !1, this.drag = null, this.saveState = "saved", this.validation = null, this.applying = null, this.search = "", this.category = "all", this.favorites = [], this.libraryOpen = !0, this.propsOpen = !1, this.loading = !1, this.loadError = null, this.pageDragIndex = null, this.propsTab = "page", this.history = new ut(), this.libraryCache = null, this.loadedFor = null, this.onKeyDown = (e) => {
 			let t = e.composedPath()[0];
@@ -3845,11 +3917,19 @@ var wt, q = [], J = (wt = class extends t {
 			},
 			{
 				key: "swipe",
-				label: "Wisch-Kachel (bis 4 Entitäten)",
+				label: "Wisch-Kachel ⇆ (links/rechts)",
 				icon: "mdi:gesture-swipe-horizontal",
 				glyph: "⇆",
 				category: "system",
 				make: () => R("swipe", 0, 0, 1, 1)
+			},
+			{
+				key: "swipe-v",
+				label: "Wisch-Kachel ⇅ (hoch/runter)",
+				icon: "mdi:gesture-swipe-vertical",
+				glyph: "⇅",
+				category: "system",
+				make: () => R("swipe", 0, 0, 1, 1, { swipe_dir: "v" })
 			},
 			{
 				key: "settings",
@@ -4283,7 +4363,7 @@ var wt, q = [], J = (wt = class extends t {
             <button @click=${() => this.apply()}>Erneut versuchen</button>` : a}
     </div>`;
 	}
-}, wt.styles = [
+}, Tt.styles = [
 	w,
 	xe,
 	r`
@@ -4726,16 +4806,16 @@ var wt, q = [], J = (wt = class extends t {
         }
       }
     `
-], wt);
+], Tt);
 M([s({ attribute: !1 })], J.prototype, "hass", void 0), M([s({ attribute: !1 })], J.prototype, "api", void 0), M([s({ attribute: !1 })], J.prototype, "info", void 0), M([s({ attribute: !1 })], J.prototype, "displays", void 0), M([s({ attribute: !1 })], J.prototype, "displayId", void 0), M([e()], J.prototype, "layout", void 0), M([e()], J.prototype, "activePage", void 0), M([e()], J.prototype, "selection", void 0), M([e()], J.prototype, "zoom", void 0), M([e()], J.prototype, "showGrid", void 0), M([e()], J.prototype, "multi", void 0), M([e()], J.prototype, "drag", void 0), M([e()], J.prototype, "saveState", void 0), M([e()], J.prototype, "validation", void 0), M([e()], J.prototype, "applying", void 0), M([e()], J.prototype, "search", void 0), M([e()], J.prototype, "category", void 0), M([e()], J.prototype, "favorites", void 0), M([e()], J.prototype, "libraryOpen", void 0), M([e()], J.prototype, "propsOpen", void 0), M([e()], J.prototype, "loading", void 0), M([e()], J.prototype, "loadError", void 0), M([e()], J.prototype, "pageDragIndex", void 0), M([e()], J.prototype, "propsTab", void 0), J = M([u("gs-designer")], J);
 // src/views/firmware.ts
-var Tt;
-function Et(e, t) {
+var Et;
+function Dt(e, t) {
 	let n = e.split(/[.-]/).map((e) => parseInt(e, 10) || 0), r = t.split(/[.-]/).map((e) => parseInt(e, 10) || 0);
 	for (let e = 0; e < Math.max(n.length, r.length); e++) if ((n[e] ?? 0) !== (r[e] ?? 0)) return (n[e] ?? 0) - (r[e] ?? 0);
 	return 0;
 }
-var Y = (Tt = class extends N {
+var Y = (Et = class extends N {
 	constructor(...e) {
 		super(...e), this.status = null, this.busy = null, this.target = {}, this.showUsb = !1;
 	}
@@ -4820,7 +4900,7 @@ var Y = (Tt = class extends N {
         <table>
           <tr><th>Display</th><th>Installiert</th><th>Status</th><th>Zielversion</th><th></th></tr>
           ${this.displays.map((e) => {
-			let n = this.target[e.id] ?? t[0]?.version ?? "", r = e.firmware && n ? Et(n, e.firmware) > 0 : !1, i = e.ota?.state && e.ota.state !== "idle" ? e.ota : null;
+			let n = this.target[e.id] ?? t[0]?.version ?? "", r = e.firmware && n ? Dt(n, e.firmware) > 0 : !1, i = e.ota?.state && e.ota.state !== "idle" ? e.ota : null;
 			return c`<tr>
               <td><b>${e.name}</b></td>
               <td>${e.firmware ?? "–"}</td>
@@ -4862,7 +4942,7 @@ var Y = (Tt = class extends N {
       </section>
     `;
 	}
-}, Tt.styles = [...N.styles, r`
+}, Et.styles = [...N.styles, r`
       .notes {
         white-space: pre-wrap;
         font-size: 12px;
@@ -4872,11 +4952,11 @@ var Y = (Tt = class extends N {
       td select {
         min-width: 110px;
       }
-    `], Tt);
+    `], Et);
 M([e()], Y.prototype, "status", void 0), M([e()], Y.prototype, "busy", void 0), M([e()], Y.prototype, "target", void 0), M([e()], Y.prototype, "showUsb", void 0), Y = M([u("gs-firmware")], Y);
 // src/views/templates.ts
-var Dt;
-function Ot(e) {
+var Ot;
+function kt(e) {
 	let t = L(e), n = /* @__PURE__ */ new Map();
 	for (let e of t.pages) {
 		let t = I("p");
@@ -4886,7 +4966,7 @@ function Ot(e) {
 	for (let e of t.pages) for (let t of e.tiles) for (let e of ["tap_action", "hold_action"]) t[e].action === "navigate" && t[e].page && (t[e].page = n.get(t[e].page) ?? t[e].page);
 	return t.settings.home_page && (t.settings.home_page = n.get(t.settings.home_page) ?? t.pages[0]?.id ?? null), t;
 }
-var X = (Dt = class extends N {
+var X = (Ot = class extends N {
 	constructor(...e) {
 		super(...e), this.displayId = null, this.target = null, this.area = "";
 	}
@@ -4901,7 +4981,7 @@ var X = (Dt = class extends N {
 			text: `Der aktuelle Entwurf von „${n.name}“ wird ersetzt. Das Layout auf dem Display ändert sich erst beim Übertragen.`,
 			confirm: "Übernehmen"
 		})) try {
-			let n = await this.api.getLayout(t), r = Ot(e.layout);
+			let n = await this.api.getLayout(t), r = kt(e.layout);
 			r.revision = n.layout.revision, await this.api.saveLayout(t, r), k(this, "Vorlage übernommen – Kacheln ohne Entität sind markiert.", "ok"), this.go("designer", t);
 		} catch (e) {
 			k(this, y(e), "error");
@@ -4944,7 +5024,7 @@ var X = (Dt = class extends N {
 				text: `${n.pages.length} Seite(n). ${r.valid ? "Das Layout ist gültig." : `Hinweise: ${r.errors.slice(0, 3).join(" ")}`}\nDer aktuelle Entwurf wird ersetzt.`,
 				confirm: "Importieren"
 			})) return;
-			let i = await this.api.getLayout(e), a = Ot(n);
+			let i = await this.api.getLayout(e), a = kt(n);
 			a.revision = i.layout.revision, await this.api.saveLayout(e, a), k(this, "Layout importiert", "ok"), this.go("designer", e);
 		} catch (e) {
 			k(this, y(e), "error");
@@ -5075,7 +5155,7 @@ var X = (Dt = class extends N {
       </section>
     `;
 	}
-}, Dt.styles = [
+}, Ot.styles = [
 	...N.styles,
 	xe,
 	r`
@@ -5096,10 +5176,10 @@ var X = (Dt = class extends N {
         pointer-events: none;
       }
     `
-], Dt);
+], Ot);
 M([s({ attribute: !1 })], X.prototype, "displayId", void 0), M([e()], X.prototype, "target", void 0), M([e()], X.prototype, "area", void 0), X = M([u("gs-templates")], X);
 // src/views/settings.ts
-var kt = class extends N {
+var At = class extends N {
 	constructor(...e) {
 		super(...e), this.displayId = null, this.selected = null, this.layout = null, this.debug = !1, this.dirty = !1, this.busy = !1, this.loadedId = null;
 	}
@@ -5248,7 +5328,7 @@ var kt = class extends N {
       </section>
     `;
 	}
-}, Z = (kt.styles = [...N.styles, r`
+}, Z = (At.styles = [...N.styles, r`
       .actions {
         margin-top: 16px;
         position: sticky;
@@ -5267,10 +5347,10 @@ var kt = class extends N {
       th {
         width: 50%;
       }
-    `], kt);
+    `], At);
 M([s({ attribute: !1 })], Z.prototype, "displayId", void 0), M([e()], Z.prototype, "selected", void 0), M([e()], Z.prototype, "layout", void 0), M([e()], Z.prototype, "debug", void 0), M([e()], Z.prototype, "dirty", void 0), M([e()], Z.prototype, "busy", void 0), Z = M([u("gs-settings")], Z);
 // src/views/diagnostics.ts
-var At = class extends N {
+var jt = class extends N {
 	constructor(...e) {
 		super(...e), this.entries = [], this.level = "all", this.debug = !1;
 	}
@@ -5348,7 +5428,7 @@ var At = class extends N {
       </section>
     `;
 	}
-}, Q = (At.styles = [...N.styles, r`
+}, Q = (jt.styles = [...N.styles, r`
       th {
         width: 44%;
       }
@@ -5376,10 +5456,10 @@ var At = class extends N {
         background: var(--gs-warn);
         color: #fff;
       }
-    `], At);
+    `], jt);
 M([e()], Q.prototype, "entries", void 0), M([e()], Q.prototype, "level", void 0), M([e()], Q.prototype, "debug", void 0), Q = M([u("gs-diagnostics")], Q);
 // src/panel.ts
-var jt, Mt = [
+var Mt, Nt = [
 	{
 		key: "overview",
 		label: "Übersicht",
@@ -5422,7 +5502,7 @@ var jt, Mt = [
 		icon: "mdi:stethoscope",
 		glyph: "♥"
 	}
-], $ = (jt = class extends t {
+], $ = (Mt = class extends t {
 	constructor(...e) {
 		super(...e), this.narrow = !1, this.view = "overview", this.displays = [], this.selected = null, this.error = null, this.dialog = null, this.toasts = [], this.navOpen = !1, this.api = new v(() => this.hass), this.toastId = 0, this.onNavigate = (e) => {
 			this.view = e.detail.view, e.detail.display && (this.selected = e.detail.display), this.navOpen = !1, this.refresh();
@@ -5449,7 +5529,7 @@ var jt, Mt = [
 	connectedCallback() {
 		super.connectedCallback(), this.addEventListener("gs-confirm", this.onConfirm), this.addEventListener("gs-prompt", this.onPrompt), this.addEventListener("gs-toast", this.onToast), this.addEventListener("gs-navigate", this.onNavigate), this.addEventListener("gs-refresh", () => this.refresh());
 		let e = new URLSearchParams(location.search).get("view");
-		e && Mt.some((t) => t.key === e) && (this.view = e);
+		e && Nt.some((t) => t.key === e) && (this.view = e);
 	}
 	disconnectedCallback() {
 		super.disconnectedCallback(), this.unsub?.(), this.unsub = void 0, window.clearInterval(this.refreshTimer);
@@ -5535,7 +5615,7 @@ var jt, Mt = [
         </header>
         <div class="body">
           <nav class="${this.navOpen ? "open" : ""}" aria-label="Guition Studio Navigation">
-            ${Mt.map((e) => c`<button
+            ${Nt.map((e) => c`<button
                 class="nav-item ${this.view === e.key ? "active" : ""}"
                 aria-current=${this.view === e.key ? "page" : "false"}
                 @click=${() => {
@@ -5575,7 +5655,7 @@ var jt, Mt = [
 	updated() {
 		this.toggleAttribute("dark", !!this.hass?.themes?.darkMode), this.dialog?.kind === "prompt" && this.renderRoot.querySelector("#prompt-input")?.focus();
 	}
-}, jt.styles = [w, r`
+}, Mt.styles = [w, r`
       /* Guition Studio palette: petrol primary, amber accent, cool slate neutrals. */
       :host {
         --gsp-bg: #f3f6f9;
@@ -5796,5 +5876,5 @@ var jt, Mt = [
       .toast.error {
         border-left-color: #f87171;
       }
-    `], jt);
+    `], Mt);
 M([s({ attribute: !1 })], $.prototype, "hass", void 0), M([s({ type: Boolean })], $.prototype, "narrow", void 0), M([e()], $.prototype, "view", void 0), M([e()], $.prototype, "info", void 0), M([e()], $.prototype, "displays", void 0), M([e()], $.prototype, "selected", void 0), M([e()], $.prototype, "error", void 0), M([e()], $.prototype, "dialog", void 0), M([e()], $.prototype, "toasts", void 0), M([e()], $.prototype, "navOpen", void 0), $ = M([u("guition-studio-panel")], $);

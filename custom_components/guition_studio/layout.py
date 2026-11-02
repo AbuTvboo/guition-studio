@@ -105,7 +105,7 @@ def default_screensaver() -> dict[str, Any]:
         # slideshow: pictures streamed from a Home Assistant media folder
         "mode": "clock", "folder": "guition_studio", "interval": 15, "order": "random", "fit": "cover", "show_clock": True,
         # prayer: timestamp sensors of the Islamic Prayer Times integration, key -> entity id
-        "prayer": {}, "prayer_lang": "de", "prayer_bg": True,
+        "prayer": {}, "prayer_lang": "de", "prayer_bg": "basmala",
     }  # fmt: skip
 
 
@@ -124,6 +124,8 @@ PRAYER_NAMES: dict[str, dict[str, str]] = {
     "de": dict(PRAYER_KEYS),
     "tr": {"fajr": "İmsak", "sunrise": "Güneş", "dhuhr": "Öğle", "asr": "İkindi", "maghrib": "Akşam", "isha": "Yatsı"},
 }
+# Calligraphy backgrounds built into the firmware (order = index on the device, 1-based; 0 = none)
+PRAYER_BACKGROUNDS: tuple[str, ...] = ("basmala", "verse", "shahada", "hamd")
 # Texts of the "next prayer" line: prefix, separator before the countdown, hour unit, minute unit, "now" prefix
 PRAYER_TEXTS: dict[str, list[str]] = {
     "de": ["Nächstes Gebet:", " in ", "h", "min", "Jetzt:"],
@@ -200,6 +202,7 @@ def make_tile(
         "hours": 24,
         "weather": dict(WEATHER_OPTIONS),
         "items": [],
+        "swipe_dir": "h",
     }
 
 
@@ -438,7 +441,10 @@ def _validate_screensaver(raw: Any, errors: list[str]) -> dict[str, Any]:
         else:
             s["prayer"][key] = eid
     s["prayer_lang"] = raw.get("prayer_lang") if raw.get("prayer_lang") in PRAYER_NAMES else "de"
-    s["prayer_bg"] = _bool(raw.get("prayer_bg"), True)
+    bg = raw.get("prayer_bg", "basmala")
+    if isinstance(bg, bool):  # 0.5.9 stored on/off
+        bg = "basmala" if bg else "none"
+    s["prayer_bg"] = bg if bg in PRAYER_BACKGROUNDS or bg == "none" else "basmala"
     if s["enabled"] and s["mode"] == "prayer" and not s["prayer"]:
         errors.append("Bildschirmschoner: Bitte die Gebetszeit-Sensoren auswählen.")
     return s
@@ -604,6 +610,8 @@ def _validate_tile(
         "hours": _int(tile.get("hours"), 24, 1, 48),
         "weather": _weather_options(tile.get("weather")),
         "items": items,
+        # swipe tile: "h" = left/right, "v" = up/down
+        "swipe_dir": "v" if tile.get("swipe_dir") == "v" else "h",
     }
 
 
@@ -794,6 +802,8 @@ def compile_device_layout(layout: dict[str, Any], slide_url: str | None = None) 
                     ]
                     for it in swipe_items(t)
                 ]
+                if t.get("swipe_dir") == "v":
+                    dev["sd"] = 1
             if t["type"] == "weather":
                 opts = t.get("weather") or WEATHER_OPTIONS
                 dev["wo"] = sum(bit for key, bit in WEATHER_BITS.items() if opts.get(key, WEATHER_OPTIONS[key]))
@@ -907,7 +917,7 @@ def _screensaver_device(settings: dict[str, Any], layout: dict[str, Any], slide_
             spe=[eid for _, _, eid in rows],
             spk=[0 if key == "sunrise" else 1 for key, _, _ in rows],
             spx=PRAYER_TEXTS[lang],
-            spb=int(ss.get("prayer_bg", True)),
+            spb=PRAYER_BACKGROUNDS.index(bg) + 1 if (bg := ss.get("prayer_bg", "basmala")) in PRAYER_BACKGROUNDS else 0,
         )
     return out
 

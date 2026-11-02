@@ -10,10 +10,8 @@ import "./entity-picker";
 export const DEFAULT_NIGHT: NightSettings = { enabled: false, mode: "time", start: "22:00", end: "06:30", brightness: 15, dim: 30, page: null };
 /** Calligraphy backgrounds built into the firmware (keys = PRAYER_BACKGROUNDS in layout.py). */
 const PRAYER_BACKGROUNDS = [
-  { key: "basmala", label: "Basmala", hint: "Bismillāhi r-raḥmāni r-raḥīm – Nachtblau" },
-  { key: "verse", label: "Gebetsvers", hint: "Sure 4:103: Das Gebet ist den Gläubigen zu festgesetzten Zeiten vorgeschrieben – Smaragdgrün" },
-  { key: "shahada", label: "Schahada", hint: "Glaubensbekenntnis mit den Medaillons „Allah“ und „Muhammad“ – Bordeaux" },
-  { key: "hamd", label: "Al-Hamdu", hint: "Al-ḥamdu li-llāhi rabbi l-ʿālamīn – Violett" },
+  { key: "basmala", label: "Basmala", hint: "Mihrab-Bogen, Sternmuster und Basmala" },
+  { key: "mosque", label: "Moschee", hint: "Sternenhimmel mit Mondsichel, Moschee-Silhouette und „Allah“-Kalligraphie" },
   { key: "none", label: "Schlicht", hint: "Schwarzer Hintergrund" },
 ];
 

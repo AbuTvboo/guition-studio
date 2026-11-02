@@ -21,8 +21,10 @@
 #ifdef USE_GS_SLIDESHOW
 #include "esphome/components/online_image/online_image.h"
 #endif
-#ifdef USE_GS_PRAYER_BG
-#include "esphome/components/image/image.h"
+// Prayer backgrounds are embedded as JPEG (gs_prayer_bg.c) and decoded with JPEGDEC,
+// which is part of the build when the slideshow (online_image, JPEG) is enabled.
+#ifdef USE_RUNTIME_IMAGE_JPEG
+#define USE_GS_PRAYER_BG
 #endif
 
 #include "esphome/components/lvgl/lvgl_esphome.h"
@@ -206,9 +208,6 @@ class GuitionStudio : public Component {
 #ifdef USE_GS_SLIDESHOW
   void set_slideshow_image(online_image::OnlineImage *img) { this->slide_img_ = img; }
 #endif
-#ifdef USE_GS_PRAYER_BG
-  void add_prayer_background(image::Image *img) { this->prayer_bgs_.push_back(img); }
-#endif
   void add_on_event_callback(std::function<void(const std::string &, const std::string &)> &&cb) {
     this->event_callbacks_.add(std::move(cb));
   }
@@ -369,7 +368,11 @@ class GuitionStudio : public Component {
   std::string ss_prayer_sig_;
   bool ss_prayer_gold_{false};  // gold highlight on the calligraphy background
 #ifdef USE_GS_PRAYER_BG
-  std::vector<image::Image *> prayer_bgs_;
+  // decoded background (RGB565 in PSRAM), kept while the same picture is selected
+  uint16_t *prayer_bg_buf_{nullptr};
+  int prayer_bg_loaded_{0};
+  lv_image_dsc_t prayer_bg_dsc_{};
+  bool load_prayer_bg_(int index);
 #endif
 
   // local overrides (-1 = use layout), persisted in NVS key "ovr"

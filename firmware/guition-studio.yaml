@@ -10,7 +10,7 @@
 substitutions:
   name: guition-studio
   friendly_name: Guition Studio
-  fw_version: "0.5.10"
+  fw_version: "0.5.11"
 
 esphome:
   name: ${name}
@@ -135,6 +135,8 @@ api:
 http_request:
   timeout: 60s
   verify_ssl: false
+  # larger receive buffer: fewer, bigger reads for OTA downloads and slideshow pictures
+  buffer_size_rx: 4096
 
 ota:
   # Only reachable through the encrypted native API action gs_ota (triggered by
@@ -237,35 +239,11 @@ image:
     type: RGB565
     resize: 480x480
     update_interval: never
-  # Backgrounds of the prayer times screensaver: Islamic star pattern, mihrab arch and
-  # calligraphy in Amiri (SIL OFL 1.1). Source: scripts/prayer-bg.html. Order = selection
-  # index sent by Home Assistant (PRAYER_BACKGROUNDS in layout.py).
-  - platform: file
-    id: gs_prayer_bg_basmala
-    file: images/prayer-bg-basmala.png
-    type: RGB565
-    resize: 480x480
-  - platform: file
-    id: gs_prayer_bg_verse
-    file: images/prayer-bg-verse.png
-    type: RGB565
-    resize: 480x480
-  - platform: file
-    id: gs_prayer_bg_shahada
-    file: images/prayer-bg-shahada.png
-    type: RGB565
-    resize: 480x480
-  - platform: file
-    id: gs_prayer_bg_hamd
-    file: images/prayer-bg-hamd.png
-    type: RGB565
-    resize: 480x480
 
 guition_studio:
   id: studio
   backlight: backlight
   slideshow_image: gs_slide
-  prayer_backgrounds: [gs_prayer_bg_basmala, gs_prayer_bg_verse, gs_prayer_bg_shahada, gs_prayer_bg_hamd]
   touchscreen_id: main_touch
   time_id: ha_time
   hardware: guition-4848s040

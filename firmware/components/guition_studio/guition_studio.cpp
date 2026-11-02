@@ -8,6 +8,15 @@
 #include <cstring>
 
 #include <ArduinoJson.h>
+#ifdef USE_GS_PRAYER_BG
+#include <JPEGDEC.h>
+#include <memory>
+extern "C" {
+extern const int GS_PRAYER_BG_COUNT;
+extern const uint8_t *const GS_PRAYER_BG_DATA[];
+extern const size_t GS_PRAYER_BG_SIZE[];
+}
+#endif
 #include <esp_heap_caps.h>
 #include <esp_system.h>
 #include <nvs.h>
@@ -1955,12 +1964,10 @@ void GuitionStudio::build_prayer_screensaver_(lv_obj_t *parent) {
   const auto &l = this->layout_;
   this->ss_prayer_gold_ = false;
 #ifdef USE_GS_PRAYER_BG
-  if (l.prayer_bg > 0 && !this->prayer_bgs_.empty()) {
+  if (l.prayer_bg > 0 && this->load_prayer_bg_(l.prayer_bg <= GS_PRAYER_BG_COUNT ? l.prayer_bg : 1)) {
     // calligraphy background behind everything, highlight in gold to match it
-    size_t pick = static_cast<size_t>(l.prayer_bg - 1);
-    image::Image *img = this->prayer_bgs_[pick < this->prayer_bgs_.size() ? pick : 0];
     lv_obj_t *bg = lv_image_create(parent);
-    lv_image_set_src(bg, img->get_lv_image_dsc());
+    lv_image_set_src(bg, &this->prayer_bg_dsc_);
     lv_obj_set_pos(bg, 0, 0);
     lv_obj_move_background(bg);
     this->ss_prayer_gold_ = true;
@@ -1989,6 +1996,71 @@ void GuitionStudio::build_prayer_screensaver_(lv_obj_t *parent) {
     this->ss_prow_[i] = row;
   }
 }
+
+#ifdef USE_GS_PRAYER_BG
+namespace {
+struct BgTarget {
+  uint16_t *buf;
+};
+// JPEGDEC hands over decoded blocks (RGB565, native byte order = LVGL RGB565)
+int prayer_bg_draw(JPEGDRAW *d) {
+  auto *target = static_cast<BgTarget *>(d->pUser);
+  for (int row = 0; row < d->iHeight; row++) {
+    int y = d->y + row;
+    if (y < 0 || y >= SCREEN_H || d->x < 0 || d->x >= SCREEN_W)
+      continue;
+    int w = std::min(d->iWidth, SCREEN_W - d->x);
+    memcpy(target->buf + y * SCREEN_W + d->x, d->pPixels + row * d->iWidth, w * sizeof(uint16_t));
+  }
+  return 1;
+}
+}  // namespace
+
+/// Decode background `index` (1-based) into PSRAM once; reused until another one is chosen.
+bool GuitionStudio::load_prayer_bg_(int index) {
+  if (index < 1 || index > GS_PRAYER_BG_COUNT)
+    return false;
+  if (this->prayer_bg_loaded_ == index && this->prayer_bg_buf_ != nullptr)
+    return true;
+  const size_t bytes = SCREEN_W * SCREEN_H * sizeof(uint16_t);
+  if (this->prayer_bg_buf_ == nullptr)
+    this->prayer_bg_buf_ = static_cast<uint16_t *>(heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM));
+  if (this->prayer_bg_buf_ == nullptr) {
+    ESP_LOGW(TAG, "No PSRAM for the prayer background");
+    return false;
+  }
+  auto jpeg = std::unique_ptr<JPEGDEC>(new (std::nothrow) JPEGDEC());
+  BgTarget target{this->prayer_bg_buf_};
+  bool ok = jpeg != nullptr &&
+            jpeg->openRAM(const_cast<uint8_t *>(GS_PRAYER_BG_DATA[index - 1]),
+                          static_cast<int>(GS_PRAYER_BG_SIZE[index - 1]), prayer_bg_draw);
+  if (ok) {
+    jpeg->setUserPointer(&target);
+    jpeg->setPixelType(RGB565_LITTLE_ENDIAN);
+    ok = jpeg->getWidth() == SCREEN_W && jpeg->getHeight() == SCREEN_H && jpeg->decode(0, 0, 0);
+    jpeg->close();
+  }
+  if (!ok) {
+    ESP_LOGW(TAG, "Prayer background %d could not be decoded", index);
+    this->prayer_bg_loaded_ = 0;
+    return false;
+  }
+  this->prayer_bg_loaded_ = index;
+  this->prayer_bg_dsc_ = {};
+#if LVGL_VERSION_MAJOR >= 9
+  this->prayer_bg_dsc_.header.magic = LV_IMAGE_HEADER_MAGIC;
+  this->prayer_bg_dsc_.header.cf = LV_COLOR_FORMAT_RGB565;
+  this->prayer_bg_dsc_.header.stride = SCREEN_W * sizeof(uint16_t);
+#else
+  this->prayer_bg_dsc_.header.cf = LV_IMG_CF_TRUE_COLOR;
+#endif
+  this->prayer_bg_dsc_.header.w = SCREEN_W;
+  this->prayer_bg_dsc_.header.h = SCREEN_H;
+  this->prayer_bg_dsc_.data_size = bytes;
+  this->prayer_bg_dsc_.data = reinterpret_cast<const uint8_t *>(this->prayer_bg_buf_);
+  return true;
+}
+#endif
 
 // "HH:MM" -> minutes since midnight, -1 if the text is no time (unknown/unavailable)
 static int hhmm_minutes(const std::string &t) {

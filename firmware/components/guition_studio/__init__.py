@@ -7,7 +7,7 @@ needed to change pages or tiles.
 
 from esphome import automation
 import esphome.codegen as cg
-from esphome.components import image, light
+from esphome.components import light
 from esphome.components import time as time_
 from esphome.components import touchscreen
 import esphome.config_validation as cv
@@ -22,7 +22,6 @@ CONF_ON_EVENT = "on_event"
 CONF_MAX_LAYOUT_SIZE = "max_layout_size"
 CONF_HARDWARE = "hardware"
 CONF_SLIDESHOW_IMAGE = "slideshow_image"
-CONF_PRAYER_BACKGROUNDS = "prayer_backgrounds"
 CONF_LVGL_ID = "lvgl_id"
 CONF_TOUCHSCREEN_ID = "touchscreen_id"
 
@@ -45,8 +44,6 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_TIME_ID): cv.use_id(time_.RealTimeClock),
         # online_image used to stream screensaver slideshow pictures from Home Assistant
         cv.Optional(CONF_SLIDESHOW_IMAGE): cv.use_id(OnlineImage),
-        # static pictures behind the prayer times screensaver (calligraphy), selectable in HA
-        cv.Optional(CONF_PRAYER_BACKGROUNDS): cv.ensure_list(cv.use_id(image.Image_)),
         cv.Optional(CONF_HARDWARE, default="guition-4848s040"): cv.string_strict,
         cv.Optional(CONF_MAX_LAYOUT_SIZE, default=32768): cv.int_range(
             min=1024, max=131072
@@ -78,11 +75,6 @@ async def to_code(config):
         img = await cg.get_variable(config[CONF_SLIDESHOW_IMAGE])
         cg.add_define("USE_GS_SLIDESHOW")
         cg.add(var.set_slideshow_image(img))
-    if config.get(CONF_PRAYER_BACKGROUNDS):
-        cg.add_define("USE_GS_PRAYER_BG")
-        for bg_id in config[CONF_PRAYER_BACKGROUNDS]:
-            bg = await cg.get_variable(bg_id)
-            cg.add(var.add_prayer_background(bg))
     for conf in config.get(CONF_ON_EVENT, []):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
         await automation.build_automation(

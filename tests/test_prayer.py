@@ -74,7 +74,7 @@ def test_prayer_turkish_names_texts_and_background():
     assert doc["spn"][0] == "Fajr" and doc["spx"][0] == "Nächstes Gebet:" and doc["spb"] == 1
 
 
-@pytest.mark.parametrize(("value", "spb"), [("basmala", 1), ("verse", 2), ("shahada", 3), ("hamd", 4), ("none", 0), (True, 1), (False, 0)])
+@pytest.mark.parametrize(("value", "spb"), [("basmala", 1), ("mosque", 2), ("none", 0), (True, 1), (False, 0), ("verse", 1)])
 def test_prayer_background_choice(value, spb):
     layout = _layout(PRAYER)
     layout["settings"]["screensaver"]["prayer_bg"] = value

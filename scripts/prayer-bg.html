@@ -1,25 +1,27 @@
 <!doctype html>
 <!--
   Source of the prayer times screensaver backgrounds (480x480):
-    firmware/images/prayer-bg-<key>.png  (compiled into the firmware)
-    custom_components/guition_studio/www/prayer/<key>.jpg  (small previews in the designer)
+    firmware/images/prayer-bg-<key>.png -> scripts/gen-prayer-bg.py embeds them as JPEG in the firmware
+    frontend/public/prayer/<key>.jpg    -> small previews in the designer
   Arabic text set in Amiri Bold (SIL OFL 1.1, https://github.com/aliftype/amiri): put Amiri-Bold.ttf
-  next to this file and render each preset headless, e.g.
+  next to this file and render each design headless, e.g.
     chrome --headless=new --hide-scrollbars --force-device-scale-factor=1 --window-size=480,480 \
            --allow-file-access-from-files --screenshot=prayer-bg-basmala.png "prayer-bg.html?t=basmala"
   Add &mock=1 to preview with sample prayer times on top.
-  Keys and order must match PRAYER_BACKGROUNDS in custom_components/guition_studio/layout.py.
+  Designs: basmala (arch, star pattern, basmala) and mosque (night sky, crescent, mosque silhouette,
+  large "Allah" watermark). Keys/order must match PRAYER_BACKGROUNDS in layout.py.
 -->
 <html><head><meta charset="utf-8"><style>
 @font-face{font-family:Amiri;src:url("Amiri-Bold.ttf")}
 html,body{margin:0;width:480px;height:480px;overflow:hidden;background:#000}
 .c{position:relative;width:480px;height:480px}
 svg{position:absolute;inset:0}
-.text{position:absolute;left:0;right:0;bottom:2px;text-align:center;font-family:Amiri;line-height:46px;direction:rtl;white-space:nowrap;
+.design{display:none}
+body.basmala .d-basmala, body.mosque .d-mosque{display:block}
+.text{position:absolute;left:0;right:0;bottom:2px;text-align:center;font-family:Amiri;font-size:33px;line-height:46px;direction:rtl;white-space:nowrap;
  background:linear-gradient(180deg,#f3d98b 0%,#d4af37 55%,#a8822a 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
  filter:drop-shadow(0 1px 0 rgba(0,0,0,.6))}
-.roundel{position:absolute;top:16px;width:50px;height:50px;border-radius:50%;display:grid;place-items:center;font-family:Amiri;font-size:21px;line-height:1;
- color:#f0d27a;border:1.5px solid rgba(212,175,55,.75);box-shadow:inset 0 0 0 4px rgba(0,0,0,.25),inset 0 0 0 5px rgba(212,175,55,.35)}
+.allah{position:absolute;left:0;right:0;top:185px;text-align:center;font-family:Amiri;font-size:205px;line-height:1;color:#d4af37;opacity:.075}
 .mock{position:absolute;inset:0;font-family:Segoe UI,Arial;color:#e6edf3;display:none}
 body.m .mock{display:block}
 .mock .clk{position:absolute;top:22px;width:100%;text-align:center;font-size:40px;font-weight:600;color:#fff}
@@ -29,6 +31,9 @@ body.m .mock{display:block}
 .mock .hl{background:#c9a14a;color:#0b1a24}
 .mock .mu{color:#8b98a5}
 </style></head><body><div class="c" id="c">
+
+<!-- design 1: basmala – mihrab arch, star pattern, basmala at the bottom (night blue) -->
+<div class="design d-basmala" style="position:absolute;inset:0;background:radial-gradient(ellipse 120% 80% at 50% 0%,#123247 0%,#0a1c28 55%,#06111a 100%)">
 <svg width="480" height="480" viewBox="0 0 480 480">
  <defs>
   <pattern id="star" width="60" height="60" patternUnits="userSpaceOnUse">
@@ -52,7 +57,53 @@ body.m .mock{display:block}
  <g opacity=".6"><path d="M70 433 H205 M275 433 H410" stroke="url(#gold)" stroke-width="1"/>
  <path d="M240 427 l6 6 -6 6 -6 -6 z" fill="#d4af37"/></g>
 </svg>
-<div class="text" id="text"></div>
+<div class="text">بِسْمِ ٱللَّٰهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</div>
+</div>
+
+<!-- design 2: mosque – night sky with stars and crescent, mosque silhouette, large "Allah" watermark -->
+<div class="design d-mosque" style="position:absolute;inset:0;background:linear-gradient(180deg,#05101c 0%,#0b2033 45%,#123a4a 82%,#1b4a52 100%)">
+<svg width="480" height="480" viewBox="0 0 480 480" id="sky">
+ <defs>
+  <linearGradient id="gold2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f3d98b"/><stop offset="1" stop-color="#b08a2e"/></linearGradient>
+  <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#f3d98b" stop-opacity=".35"/><stop offset="1" stop-color="#f3d98b" stop-opacity="0"/></radialGradient>
+  <mask id="moon"><rect width="480" height="480" fill="#fff"/><circle cx="442" cy="34" r="19" fill="#000"/></mask>
+ </defs>
+ <g id="stars"></g>
+ <!-- crescent -->
+ <circle cx="432" cy="40" r="44" fill="url(#glow)"/>
+ <circle cx="432" cy="40" r="20" fill="url(#gold2)" mask="url(#moon)"/>
+ <!-- mosque silhouette -->
+ <g fill="#06131d" stroke="url(#gold2)" stroke-width="1.3" stroke-linejoin="round">
+  <!-- minarets -->
+  <path d="M18 480 V402 h3 l2 -6 h-12 l2 6 h3 z"/>
+  <path d="M14 480 V408 h10 V480"/>
+  <path d="M12 396 h14 v4 h-14 z"/>
+  <path d="M15 396 Q19 372 19 362 Q19 372 23 396 z"/>
+  <path d="M456 480 V408 h10 V480"/>
+  <path d="M454 396 h14 v4 h-14 z"/>
+  <path d="M457 396 Q461 372 461 362 Q461 372 465 396 z"/>
+  <!-- side halls with small domes -->
+  <path d="M120 480 V458 H180 V480"/>
+  <path d="M128 458 Q150 432 172 458 z"/>
+  <path d="M300 480 V458 H360 V480"/>
+  <path d="M308 458 Q330 432 352 458 z"/>
+  <!-- main hall + dome -->
+  <path d="M180 480 V448 H300 V480"/>
+  <path d="M196 448 Q196 412 240 400 Q284 412 284 448 z"/>
+  <path d="M240 400 V390"/>
+ </g>
+ <path d="M236 386 a5 5 0 1 0 8 4 a4 4 0 1 1 -8 -4 z" fill="url(#gold2)"/>
+ <!-- arched windows -->
+ <g fill="#e2bf5a" opacity=".55">
+  <path d="M206 480 v-16 a5 5 0 0 1 10 0 v16 z"/><path d="M235 480 v-18 a5 5 0 0 1 10 0 v18 z"/><path d="M264 480 v-16 a5 5 0 0 1 10 0 v16 z"/>
+  <path d="M140 480 v-10 a4 4 0 0 1 8 0 v10 z"/><path d="M158 480 v-10 a4 4 0 0 1 8 0 v10 z"/>
+  <path d="M314 480 v-10 a4 4 0 0 1 8 0 v10 z"/><path d="M332 480 v-10 a4 4 0 0 1 8 0 v10 z"/>
+ </g>
+ <path d="M0 479.5 H480" stroke="url(#gold2)" stroke-width="1" opacity=".7"/>
+</svg>
+<div class="allah">ٱللَّٰه</div>
+</div>
+
 <div class="mock"><div class="clk">05:42</div><div class="dt">02.11.2026</div><div class="nx">Sonraki vakit: Öğle · 1 sa 23 dk</div>
 <div class="row" style="top:140px"><span>İmsak</span><span>05:31</span></div>
 <div class="row mu" style="top:188px"><span>Güneş</span><span>07:12</span></div>
@@ -62,30 +113,20 @@ body.m .mock{display:block}
 <div class="row" style="top:380px"><span>Yatsı</span><span>18:41</span></div></div>
 </div>
 <script>
-const PRESETS = {
-  // Basmala – night blue
-  basmala: { bg: ["#123247", "#0a1c28", "#06111a"], text: "بِسْمِ ٱللَّٰهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ", size: 33 },
-  // Qur'an 4:103 "Indeed, prayer has been decreed upon the believers at fixed times" – emerald
-  verse: { bg: ["#0f3b2e", "#0a271f", "#051510"], text: "إِنَّ ٱلصَّلَوٰةَ كَانَتْ عَلَى ٱلْمُؤْمِنِينَ كِتَٰبًا مَّوْقُوتًا", size: 25 },
-  // Shahada with the roundels "Allah" and "Muhammad" – burgundy
-  shahada: { bg: ["#4a1622", "#2e0d15", "#19070b"], text: "لَا إِلَٰهَ إِلَّا ٱللَّٰهُ مُحَمَّدٌ رَسُولُ ٱللَّٰهِ", size: 29, roundels: ["ٱللَّٰه", "مُحَمَّد"] },
-  // Alhamdulillah – violet night
-  hamd: { bg: ["#2c2350", "#1a1533", "#0d0b1c"], text: "ٱلْحَمْدُ لِلَّٰهِ رَبِّ ٱلْعَٰلَمِينَ", size: 31 },
-};
 const q = new URLSearchParams(location.search);
-const p = PRESETS[q.get("t")] || PRESETS.basmala;
-document.getElementById("c").style.background =
-  `radial-gradient(ellipse 120% 80% at 50% 0%, ${p.bg[0]} 0%, ${p.bg[1]} 55%, ${p.bg[2]} 100%)`;
-const t = document.getElementById("text");
-t.textContent = p.text;
-t.style.fontSize = p.size + "px";
-(p.roundels || []).forEach((txt, i) => {
-  const r = document.createElement("div");
-  r.className = "roundel";
-  r.textContent = txt;
-  r.style[i === 0 ? "right" : "left"] = "6px";  // right-to-left: Allah on the right, Muhammad on the left
-  document.getElementById("c").appendChild(r);
-});
+document.body.classList.add(q.get("t") === "mosque" ? "mosque" : "basmala");
 if (q.get("mock")) document.body.classList.add("m");
+// deterministic star field (same picture on every render)
+let seed = 7;
+const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+const g = document.getElementById("stars");
+for (let i = 0; i < 70; i++) {
+  const x = rnd() * 480, y = rnd() * 330, r = 0.5 + rnd() * 1.1;
+  const s = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  s.setAttribute("cx", x.toFixed(1)); s.setAttribute("cy", y.toFixed(1)); s.setAttribute("r", r.toFixed(2));
+  s.setAttribute("fill", rnd() < 0.25 ? "#f3d98b" : "#dbe7f3");
+  s.setAttribute("opacity", (0.25 + rnd() * 0.55).toFixed(2));
+  g.appendChild(s);
+}
 </script>
 </body></html>

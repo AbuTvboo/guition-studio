@@ -3062,22 +3062,12 @@ var xt, St = {
 	{
 		key: "basmala",
 		label: "Basmala",
-		hint: "Bismillāhi r-raḥmāni r-raḥīm – Nachtblau"
+		hint: "Mihrab-Bogen, Sternmuster und Basmala"
 	},
 	{
-		key: "verse",
-		label: "Gebetsvers",
-		hint: "Sure 4:103: Das Gebet ist den Gläubigen zu festgesetzten Zeiten vorgeschrieben – Smaragdgrün"
-	},
-	{
-		key: "shahada",
-		label: "Schahada",
-		hint: "Glaubensbekenntnis mit den Medaillons „Allah“ und „Muhammad“ – Bordeaux"
-	},
-	{
-		key: "hamd",
-		label: "Al-Hamdu",
-		hint: "Al-ḥamdu li-llāhi rabbi l-ʿālamīn – Violett"
+		key: "mosque",
+		label: "Moschee",
+		hint: "Sternenhimmel mit Mondsichel, Moschee-Silhouette und „Allah“-Kalligraphie"
 	},
 	{
 		key: "none",

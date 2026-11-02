@@ -1,16 +1,18 @@
 # Changelog
 
+## 0.5.11 – Schnelles Update & zweites Kalligraphie-Design
+- **Firmware wieder klein (≈ 1,6 MB statt 3,3 MB):** Die Hintergründe stecken jetzt als JPEG in der Firmware (zusammen 48 KB statt 1,8 MB) und werden erst beim Öffnen des Bildschirmschoners in den PSRAM entpackt (etwa 0,2 s, danach zwischengespeichert). Firmware-Updates dauern dadurch wieder so lange wie vor 0.5.10.
+- Größerer Empfangspuffer (4 KB statt 512 Byte) für Firmware-Updates und Diashow-Bilder.
+- **Zwei Hintergründe zur Wahl:**
+  - **Basmala:** Mihrab-Bogen, Sternmuster, Basmala
+  - **Moschee:** Sternenhimmel mit Mondsichel, goldene Moschee-Silhouette, große „Allah“-Kalligraphie
+  - die drei Farbvarianten aus 0.5.10 sind entfallen (eine gewählte Variante wird zur Basmala)
+
 ## 0.5.10 – Wisch-Kachel folgt dem Finger, hoch/runter & mehr Kalligraphie
 - **Wisch-Kachel folgt dem Finger:** Der Inhalt bewegt sich beim Wischen mit und wird dabei blasser. Nach dem Loslassen gleitet er hinaus, und die nächste Entität gleitet von der anderen Seite herein. Bei zu kurzem Weg federt er zurück.
 - **Kein versehentliches Schalten mehr:** Bewegt sich der Finger mehr als ein paar Millimeter, gilt die Berührung als Wischen. Tippen und langes Drücken werden dann nicht ausgelöst. Das gilt für alle Kacheln, auch beim Seitenwechsel.
 - **Wisch-Kachel hoch/runter:** neue Einstellung *Wischrichtung* (⇆ links/rechts oder ⇅ hoch/runter). In der Bibliothek gibt es beide Varianten direkt. Bei hoch/runter stehen die Punkte senkrecht am rechten Rand, und waagerechtes Wischen wechselt weiterhin die Seite.
-- **Vier Kalligraphie-Hintergründe** für die Gebetszeiten, im Designer per Vorschaubild wählbar:
-  - **Basmala** (Nachtblau)
-  - **Gebetsvers** Sure 4:103 „Das Gebet ist den Gläubigen zu festgesetzten Zeiten vorgeschrieben“ (Smaragdgrün)
-  - **Schahada** mit den Medaillons „Allah“ und „Muhammad“ (Bordeaux)
-  - **Al-Hamdu** „Al-ḥamdu li-llāhi rabbi l-ʿālamīn“ (Violett)
-  - oder **schlicht**
-- Die Firmware ist durch die Bilder größer (≈ 3,3 MB), ein Update dauert etwas länger.
+- Neue Kalligraphie-Hintergründe (siehe 0.5.11).
 
 ## 0.5.9 – Gebetszeiten auf Türkisch & mit Kalligraphie
 - **Türkische Namen:** Unter Automatik → Bildschirmschoner → Gebetszeiten lässt sich die Sprache wählen: Deutsch (Fajr, Dhuhr, Asr …) oder **Türkçe** (İmsak, Güneş, Öğle, İkindi, Akşam, Yatsı). Die Countdown-Zeile heißt dann z. B. „Sonraki vakit: Öğle · 1 sa 23 dk“, zur Gebetszeit „Şimdi: Öğle“.

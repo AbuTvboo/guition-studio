@@ -125,7 +125,7 @@ PRAYER_NAMES: dict[str, dict[str, str]] = {
     "tr": {"fajr": "İmsak", "sunrise": "Güneş", "dhuhr": "Öğle", "asr": "İkindi", "maghrib": "Akşam", "isha": "Yatsı"},
 }
 # Calligraphy backgrounds built into the firmware (order = index on the device, 1-based; 0 = none)
-PRAYER_BACKGROUNDS: tuple[str, ...] = ("basmala", "verse", "shahada", "hamd")
+PRAYER_BACKGROUNDS: tuple[str, ...] = ("basmala", "mosque")
 # Texts of the "next prayer" line: prefix, separator before the countdown, hour unit, minute unit, "now" prefix
 PRAYER_TEXTS: dict[str, list[str]] = {
     "de": ["Nächstes Gebet:", " in ", "h", "min", "Jetzt:"],

@@ -47,6 +47,7 @@ class FakeDevice:
         self.pages: list[int] = []
         self.modes: list[dict] = []
         self.notifications: list[dict] = []
+        self.school: list[dict] = []
         for action, handler in {
             "gs_layout_begin": self._begin,
             "gs_layout_chunk": self._chunk,
@@ -57,6 +58,7 @@ class FakeDevice:
             "gs_notify": self._notify,
             "gs_rollback": self._noop,
             "gs_mode": self._mode,
+            "gs_school": self._school,
         }.items():
             hass.services.async_register("esphome", f"{node}_{action}", handler)
 
@@ -114,6 +116,9 @@ class FakeDevice:
 
     async def _mode(self, call: ServiceCall) -> None:
         self.modes.append(dict(call.data))
+
+    async def _school(self, call: ServiceCall) -> None:
+        self.school.append(json.loads(call.data["data"]))
 
     async def _notify(self, call: ServiceCall) -> None:
         self.notifications.append(dict(call.data))
@@ -491,6 +496,35 @@ async def test_weather_forecast_reaches_display(hass: HomeAssistant, hass_ws_cli
     assert payload["w"].startswith("↑18° ↓9°") and "Wind 9 km/h" in payload["w"]
     assert [d[1] for d in payload["f"]] == ["weather-rainy", "weather-sunny", "weather-cloudy"]
     assert calls and calls[0].data["type"] == "daily"
+
+
+async def test_school_screensaver_reaches_display(hass: HomeAssistant, hass_ws_client, setup_studio) -> None:
+    from homeassistant.core import SupportsResponse
+    from homeassistant.util import dt as dt_util
+
+    device = FakeDevice(hass)
+    tomorrow = (dt_util.now() + timedelta(days=1)).replace(hour=8, minute=0, second=0, microsecond=0)
+    lesson = {"start": tomorrow.isoformat(), "end": (tomorrow + timedelta(minutes=45)).isoformat(), "summary": "Cancelled: Mathe", "location": "R1"}
+    hass.states.async_set("calendar.lena", "off")
+    hass.states.async_set("sensor.elternportal_letter_1", "1", {"elements": [{"sent": dt_util.now().isoformat(), "new": True, "subject": "Elternabend"}]})
+    calls = async_mock_service(
+        hass, "calendar", "get_events", response={"calendar.lena": {"events": [lesson]}}, supports_response=SupportsResponse.ONLY
+    )
+    ws = await hass_ws_client(hass)
+
+    def mutate(layout):
+        layout["settings"]["screensaver"] = {
+            "enabled": True, "after": 60, "entities": [], "mode": "school",
+            "school": [{"name": "Lena", "timetable": "calendar.lena", "letters": "sensor.elternportal_letter_1"}],
+        }  # fmt: skip
+
+    await _create_with_layout(hass, ws, mutate)
+    assert device.layout["set"]["ssm"] == 5
+    assert calls and calls[0].data["entity_id"] == "calendar.lena"
+    child = device.school[-1]["k"][0]
+    assert child["n"] == "Lena" and child["d"].startswith("Morgen")
+    assert child["l"] == [["08:00", "08:45", "Mathe", "R1", 1]]
+    assert child["i"] == [[3, "Heute", "Elternabend", 1]]
 
 
 async def test_heartbeat_detects_reboot(hass: HomeAssistant, hass_ws_client, setup_studio) -> None:

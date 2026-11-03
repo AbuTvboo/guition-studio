@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.23 – Bildschirmschoner „Schule“ (WebUntis & Eltern-Portal)
+- Neuer Bildschirmschoner **Schule – Stundenplan & Eltern-Portal**. Die Daten kommen aus den Home-Assistant-Integrationen **WebUntis** und **Eltern-Portal**. Pro Kind gibt es eine Seite, bei mehreren Kindern wird alle 12 Sekunden weitergeblättert.
+  - **Stundenplan von heute** mit Uhrzeit, Fach und Raum: Die laufende Stunde ist hervorgehoben, vorbei sind sie abgedunkelt. **Ausfall** ist rot und durchgestrichen, **Vertretung** orange, eine **Raumänderung** gelb. Nach der letzten Stunde zeigt er schon den nächsten Schultag („Morgen“ oder z. B. „Montag“).
+  - **Demnächst:** neue Elternbriefe, Vertretungen, Termine, Hausaufgaben (fällig in den nächsten 7 Tagen) und Prüfungen (nächste 14 Tage), jeweils mit farbiger Markierung und Datum.
+  - **Automatisch erkennen** findet die Kalender von WebUntis und die Sensoren von Eltern-Portal und ordnet sie über den Vornamen den Kindern zu. Jede Quelle ist optional und lässt sich von Hand ändern.
+  - Home Assistant liest die Daten alle 5 Minuten und schickt sie nur ans Display, wenn sich etwas geändert hat.
+- **Mehrere im Wechsel:** Der bisherige Modus „Gebetszeiten & Fußball im Wechsel“ ist jetzt frei wählbar: Gebetszeiten, Fußball und Schule lassen sich beliebig kombinieren. Bestehende Einstellungen bleiben unverändert.
+
 ## 0.5.22 – Freie Anordnung & leuchtende Icons
 - **Freie Anordnung pro Seite** (Seiten-Eigenschaften → „Freie Anordnung“): Kacheln lassen sich pixelgenau verschieben und an der Ecke unten rechts beliebig skalieren (Fangraster 4 px, ohne festes Spaltenraster).
   - Beim Einschalten bleiben alle Kacheln an ihrer Stelle. Zurück zum Raster rastet sie in ein 6×6-Raster ein (nur möglich, wenn sie sich dort nicht überlappen).

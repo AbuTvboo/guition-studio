@@ -84,6 +84,24 @@ struct FootballGroup {
   uint32_t color{0x1F6FEB};  // competition strip
 };
 
+// School screensaver: timetable and news of one child (sent by HA via gs_school).
+struct SchoolLesson {
+  std::string start, end;  // "08:00"
+  std::string subject, room;
+  uint8_t status{0};  // 0 normal, 1 cancelled, 2 irregular (substitution), 3 room change
+};
+struct SchoolItem {
+  uint8_t kind{0};  // 0 exam, 1 homework, 2 appointment, 3 letter, 4 substitution
+  std::string date, text;
+  bool hot{false};  // new / due soon
+};
+struct SchoolChild {
+  std::string name, day;
+  bool today{false};
+  std::vector<SchoolLesson> lessons;
+  std::vector<SchoolItem> items;
+};
+
 // One entity of a swipe tile.
 struct SwipeItem {
   std::string entity;
@@ -151,8 +169,10 @@ struct LayoutCfg {
   // screensaver mode 2: Islamic prayer times (timestamp sensors, shown as HH:MM by HA)
   bool prayer{false};
   bool football{false};    // screensaver mode 3: today's football matches
-  bool mix{false};         // mode 4: prayer times and football alternate
+  bool school{false};      // screensaver mode 5: timetable and school news per child
+  bool mix{false};         // mode 4: several views alternate
   int mix_interval{20};    // seconds per view in mix mode
+  std::vector<uint8_t> mix_views;  // mix: 0 = prayer times, 1 = football, 2 = school
   std::vector<std::string> prayer_names, prayer_entities;
   std::vector<uint8_t> prayer_kind;  // 1 = prayer, 0 = sunrise (orientation only)
   // countdown line: prefix, separator, hour unit, minute unit, "now" prefix (language from HA)
@@ -254,6 +274,7 @@ class GuitionStudio : public Component {
   void set_mode(int32_t night, int32_t brightness, int32_t dim);
   void set_football(const std::string &json);
   void set_logo(const std::string &key, const std::string &data);
+  void set_school(const std::string &json);
   /// OTA progress screen: state 0 = running (progress 0..100), 1 = done, 2 = failed
   void ota_status(int state, float progress);
   void on_color_event(int code, lv_event_code_t event, lv_obj_t *target);
@@ -286,6 +307,9 @@ class GuitionStudio : public Component {
   void reset_ss_refs_();
   void build_football_(lv_obj_t *parent);
   void render_football_();
+  void build_school_(lv_obj_t *parent);
+  void render_school_();
+  int school_signature_() const;
   void update_prayer_(const std::string &hhmm);
   void apply_night_overlay_();
   void slide_next_();
@@ -410,7 +434,8 @@ class GuitionStudio : public Component {
   std::string fb_title_{"FUSSBALL"}, fb_end_{"ENDE"}, fb_off_{"ABGESAGT"};
   lv_obj_t *fb_clock_{nullptr};
   std::vector<FootballGroup> fb_groups_;
-  int ss_view_{0};               // 0 = clock/prayer, 1 = football
+  int ss_view_{0};               // 0 = clock/prayer, 1 = football, 2 = school
+  size_t ss_view_idx_{0};        // mix: position in layout_.mix_views
   uint32_t ss_switch_at_{0};     // mix: next view change
   int fb_page_{0}, fb_pages_{1};
   uint32_t fb_page_at_{0};
@@ -418,6 +443,17 @@ class GuitionStudio : public Component {
   bool fb_dirty_{false};  // logos arrived: redraw the list on the next tick
   lv_obj_t *fb_head_{nullptr};
   lv_obj_t *fb_list_{nullptr};
+  // school view: one page per child (12 s each)
+  std::vector<SchoolChild> sc_children_;
+  std::array<std::string, 3> sc_texts_{"SCHULE", "Demnächst", "Kein Unterricht in den nächsten Tagen"};
+  std::array<std::string, 5> sc_tags_{"PRÜFUNG", "HAUSAUFG.", "TERMIN", "BRIEF", "VERTRET."};
+  int sc_page_{0};
+  uint32_t sc_page_at_{0};
+  int sc_sig_{-1};       // lessons done/running when rendered (redraw when it changes)
+  std::string sc_hhmm_;  // last clock value, for the lesson highlight
+  lv_obj_t *sc_head_{nullptr};
+  lv_obj_t *sc_clock_{nullptr};
+  lv_obj_t *sc_list_{nullptr};
 #ifdef USE_GS_PRAYER_BG
   // decoded background (RGB565 in PSRAM), kept while the same picture is selected
   uint16_t *prayer_bg_buf_{nullptr};

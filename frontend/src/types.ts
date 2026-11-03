@@ -177,7 +177,7 @@ export interface ScreensaverSettings {
   enabled: boolean;
   after: number;
   entities: string[];
-  mode?: "clock" | "slideshow" | "prayer" | "football" | "mix";
+  mode?: "clock" | "slideshow" | "prayer" | "football" | "school" | "mix";
   folder?: string;
   interval?: number;
   order?: "random" | "sequential";
@@ -191,8 +191,26 @@ export interface ScreensaverSettings {
   prayer_bg?: string | boolean;
   /** football: ESPN league codes, e.g. "ger.1" */
   leagues?: string[];
-  /** mix: seconds per view (prayer times / football) */
+  /** school: one entry per child (WebUntis calendars, Eltern-Portal sensors) */
+  school?: SchoolChild[];
+  /** mix: views that alternate (default prayer + football) */
+  mix_views?: MixView[];
+  /** mix: seconds per view */
   mix_interval?: number;
+}
+
+export type MixView = "prayer" | "football" | "school";
+
+export interface SchoolChild {
+  name: string;
+  /** WebUntis calendars */
+  timetable?: string;
+  homework?: string;
+  exams?: string;
+  /** Eltern-Portal sensors */
+  letters?: string;
+  appointments?: string;
+  substitutions?: string;
 }
 
 export type PrayerKey = "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha";
@@ -343,7 +361,10 @@ export interface HassEntity {
 
 export interface Hass {
   states: Record<string, HassEntity>;
-  entities?: Record<string, { entity_id: string; device_id?: string | null; area_id?: string | null; hidden?: boolean; entity_category?: string | null }>;
+  entities?: Record<
+    string,
+    { entity_id: string; device_id?: string | null; area_id?: string | null; hidden?: boolean; entity_category?: string | null; platform?: string; translation_key?: string | null }
+  >;
   devices?: Record<string, { id: string; name?: string | null; name_by_user?: string | null; area_id?: string | null }>;
   areas?: Record<string, { area_id: string; name: string }>;
   user?: { name: string; is_admin: boolean };

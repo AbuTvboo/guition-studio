@@ -332,11 +332,16 @@ void GuitionStudio::loop() {
     this->refresh_settings_();
     if (this->ss_obj_ != nullptr && this->ss_img_ != nullptr && !this->slide_pending_ && now >= this->slide_next_at_)
       this->slide_next_();
-    if (this->ss_obj_ != nullptr && this->layout_.mix && now >= this->ss_switch_at_) {
-      // mix: prayer times <-> football
-      this->ss_view_ = 1 - this->ss_view_;
+    if (this->ss_obj_ != nullptr && this->layout_.mix && this->layout_.mix_views.size() > 1 && now >= this->ss_switch_at_) {
+      // mix: next of the chosen views (prayer times / football / school)
+      this->ss_view_idx_ = (this->ss_view_idx_ + 1) % this->layout_.mix_views.size();
+      this->ss_view_ = this->layout_.mix_views[this->ss_view_idx_];
       this->ss_switch_at_ = now + static_cast<uint32_t>(this->layout_.mix_interval) * 1000u;
       this->build_ss_content_();
+      this->update_status_();
+    } else if (this->sc_list_ != nullptr && this->sc_children_.size() > 1 && now >= this->sc_page_at_) {
+      this->sc_page_ = (this->sc_page_ + 1) % static_cast<int>(this->sc_children_.size());
+      this->render_school_();
       this->update_status_();
     } else if (this->fb_list_ != nullptr && this->fb_dirty_) {
       this->fb_dirty_ = false;
@@ -551,8 +556,19 @@ bool GuitionStudio::parse_layout_(const char *data, size_t len, LayoutCfg &out, 
   int ssm = set["ssm"] | 0;
   out.prayer = ssm == 2 || ssm == 4;
   out.football = ssm == 3;
+  out.school = ssm == 5;
   out.mix = ssm == 4;
   out.mix_interval = clampi(set["smi"] | 20, 5, 600);
+  out.mix_views.clear();
+  if (out.mix) {
+    for (JsonVariantConst v : set["smv"].as<JsonArrayConst>()) {
+      int view = v | -1;
+      if (view >= 0 && view <= 2 && out.mix_views.size() < 3)
+        out.mix_views.push_back(static_cast<uint8_t>(view));
+    }
+    if (out.mix_views.empty())  // HA < 0.5.23: prayer times and football
+      out.mix_views = {0, 1};
+  }
   out.prayer_names.clear();
   out.prayer_entities.clear();
   out.prayer_kind.clear();
@@ -2071,7 +2087,11 @@ void GuitionStudio::show_screensaver_() {
   lv_obj_set_style_bg_color(o, lv_color_hex(0x000000), 0);
   lv_obj_set_style_bg_opa(o, LV_OPA_COVER, 0);
   lv_obj_add_flag(o, LV_OBJ_FLAG_CLICKABLE);  // swallows the waking tap
-  this->ss_view_ = l.football ? 1 : 0;  // mix starts with the prayer times
+  this->ss_view_idx_ = 0;
+  if (l.mix && !l.mix_views.empty())
+    this->ss_view_ = l.mix_views[0];
+  else
+    this->ss_view_ = l.football ? 1 : (l.school ? 2 : 0);
   this->ss_switch_at_ = millis() + static_cast<uint32_t>(l.mix_interval) * 1000u;
   this->build_ss_content_();
   if (this->night_obj_ != nullptr)
@@ -2091,6 +2111,10 @@ void GuitionStudio::build_ss_content_() {
   lv_obj_set_style_bg_grad_dir(o, LV_GRAD_DIR_NONE, 0);
   if (this->ss_view_ == 1) {
     this->build_football_(o);
+    return;
+  }
+  if (this->ss_view_ == 2) {
+    this->build_school_(o);
     return;
   }
   bool slides = false;
@@ -2146,6 +2170,7 @@ void GuitionStudio::reset_ss_refs_() {
     this->ss_prow_[i] = this->ss_pname_[i] = this->ss_ptime_[i] = nullptr;
   this->ss_prayer_sig_.clear();
   this->fb_head_ = this->fb_list_ = this->fb_clock_ = nullptr;
+  this->sc_head_ = this->sc_list_ = this->sc_clock_ = nullptr;
 }
 
 // ---------------------------------------------------------------- football screensaver
@@ -2646,6 +2671,22 @@ void GuitionStudio::update_screensaver_(const std::string &hhmm, const std::stri
     lv_label_set_text(this->fb_head_, head.c_str());
     lv_label_set_text(this->fb_clock_, hhmm.c_str());
   }
+  if (this->sc_head_ != nullptr) {
+    // "SCHULE · Lena  1/2" on the left, the clock on the right; redraw when a lesson starts/ends
+    std::string head = this->sc_texts_[0];
+    if (!this->sc_children_.empty()) {
+      const SchoolChild &c = this->sc_children_[this->sc_page_ % this->sc_children_.size()];
+      if (!c.name.empty())
+        head += "  ·  " + c.name;
+      if (this->sc_children_.size() > 1)
+        head += "   " + std::to_string(this->sc_page_ + 1) + "/" + std::to_string(this->sc_children_.size());
+    }
+    lv_label_set_text(this->sc_head_, head.c_str());
+    lv_label_set_text(this->sc_clock_, hhmm.c_str());
+    this->sc_hhmm_ = hhmm;
+    if (this->school_signature_() != this->sc_sig_)
+      this->render_school_();
+  }
   if (this->ss_clock_ == nullptr)
     return;
   lv_label_set_text(this->ss_clock_, hhmm.c_str());
@@ -2663,6 +2704,208 @@ void GuitionStudio::update_screensaver_(const std::string &hhmm, const std::stri
     std::string title = i < static_cast<int>(l.ss_titles.size()) ? l.ss_titles[i] : "";
     std::string text = title.empty() ? value : title + "  " + value;
     lv_label_set_text(this->ss_lines_[i], text.c_str());
+  }
+}
+
+// ---------------------------------------------------------------- school screensaver
+
+void GuitionStudio::set_school(const std::string &json) {
+  JsonDocument doc(&psram_allocator);
+  if (deserializeJson(doc, json)) {
+    ESP_LOGW(TAG, "Invalid school payload");
+    return;
+  }
+  JsonArrayConst texts = doc["t"].as<JsonArrayConst>();
+  if (texts.size() >= this->sc_texts_.size())
+    for (size_t i = 0; i < this->sc_texts_.size(); i++)
+      this->sc_texts_[i] = std::string(texts[i] | "").substr(0, 48);
+  JsonArrayConst tags = doc["g"].as<JsonArrayConst>();
+  if (tags.size() >= this->sc_tags_.size())
+    for (size_t i = 0; i < this->sc_tags_.size(); i++)
+      this->sc_tags_[i] = std::string(tags[i] | "").substr(0, 12);
+  this->sc_children_.clear();
+  for (JsonObjectConst k : doc["k"].as<JsonArrayConst>()) {
+    if (this->sc_children_.size() >= 4)
+      break;
+    SchoolChild c;
+    c.name = std::string(k["n"] | "").substr(0, 24);
+    c.day = std::string(k["d"] | "").substr(0, 32);
+    c.today = (k["c"] | 0) != 0;
+    for (JsonArrayConst r : k["l"].as<JsonArrayConst>()) {
+      if (c.lessons.size() >= 14)
+        break;
+      c.lessons.push_back({std::string(r[0] | "").substr(0, 5), std::string(r[1] | "").substr(0, 5),
+                           std::string(r[2] | "").substr(0, 40), std::string(r[3] | "").substr(0, 16),
+                           static_cast<uint8_t>(clampi(r[4] | 0, 0, 3))});
+    }
+    for (JsonArrayConst r : k["i"].as<JsonArrayConst>()) {
+      if (c.items.size() >= 6)
+        break;
+      c.items.push_back({static_cast<uint8_t>(clampi(r[0] | 0, 0, 4)), std::string(r[1] | "").substr(0, 12),
+                         std::string(r[2] | "").substr(0, 80), (r[3] | 0) != 0});
+    }
+    this->sc_children_.push_back(std::move(c));
+  }
+  if (this->sc_page_ >= static_cast<int>(this->sc_children_.size()))
+    this->sc_page_ = 0;
+  if (this->sc_list_ != nullptr) {
+    uint32_t page_at = this->sc_page_at_;
+    this->render_school_();
+    this->sc_page_at_ = page_at;  // new data must not reset the page timer
+  }
+}
+
+/// Lessons finished * 32 + running lesson (+1) of the shown child; changes when a lesson starts/ends.
+int GuitionStudio::school_signature_() const {
+  if (this->sc_children_.empty())
+    return 0;
+  const SchoolChild &c = this->sc_children_[this->sc_page_ % this->sc_children_.size()];
+  int now = hhmm_minutes(this->sc_hhmm_);
+  if (!c.today || now < 0)
+    return 0;
+  int done = 0, running = 0;
+  for (size_t i = 0; i < c.lessons.size(); i++) {
+    int a = hhmm_minutes(c.lessons[i].start), b = hhmm_minutes(c.lessons[i].end);
+    if (b >= 0 && b <= now)
+      done++;
+    else if (a >= 0 && a <= now && now < b && running == 0)
+      running = static_cast<int>(i) + 1;
+  }
+  return done * 32 + running;
+}
+
+void GuitionStudio::build_school_(lv_obj_t *parent) {
+  // dark petrol background, header bar with an amber line (flat colours: gradients band on the panel)
+  lv_obj_set_style_bg_color(parent, lv_color_hex(0x07121A), 0);
+  lv_obj_t *bar = make_plain(parent);
+  lv_obj_set_size(bar, SCREEN_W, 42);
+  lv_obj_set_style_bg_color(bar, lv_color_hex(0x0B5266), 0);
+  lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, 0);
+  lv_obj_t *line = make_plain(parent);
+  lv_obj_set_size(line, SCREEN_W, 3);
+  lv_obj_set_pos(line, 0, 42);
+  lv_obj_set_style_bg_color(line, lv_color_hex(0xF59E0B), 0);
+  lv_obj_set_style_bg_opa(line, LV_OPA_COVER, 0);
+  this->sc_head_ = make_label(bar, font_px(16), 0xFFFFFF, "");
+  lv_obj_set_width(this->sc_head_, SCREEN_W - 110);
+  lv_label_set_long_mode(this->sc_head_, LABEL_LONG_DOTS);
+  lv_obj_align(this->sc_head_, LV_ALIGN_LEFT_MID, 12, 0);
+  this->sc_clock_ = make_label(bar, font_px(28), 0xFFFFFF, "--:--");
+  lv_obj_align(this->sc_clock_, LV_ALIGN_RIGHT_MID, -12, 0);
+  this->sc_list_ = make_plain(parent);
+  lv_obj_set_pos(this->sc_list_, 0, 45);
+  lv_obj_set_size(this->sc_list_, SCREEN_W, SCREEN_H - 45);
+  this->sc_page_ = 0;
+  this->render_school_();
+}
+
+/// Day line, one row per lesson (running = highlighted, done = dimmed, cancelled = red and struck
+/// through) and the upcoming items (exams, homework, appointments, letters, substitutions).
+void GuitionStudio::render_school_() {
+  if (this->sc_list_ == nullptr)
+    return;
+  lv_obj_clean(this->sc_list_);
+  this->sc_page_at_ = millis() + 12000;
+  this->sc_sig_ = this->school_signature_();
+  if (this->sc_children_.empty()) {
+    lv_obj_t *msg = make_label(this->sc_list_, font_px(20), 0x9FB3C8, "…");
+    lv_obj_align(msg, LV_ALIGN_CENTER, 0, -20);
+    return;
+  }
+  const SchoolChild &c = this->sc_children_[this->sc_page_ % this->sc_children_.size()];
+  const int list_h = SCREEN_H - 45, x0 = 8, w = SCREEN_W - 16;
+  const int now = c.today ? hhmm_minutes(this->sc_hhmm_) : -1;
+
+  lv_obj_t *day = make_label(this->sc_list_, font_px(20), 0xFFFFFF, c.lessons.empty() ? this->sc_texts_[2].c_str() : c.day.c_str());
+  lv_obj_set_width(day, w);
+  lv_label_set_long_mode(day, LABEL_LONG_DOTS);
+  lv_obj_set_pos(day, x0 + 2, 8);
+  int y = 38;
+
+  // share the height: items keep 30 px rows, lessons get 22..34 px (fewer items if needed)
+  int n = static_cast<int>(c.lessons.size());
+  int k = static_cast<int>(c.items.size());
+  auto items_h = [](int count) { return count > 0 ? 26 + count * 30 : 0; };
+  int area = list_h - y - items_h(k) - 4;
+  while (n > 0 && k > 0 && area / n < 22) {
+    k--;
+    area = list_h - y - items_h(k) - 4;
+  }
+  int step = n > 0 ? std::min(34, area / n) : 0;
+  if (n > 0 && step < 22) {
+    step = 22;
+    n = std::max(1, area / step);
+  }
+  const bool small = step < 27;
+  const int row_h = step - 3;
+  for (int i = 0; i < n; i++) {
+    const SchoolLesson &le = c.lessons[i];
+    int a = hhmm_minutes(le.start), b = hhmm_minutes(le.end);
+    bool running = now >= 0 && a >= 0 && a <= now && now < b;
+    bool done = now >= 0 && b >= 0 && b <= now;
+    lv_obj_t *row = make_plain(this->sc_list_);
+    lv_obj_set_pos(row, x0, y);
+    lv_obj_set_size(row, w, row_h);
+    lv_obj_set_style_radius(row, 6, 0);
+    uint32_t bg = running ? 0x0E7490 : (le.status == 1 ? 0x2B1418 : 0x12222F);
+    lv_obj_set_style_bg_color(row, lv_color_hex(bg), 0);
+    lv_obj_set_style_bg_opa(row, LV_OPA_COVER, 0);
+    if (running) {
+      lv_obj_set_style_border_width(row, 2, 0);
+      lv_obj_set_style_border_color(row, lv_color_hex(0xF59E0B), 0);
+    }
+    uint32_t text = running ? 0xFFFFFF : 0xE6EDF3, muted = running ? 0xD9F2F8 : 0x8FA6BA;
+    if (le.status == 1)
+      text = 0xF87171;
+    else if (le.status == 2)
+      text = 0xFBBF24;
+    const lv_font_t *f = font_px(small ? 12 : 16);
+    lv_obj_t *t = make_label(row, f, muted, le.start.c_str());
+    lv_obj_align(t, LV_ALIGN_LEFT_MID, 10, 0);
+    lv_obj_t *subj = make_label(row, f, text, le.subject.c_str());
+    lv_obj_set_width(subj, w - 70 - 110);
+    lv_label_set_long_mode(subj, LABEL_LONG_DOTS);
+    lv_obj_align(subj, LV_ALIGN_LEFT_MID, 70, 0);
+    if (le.status == 1)
+      lv_obj_set_style_text_decor(subj, LV_TEXT_DECOR_STRIKETHROUGH, 0);
+    if (!le.room.empty()) {
+      lv_obj_t *room = make_label(row, f, le.status == 3 ? 0xFBBF24 : muted, le.room.c_str());
+      lv_obj_set_width(room, 100);
+      lv_label_set_long_mode(room, LABEL_LONG_DOTS);
+      lv_obj_set_style_text_align(room, LV_TEXT_ALIGN_RIGHT, 0);
+      lv_obj_align(room, LV_ALIGN_RIGHT_MID, -10, 0);
+    }
+    if (done)
+      lv_obj_set_style_opa(row, LV_OPA_50, 0);
+    y += step;
+  }
+  if (k == 0)
+    return;
+
+  y = std::max(y + 4, list_h - items_h(k) - 2);
+  lv_obj_t *title = make_label(this->sc_list_, font_px(16), 0xF59E0B, this->sc_texts_[1].c_str());
+  lv_obj_set_pos(title, x0 + 2, y);
+  y += 26;
+  static const uint32_t KIND_COLORS[5] = {0xDC2626, 0x2563EB, 0x0D9488, 0xD97706, 0xEA580C};
+  for (int i = 0; i < k; i++) {
+    const SchoolItem &it = c.items[i];
+    lv_obj_t *tag = make_plain(this->sc_list_);
+    lv_obj_set_pos(tag, x0, y + 3);
+    lv_obj_set_size(tag, 88, 21);
+    lv_obj_set_style_radius(tag, 4, 0);
+    lv_obj_set_style_bg_color(tag, lv_color_hex(KIND_COLORS[it.kind]), 0);
+    lv_obj_set_style_bg_opa(tag, LV_OPA_COVER, 0);
+    lv_obj_t *tl = make_label(tag, font_px(12), 0xFFFFFF, this->sc_tags_[it.kind].c_str());
+    lv_obj_align(tl, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_t *d = make_label(this->sc_list_, font_px(12), it.hot ? 0xFDE68A : 0x8FA6BA, it.date.c_str());
+    lv_obj_set_width(d, 66);
+    lv_label_set_long_mode(d, LABEL_LONG_DOTS);
+    lv_obj_set_pos(d, x0 + 96, y + 7);
+    lv_obj_t *txt = make_label(this->sc_list_, font_px(16), it.hot ? 0xFFFFFF : 0xC9D4DE, it.text.c_str());
+    lv_obj_set_width(txt, w - 96 - 70);
+    lv_label_set_long_mode(txt, LABEL_LONG_DOTS);
+    lv_obj_set_pos(txt, x0 + 96 + 70, y + 4);
+    y += 30;
   }
 }
 

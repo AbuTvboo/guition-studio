@@ -50,6 +50,7 @@ from .const import (
     TILE_ENTITY_DOMAINS,
     TILE_TYPES,
 )
+from .school import MAX_CHILDREN as SCHOOL_MAX_CHILDREN, SOURCES as SCHOOL_SOURCES
 from .themes import THEMES, get_theme
 
 ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,24}$")
@@ -113,8 +114,12 @@ def default_screensaver() -> dict[str, Any]:
         "mode": "clock", "folder": "guition_studio", "interval": 15, "order": "random", "fit": "cover", "show_clock": True,
         # prayer: timestamp sensors of the Islamic Prayer Times integration, key -> entity id
         "prayer": {}, "prayer_lang": "de", "prayer_bg": "basmala",
-        # football: ESPN league codes (see football.LEAGUES); mix: prayer/football alternate every n seconds
-        "leagues": ["ger.1", "tur.1", "esp.1"], "mix_interval": 20,
+        # football: ESPN league codes (see football.LEAGUES)
+        "leagues": ["ger.1", "tur.1", "esp.1"],
+        # school: one entry per child, see school.SOURCES (WebUntis calendars, Eltern-Portal sensors)
+        "school": [],
+        # mix: the chosen views alternate every n seconds
+        "mix_views": ["prayer", "football"], "mix_interval": 20,
     }  # fmt: skip
 
 
@@ -134,8 +139,9 @@ PRAYER_NAMES: dict[str, dict[str, str]] = {
     "tr": {"fajr": "İmsak", "sunrise": "Güneş", "dhuhr": "Öğle", "asr": "İkindi", "maghrib": "Akşam", "isha": "Yatsı"},
 }
 # clock: time + 2 values, slideshow: pictures, prayer: prayer times, football: today's matches,
-# mix: prayer times and football alternating
-SCREENSAVER_MODES = ("clock", "slideshow", "prayer", "football", "mix")
+# school: timetable and school news per child, mix: several of these alternating
+SCREENSAVER_MODES = ("clock", "slideshow", "prayer", "football", "school", "mix")
+MIX_VIEWS = ("prayer", "football", "school")  # order = device view 0, 1, 2
 FOOTBALL_LEAGUES = ("ger.1", "ger.2", "tur.1", "esp.1", "eng.1", "ita.1", "fra.1", "uefa.champions")  # = football.LEAGUES
 # Calligraphy backgrounds built into the firmware (order = index on the device, 1-based; 0 = none)
 PRAYER_BACKGROUNDS: tuple[str, ...] = ("basmala", "mosque")
@@ -486,15 +492,57 @@ def _validate_screensaver(raw: Any, errors: list[str]) -> dict[str, Any]:
     if isinstance(bg, bool):  # 0.5.9 stored on/off
         bg = "basmala" if bg else "none"
     s["prayer_bg"] = bg if bg in PRAYER_BACKGROUNDS or bg == "none" else "basmala"
-    if s["enabled"] and s["mode"] in ("prayer", "mix") and not s["prayer"]:
+    mix_views = raw.get("mix_views", s["mix_views"])
+    if isinstance(mix_views, list):
+        s["mix_views"] = [v for v in MIX_VIEWS if v in mix_views]
+    if s["enabled"] and s["mode"] == "mix" and len(s["mix_views"]) < 2:
+        errors.append("Bildschirmschoner: Für den Wechsel bitte mindestens zwei Anzeigen auswählen.")
+    views = screensaver_views(s)
+    if s["enabled"] and "prayer" in views and not s["prayer"]:
         errors.append("Bildschirmschoner: Bitte die Gebetszeit-Sensoren auswählen.")
     leagues = raw.get("leagues", s["leagues"])
     if isinstance(leagues, list):
         s["leagues"] = [code for code in FOOTBALL_LEAGUES if code in leagues]  # known codes, fixed order
-    if s["enabled"] and s["mode"] in ("football", "mix") and not s["leagues"]:
+    if s["enabled"] and "football" in views and not s["leagues"]:
         errors.append("Bildschirmschoner: Bitte mindestens eine Liga auswählen.")
+    s["school"] = _validate_school(raw.get("school"), errors)
+    if s["enabled"] and "school" in views and not s["school"]:
+        errors.append("Bildschirmschoner: Bitte mindestens ein Kind mit Stundenplan oder Eltern-Portal einrichten.")
     s["mix_interval"] = _int(raw.get("mix_interval"), 20, 5, 600)
     return s
+
+
+def screensaver_views(ss: dict[str, Any]) -> list[str]:
+    """Data views the screensaver shows: prayer / football / school (mix: several)."""
+    mode = ss.get("mode")
+    if mode == "mix":
+        chosen = ss.get("mix_views")
+        if not isinstance(chosen, list):
+            chosen = ["prayer", "football"]  # settings saved before 0.5.23
+        return [v for v in MIX_VIEWS if v in chosen]
+    return [mode] if mode in MIX_VIEWS else []
+
+
+def _validate_school(raw: Any, errors: list[str]) -> list[dict[str, Any]]:
+    if not isinstance(raw, list):
+        return []
+    out = []
+    for i, child in enumerate(raw[:SCHOOL_MAX_CHILDREN]):
+        if not isinstance(child, dict):
+            continue
+        name = " ".join(str(child.get("name") or "").split())[:20] or f"Kind {i + 1}"
+        entry: dict[str, Any] = {"name": name}
+        for key, domain in SCHOOL_SOURCES.items():
+            eid = child.get(key)
+            if not eid:
+                continue
+            if not isinstance(eid, str) or not ENTITY_RE.match(eid) or not eid.startswith(f"{domain}."):
+                errors.append(f"Bildschirmschoner: ungültige Entität für {name} ({key}).")
+            else:
+                entry[key] = eid
+        if len(entry) > 1:
+            out.append(entry)
+    return out
 
 
 def _validate_rules(raw: Any, errors: list[str]) -> list[dict[str, Any]]:
@@ -973,6 +1021,10 @@ def _screensaver_device(settings: dict[str, Any], layout: dict[str, Any], slide_
         out.update(ssm=1, slu=slide_url, sli=ss.get("interval", 15), slc=int(ss.get("show_clock", True)))
     elif ss.get("mode") == "football":
         out.update(ssm=3)
+    elif ss.get("mode") == "school":
+        out.update(ssm=5)
+    elif ss.get("mode") == "mix" and "prayer" not in screensaver_views(ss):
+        out.update(ssm=4, smi=ss.get("mix_interval", 20), smv=[MIX_VIEWS.index(v) for v in screensaver_views(ss)])
     elif ss.get("mode") in ("prayer", "mix"):
         prayer = ss.get("prayer") or {}
         lang = ss.get("prayer_lang") if ss.get("prayer_lang") in PRAYER_NAMES else "de"
@@ -988,8 +1040,8 @@ def _screensaver_device(settings: dict[str, Any], layout: dict[str, Any], slide_
             spx=PRAYER_TEXTS[lang],
             spb=PRAYER_BACKGROUNDS.index(bg) + 1 if (bg := ss.get("prayer_bg", "basmala")) in PRAYER_BACKGROUNDS else 0,
         )
-        if ss.get("mode") == "mix":  # firmware < 0.5.12 shows prayer times only
-            out.update(ssm=4, smi=ss.get("mix_interval", 20))
+        if ss.get("mode") == "mix":  # firmware < 0.5.12 shows prayer times only, < 0.5.23 ignores smv
+            out.update(ssm=4, smi=ss.get("mix_interval", 20), smv=[MIX_VIEWS.index(v) for v in screensaver_views(ss)])
     return out
 
 
@@ -997,7 +1049,7 @@ def layout_entities(layout: dict[str, Any]) -> set[str]:
     """All entity ids the display shows (tiles, visibility conditions, screensaver)."""
     ss = (layout.get("settings") or {}).get("screensaver", {}) or {}
     out: set[str] = set(ss.get("entities", []))
-    if ss.get("enabled") and ss.get("mode") in ("prayer", "mix"):
+    if ss.get("enabled") and "prayer" in screensaver_views(ss):
         out.update(e for e in (ss.get("prayer") or {}).values() if e)
     for page in layout.get("pages", []):
         for tile in page.get("tiles", []):
@@ -1043,6 +1095,14 @@ def regenerate_ids(layout: dict[str, Any]) -> dict[str, Any]:
 def football_settings(layout: dict[str, Any]) -> tuple[list[str], str] | None:
     """(leagues, language) if the display's screensaver shows football, else None."""
     ss = (layout.get("settings") or {}).get("screensaver") or {}
-    if not ss.get("enabled") or ss.get("mode") not in ("football", "mix") or not ss.get("leagues"):
+    if not ss.get("enabled") or "football" not in screensaver_views(ss) or not ss.get("leagues"):
         return None
     return list(ss["leagues"]), ss.get("prayer_lang", "de")
+
+
+def school_settings(layout: dict[str, Any]) -> list[dict[str, Any]] | None:
+    """Children (name + entity ids) if the display's screensaver shows the school view, else None."""
+    ss = (layout.get("settings") or {}).get("screensaver") or {}
+    if not ss.get("enabled") or "school" not in screensaver_views(ss) or not ss.get("school"):
+        return None
+    return [dict(c) for c in ss["school"]]

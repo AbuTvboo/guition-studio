@@ -177,7 +177,7 @@ export interface ScreensaverSettings {
   enabled: boolean;
   after: number;
   entities: string[];
-  mode?: "clock" | "slideshow" | "prayer" | "football" | "school" | "mix";
+  mode?: "clock" | "slideshow" | "prayer" | "football" | "mix";
   folder?: string;
   interval?: number;
   order?: "random" | "sequential";
@@ -191,27 +191,14 @@ export interface ScreensaverSettings {
   prayer_bg?: string | boolean;
   /** football: ESPN league codes, e.g. "ger.1" */
   leagues?: string[];
-  /** school: one entry per child (WebUntis calendars, Eltern-Portal sensors) */
-  school?: SchoolChild[];
   /** mix: views that alternate (default prayer + football) */
   mix_views?: MixView[];
   /** mix: seconds per view */
   mix_interval?: number;
 }
 
-export type MixView = "prayer" | "football" | "school";
+export type MixView = "prayer" | "football";
 
-export interface SchoolChild {
-  name: string;
-  /** WebUntis calendars */
-  timetable?: string;
-  homework?: string;
-  exams?: string;
-  /** Eltern-Portal sensors */
-  letters?: string;
-  appointments?: string;
-  substitutions?: string;
-}
 
 export type PrayerKey = "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha";
 

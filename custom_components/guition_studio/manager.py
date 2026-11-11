@@ -61,7 +61,6 @@ from .const import (
     ACTION_NOTIFY,
     ACTION_PAGE,
     ACTION_ROLLBACK,
-    ACTION_SCHOOL,
     ACTION_STATES,
     CHUNK_SIZE,
     EVENT_DEVICE,
@@ -87,13 +86,11 @@ from .layout import (
     find_tile,
     football_settings,
     layout_entities,
-    school_settings,
     resolve_action,
     resolve_control,
     swipe_item_tile,
     validate_layout,
 )
-from .school import EXAM_DAYS, LOOKAHEAD_DAYS, SOURCES as SCHOOL_SOURCES, build_payload as school_payload
 from .protocol import (
     build_state_messages,
     chunk_payload,
@@ -140,8 +137,6 @@ class StudioManager:
         # football: (league, day) -> (fetched at, matches or None); last document sent per display
         self._fixtures: dict[tuple[str, str], tuple[float, list[dict[str, Any]] | None]] = {}
         self._football_sent: dict[str, tuple[float, str]] = {}
-        # school: last document sent per display (loop time, json)
-        self._school_sent: dict[str, tuple[float, str]] = {}
         # team logos: id -> base64 RGB565A8 (None = not available); ids already on each display
         self._logos: dict[str, str | None] = {}
         self._logos_sent: dict[str, set[str]] = {}
@@ -364,8 +359,6 @@ class StudioManager:
                 self.hass.async_create_task(self._apply_rule(display, rule))
             if football_settings(display["applied"]["layout"]):
                 self.hass.async_create_task(self.async_push_football(display["id"]))
-            if school_settings(display["applied"]["layout"]):
-                self.hass.async_create_task(self.async_push_school(display["id"]))
 
     @callback
     def _evaluate_night(self, display: dict[str, Any], local: datetime, force: bool = False) -> None:
@@ -637,74 +630,6 @@ class StudioManager:
         self.hass.async_create_task(self._push_logos(display, json.loads(doc)))
         return True
 
-    # ------------------------------------------------------------------ school
-
-    async def _calendar_events(self, entity_id: str, start: datetime, end: datetime) -> list[dict[str, Any]]:
-        """Events of one calendar entity (WebUntis keeps them in memory, no network access)."""
-        if self.hass.states.get(entity_id) is None:
-            return []
-        try:
-            response = await self.hass.services.async_call(
-                "calendar",
-                "get_events",
-                {"entity_id": entity_id, "start_date_time": start.isoformat(), "end_date_time": end.isoformat()},
-                blocking=True,
-                return_response=True,
-            )
-        except (HomeAssistantError, ValueError, KeyError) as err:
-            if self.debug:
-                self.add_log("debug", f"Kalender {entity_id} nicht lesbar: {err}")
-            return []
-        return list(((response or {}).get(entity_id) or {}).get("events") or [])
-
-    async def school_document(self, children: list[dict[str, Any]], now: datetime) -> dict[str, Any]:
-        """Collect timetable/homework/exams (calendars) and Eltern-Portal elements per child."""
-        midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        windows = {
-            "timetable": (midnight, midnight + timedelta(days=LOOKAHEAD_DAYS)),
-            "homework": (midnight, midnight + timedelta(days=EXAM_DAYS)),
-            "exams": (midnight, midnight + timedelta(days=EXAM_DAYS + 1)),
-        }
-        out = []
-        for child in children:
-            sources: dict[str, Any] = {}
-            for key, domain in SCHOOL_SOURCES.items():
-                eid = child.get(key)
-                if not eid:
-                    continue
-                if domain == "calendar":
-                    sources[key] = await self._calendar_events(eid, *windows[key])
-                else:
-                    state = self.hass.states.get(eid)
-                    sources[key] = list((state.attributes.get("elements") or []) if state else [])
-            out.append((child.get("name") or "", sources))
-        return school_payload(out, now)
-
-    async def async_push_school(self, display_id: str, force: bool = False) -> bool:
-        """Send the school view (timetable + news per child); every 5 minutes, only when changed."""
-        display = self.store.get_display(display_id)
-        if not display or not display.get("applied") or not self.has_actions(display):
-            return False
-        children = school_settings(display["applied"]["layout"])
-        if children is None:
-            return False
-        sent_at, last_doc = self._school_sent.get(display_id, (0.0, ""))
-        loop_now = self.hass.loop.time()
-        if not force and loop_now - sent_at < 290:
-            return False
-        doc = json.dumps(await self.school_document(children, dt_util.now()), ensure_ascii=False, separators=(",", ":"))
-        self._school_sent[display_id] = (loop_now, doc)
-        if doc == last_doc and not force:
-            return False
-        try:
-            await self._call(display, ACTION_SCHOOL, {"data": doc})
-        except (HomeAssistantError, TransferError) as err:
-            self._school_sent[display_id] = (loop_now, "")  # retry with the next refresh
-            if self.debug:  # firmware < 0.5.23 has no school action
-                self.add_log("debug", f"Schuldaten nicht gesendet: {err}", display_id)
-            return False
-        return True
-
     async def _logo(self, team_id: str) -> str | None:
         """Team logo as base64 RGB565A8 (downloaded once from ESPN, then cached)."""
         if team_id in self._logos:
@@ -839,7 +764,6 @@ class StudioManager:
                         self._evaluate_night(display, dt_util.now(), force=True)
                         self.hass.async_create_task(self.async_refresh_graphs(display_id))
                         self.hass.async_create_task(self.async_push_football(display_id, force=True))
-                        self.hass.async_create_task(self.async_push_school(display_id, force=True))
                         return {"ok": True, "revision": layout.get("revision"), "size": len(raw), "crc": crc, "attempts": attempt}
                     code = str(ack.get("err") or "")
                     last_error = describe_device_error(code)
@@ -982,7 +906,6 @@ class StudioManager:
         self.hass.async_create_task(self.async_refresh_graphs(display_id))
         self._logos_sent.pop(display_id, None)  # the display forgot its logos when it restarted
         self.hass.async_create_task(self.async_push_football(display_id, force=True))
-        self.hass.async_create_task(self.async_push_school(display_id, force=True))
 
     async def _safe_resend(self, display_id: str, layout: dict[str, Any]) -> None:
         try:

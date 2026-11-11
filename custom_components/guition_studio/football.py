@@ -31,12 +31,20 @@ LEAGUES: dict[str, str] = {
     "ita.1": "Serie A",
     "fra.1": "Ligue 1",
     "uefa.champions": "Champions League",
+    # national teams: only shown while matches are played (international breaks, tournaments)
+    "uefa.nations": "Nations League",
+    "uefa.euro": "EM",
+    "uefa.euroq": "EM-Qualifikation",
+    "fifa.world": "WM",
+    "fifa.worldq.uefa": "WM-Qualifikation (Europa)",
 }
+NATIONAL = {"uefa.nations", "uefa.euro", "uefa.euroq", "fifa.world", "fifa.worldq.uefa"}
 DEFAULT_LEAGUES = ["ger.1", "tur.1", "esp.1"]
 # colour of the competition strip (sports TV look), bright enough on the dark background
 LEAGUE_COLORS: dict[str, str] = {
     "ger.1": "D20515", "ger.2": "B0121F", "tur.1": "E30A17", "esp.1": "EE5A24",
     "eng.1": "6A1B9A", "ita.1": "1565C0", "fra.1": "2E5AAC", "uefa.champions": "1A3A8F",
+    "uefa.nations": "0B8A6F", "uefa.euro": "1E50A0", "uefa.euroq": "1E50A0", "fifa.world": "B8860B", "fifa.worldq.uefa": "B8860B",
 }  # fmt: skip
 LOOKAHEAD_DAYS = 7  # without matches today, the next match day within a week is shown
 MAX_MATCHES = 40
@@ -54,6 +62,46 @@ TEXTS: dict[str, dict[str, str]] = {
 LEAGUE_TITLES: dict[str, str] = {
     "ger.1": "BUNDESLIGA", "ger.2": "2. BUNDESLIGA", "tur.1": "SÜPER LİG", "esp.1": "LALIGA",
     "eng.1": "PREMIER LEAGUE", "ita.1": "SERIE A", "fra.1": "LIGUE 1", "uefa.champions": "CHAMPIONS LEAGUE",
+    "uefa.nations": "NATIONS LEAGUE", "uefa.euro": "EM", "uefa.euroq": "EM-QUALIFIKATION",
+    "fifa.world": "WM", "fifa.worldq.uefa": "WM-QUALIFIKATION",
+}  # fmt: skip
+LEAGUE_TITLES_TR: dict[str, str] = {
+    "uefa.nations": "ULUSLAR LİGİ", "uefa.euro": "AVRUPA ŞAMPİYONASI", "uefa.euroq": "AVRUPA ŞAMP. ELEMELERİ",
+    "fifa.world": "DÜNYA KUPASI", "fifa.worldq.uefa": "DÜNYA KUPASI ELEMELERİ",
+}  # fmt: skip
+
+# national teams (ESPN English name -> German, Turkish)
+NATIONS: dict[str, tuple[str, str]] = {
+    "Germany": ("Deutschland", "Almanya"), "Turkey": ("Türkei", "Türkiye"), "Türkiye": ("Türkei", "Türkiye"),
+    "France": ("Frankreich", "Fransa"), "Spain": ("Spanien", "İspanya"), "Italy": ("Italien", "İtalya"),
+    "England": ("England", "İngiltere"), "Netherlands": ("Niederlande", "Hollanda"), "Portugal": ("Portugal", "Portekiz"),
+    "Belgium": ("Belgien", "Belçika"), "Croatia": ("Kroatien", "Hırvatistan"), "Switzerland": ("Schweiz", "İsviçre"),
+    "Austria": ("Österreich", "Avusturya"), "Denmark": ("Dänemark", "Danimarka"), "Sweden": ("Schweden", "İsveç"),
+    "Norway": ("Norwegen", "Norveç"), "Poland": ("Polen", "Polonya"), "Czechia": ("Tschechien", "Çekya"),
+    "Czech Republic": ("Tschechien", "Çekya"), "Slovakia": ("Slowakei", "Slovakya"), "Slovenia": ("Slowenien", "Slovenya"),
+    "Hungary": ("Ungarn", "Macaristan"), "Romania": ("Rumänien", "Romanya"), "Bulgaria": ("Bulgarien", "Bulgaristan"),
+    "Greece": ("Griechenland", "Yunanistan"), "Serbia": ("Serbien", "Sırbistan"), "Montenegro": ("Montenegro", "Karadağ"),
+    "Bosnia-Herzegovina": ("Bosnien-H.", "Bosna-Hersek"), "Bosnia and Herzegovina": ("Bosnien-H.", "Bosna-Hersek"),
+    "Albania": ("Albanien", "Arnavutluk"), "North Macedonia": ("Nordmazedonien", "K. Makedonya"), "Kosovo": ("Kosovo", "Kosova"),
+    "Georgia": ("Georgien", "Gürcistan"), "Armenia": ("Armenien", "Ermenistan"), "Azerbaijan": ("Aserbaidschan", "Azerbaycan"),
+    "Kazakhstan": ("Kasachstan", "Kazakistan"), "Ukraine": ("Ukraine", "Ukrayna"), "Belarus": ("Belarus", "Belarus"),
+    "Russia": ("Russland", "Rusya"), "Moldova": ("Moldau", "Moldova"), "Lithuania": ("Litauen", "Litvanya"),
+    "Latvia": ("Lettland", "Letonya"), "Estonia": ("Estland", "Estonya"), "Finland": ("Finnland", "Finlandiya"),
+    "Iceland": ("Island", "İzlanda"), "Republic of Ireland": ("Irland", "İrlanda"), "Ireland": ("Irland", "İrlanda"),
+    "Northern Ireland": ("Nordirland", "K. İrlanda"), "Scotland": ("Schottland", "İskoçya"), "Wales": ("Wales", "Galler"),
+    "Faroe Islands": ("Färöer", "Faroe Adaları"), "Luxembourg": ("Luxemburg", "Lüksemburg"),
+    "Liechtenstein": ("Liechtenstein", "Lihtenştayn"), "Cyprus": ("Zypern", "Kıbrıs"), "Gibraltar": ("Gibraltar", "Cebelitarık"),
+    "Israel": ("Israel", "İsrail"), "Argentina": ("Argentinien", "Arjantin"), "Brazil": ("Brasilien", "Brezilya"),
+    "Colombia": ("Kolumbien", "Kolombiya"), "Chile": ("Chile", "Şili"), "Mexico": ("Mexiko", "Meksika"),
+    "United States": ("USA", "ABD"), "USA": ("USA", "ABD"), "Canada": ("Kanada", "Kanada"), "Japan": ("Japan", "Japonya"),
+    "South Korea": ("Südkorea", "Güney Kore"), "Australia": ("Australien", "Avustralya"),
+    "Saudi Arabia": ("Saudi-Arabien", "S. Arabistan"), "Qatar": ("Katar", "Katar"), "Jordan": ("Jordanien", "Ürdün"),
+    "Uzbekistan": ("Usbekistan", "Özbekistan"), "Morocco": ("Marokko", "Fas"), "Algeria": ("Algerien", "Cezayir"),
+    "Tunisia": ("Tunesien", "Tunus"), "Egypt": ("Ägypten", "Mısır"), "Ghana": ("Ghana", "Gana"),
+    "Ivory Coast": ("Elfenbeinküste", "Fildişi Sahili"), "Nigeria": ("Nigeria", "Nijerya"), "Cameroon": ("Kamerun", "Kamerun"),
+    "South Africa": ("Südafrika", "Güney Afrika"), "Congo DR": ("DR Kongo", "Kongo DC"), "New Zealand": ("Neuseeland", "Yeni Zelanda"),
+    "Cape Verde": ("Kap Verde", "Yeşil Burun"), "Cape Verde Islands": ("Kap Verde", "Yeşil Burun"),
+    "Costa Rica": ("Costa Rica", "Kosta Rika"), "Jamaica": ("Jamaika", "Jamaika"), "Haiti": ("Haiti", "Haiti"),
 }  # fmt: skip
 
 
@@ -151,6 +199,12 @@ def parse_scoreboard(data: Any, tz: tzinfo | None) -> list[dict[str, Any]]:
     return out
 
 
+def nation_name(name: str, lang: str) -> str:
+    """National team name in the display language (unknown names stay English)."""
+    names = NATIONS.get(name)
+    return names[1 if lang == "tr" else 0] if names else name
+
+
 def build_payload(
     leagues: dict[str, list[dict[str, Any]] | None], lang: str, now: datetime
 ) -> dict[str, Any]:
@@ -196,9 +250,11 @@ def build_payload(
                 if show_day:
                     first_col = f"{days[m['when'].weekday()]} {first_col}"
             minute = tx["ht"] if m["halftime"] else (m["minute"] if m["state"] == 1 else "")
-            rows.append([first_col, m["home"], m["away"], m["state"], minute, m.get("hl", ""), m.get("al", "")])
+            home, away = (nation_name(m["home"], lang), nation_name(m["away"], lang)) if code in NATIONAL else (m["home"], m["away"])
+            rows.append([first_col, home, away, m["state"], minute, m.get("hl", ""), m.get("al", "")])
         if rows:
-            groups.append([LEAGUE_TITLES[code], rows, LEAGUE_COLORS[code]])
+            title = LEAGUE_TITLES_TR.get(code, LEAGUE_TITLES[code]) if lang == "tr" else LEAGUE_TITLES[code]
+            groups.append([title, rows, LEAGUE_COLORS[code]])
     doc = {"h": header, "t": [tx["title"], tx["end"], tx["off"]], "g": groups}
     while len(json.dumps(doc, ensure_ascii=False).encode()) > MAX_PAYLOAD and groups:
         groups[-1][1].pop()  # keep the document small for the API action

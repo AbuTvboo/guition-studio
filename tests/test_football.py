@@ -114,3 +114,30 @@ def test_logo_is_trimmed_and_converted_to_rgb565a8():
     assert raw[centre * 2 : centre * 2 + 2] == bytes((0x00, 0xF8))  # red, little endian
     assert raw[2 * n + centre] == 255 and raw[2 * n] == 0  # opaque centre, transparent corner
     assert LOGO_SIZE == 24  # = LOGO_PX in guition_studio.h
+
+
+def test_national_team_competitions():
+    from gs_pure.football import LEAGUES
+    from gs_pure.layout import FOOTBALL_LEAGUES
+
+    assert tuple(LEAGUES) == FOOTBALL_LEAGUES
+    nations = {"events": [_event("5", "2026-11-13T19:45Z", "Germany", "Turkey"), _event("6", "2026-11-13T17:00Z", "Moldova", "Kazakhstan")]}
+    data = {"ger.1": [], "uefa.nations": parse_scoreboard(nations, TZ), "fifa.world": []}
+    now = datetime(2026, 11, 13, 12, 0, tzinfo=TZ)
+    doc = build_payload(data, "de", now)
+    assert doc["h"] == "HEUTE" and len(doc["g"]) == 1  # tournaments without matches stay hidden
+    assert doc["g"][0][0] == "NATIONS LEAGUE"
+    assert [r[1:3] for r in doc["g"][0][1]] == [["Moldau", "Kasachstan"], ["Deutschland", "Türkei"]]
+    tr = build_payload(data, "tr", now)
+    assert tr["g"][0][0] == "ULUSLAR LİGİ" and tr["g"][0][1][1][1:3] == ["Almanya", "Türkiye"]
+    valid = validate_layout(_layout("football", leagues=["fifa.world", "uefa.nations", "ger.1"]))
+    assert valid["settings"]["screensaver"]["leagues"] == ["ger.1", "uefa.nations", "fifa.world"]
+
+
+def test_school_settings_from_0523_fall_back():
+    school = validate_layout(_layout("school"))
+    assert school["settings"]["screensaver"]["mode"] == "clock" and "school" not in school["settings"]["screensaver"]
+    assert "ssm" not in json.loads(compile_device_layout(school)[0])["set"]
+    mixed = validate_layout(_layout("mix", mix_views=["football", "school"]))
+    assert mixed["settings"]["screensaver"]["mode"] == "football"
+    assert json.loads(compile_device_layout(mixed)[0])["set"]["ssm"] == 3

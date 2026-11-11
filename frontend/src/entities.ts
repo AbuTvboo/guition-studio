@@ -1,6 +1,6 @@
 // Entity library helpers: categorisation, search and default tiles (unit tested).
 import { makeTile } from "./model";
-import type { Hass, HassEntity, PrayerKey, SchoolChild, Tile, TileType } from "./types";
+import type { Hass, HassEntity, PrayerKey, Tile, TileType } from "./types";
 
 export type CategoryKey =
   | "all"
@@ -233,68 +233,3 @@ export function detectPrayerSensors(hass: Hass): Partial<Record<PrayerKey, strin
   return out;
 }
 
-/** School screensaver: what each child entry can show (key = SchoolChild field). */
-export const SCHOOL_SOURCES: { key: Exclude<keyof SchoolChild, "name">; label: string; domain: "calendar" | "sensor"; source: string }[] = [
-  { key: "timetable", label: "Stundenplan", domain: "calendar", source: "WebUntis" },
-  { key: "homework", label: "Hausaufgaben", domain: "calendar", source: "WebUntis" },
-  { key: "exams", label: "Prüfungen", domain: "calendar", source: "WebUntis" },
-  { key: "letters", label: "Elternbriefe", domain: "sensor", source: "Eltern-Portal" },
-  { key: "appointments", label: "Termine", domain: "sensor", source: "Eltern-Portal" },
-  { key: "substitutions", label: "Vertretungsplan", domain: "sensor", source: "Eltern-Portal" },
-];
-
-const norm = (text: string) =>
-  text
-    .toLowerCase()
-    .replace(/ä/g, "ae")
-    .replace(/ö/g, "oe")
-    .replace(/ü/g, "ue")
-    .replace(/ß/g, "ss")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-
-/**
- * Find the children of the WebUntis integration (one device per login: lessons, homework and exam
- * calendars) and of the Eltern-Portal integration (sensor.elternportal_<kind>_<student id>) and
- * pair them by first name (otherwise in order).
- */
-export function detectSchoolChildren(hass: Hass): SchoolChild[] {
-  const registry = Object.values(hass.entities ?? {});
-  // WebUntis: calendars grouped by device
-  const untis = new Map<string, { name: string; child: Partial<SchoolChild> }>();
-  for (const e of registry) {
-    if (e.platform !== "webuntis" || !e.entity_id.startsWith("calendar.") || !hass.states[e.entity_id]) continue;
-    const dev = e.device_id ?? e.entity_id;
-    const device = e.device_id ? hass.devices?.[e.device_id] : undefined;
-    const group = untis.get(dev) ?? { name: device?.name_by_user || device?.name || "", child: {} };
-    const key = e.translation_key ?? "";
-    if (key === "homework" || /_(homework|hausaufgaben)$/.test(e.entity_id)) group.child.homework = e.entity_id;
-    else if (key === "exam" || /_(exams?|prufungen|pruefungen)$/.test(e.entity_id)) group.child.exams = e.entity_id;
-    else group.child.timetable = e.entity_id;
-    untis.set(dev, group);
-  }
-  // Eltern-Portal: one set of sensors per student
-  const portal = new Map<string, { name: string; child: Partial<SchoolChild> }>();
-  const kinds: Record<string, keyof SchoolChild> = { letter: "letters", appointment: "appointments", substitution: "substitutions" };
-  for (const entity of Object.values(hass.states)) {
-    const m = /^sensor\.elternportal_(letter|appointment|substitution)_(\w+)$/.exec(entity.entity_id);
-    if (!m) continue;
-    const group = portal.get(m[2]) ?? { name: "", child: {} };
-    (group.child as Record<string, string>)[kinds[m[1]]] = entity.entity_id;
-    // friendly name "Lena Letter" -> "Lena"
-    const words = friendlyName(entity).split(/\s+/);
-    if (!group.name && words.length > 1) group.name = words.slice(0, -1).join(" ");
-    portal.set(m[2], group);
-  }
-  const out: SchoolChild[] = [];
-  const free = [...untis.values()];
-  for (const p of portal.values()) {
-    const first = norm(p.name.split(" ")[0] ?? "");
-    let idx = first ? free.findIndex((u) => norm(`${u.name} ${Object.values(u.child).join(" ")}`).includes(first)) : -1;
-    if (idx < 0 && free.length && portal.size === untis.size) idx = 0;
-    const u = idx >= 0 ? free.splice(idx, 1)[0] : undefined;
-    out.push({ ...(u?.child ?? {}), ...p.child, name: p.name || u?.name || `Kind ${out.length + 1}` });
-  }
-  for (const u of free) out.push({ ...u.child, name: u.name || `Kind ${out.length + 1}` });
-  return out.slice(0, 4).map((c) => ({ ...c, name: c.name.slice(0, 20) }));
-}

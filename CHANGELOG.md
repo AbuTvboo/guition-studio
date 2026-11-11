@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.24 – Länderspiele: Nations League, EM, WM
+- Der Fußball-Bildschirmschoner kennt jetzt auch **Nations League, EM, EM-Qualifikation, WM und WM-Qualifikation (Europa)**. Diese Wettbewerbe erscheinen nur, wenn dort gerade gespielt wird, z. B. in Länderspielpausen oder während eines Turniers. Du kannst sie also dauerhaft angehakt lassen.
+- Die Ländernamen stehen auf Deutsch (z. B. Deutschland, Türkei) bzw. auf Türkisch (Almanya, Türkiye), passend zur eingestellten Sprache. Statt Vereinslogos zeigt das Display die Wappen der Verbände.
+- Der Bildschirmschoner „Schule“ ist wieder entfernt. Wer ihn eingestellt hatte, sieht stattdessen die Uhr. Im Wechsel-Modus bleibt die übrige Anzeige.
+
 ## 0.5.23 – Bildschirmschoner „Schule“ (WebUntis & Eltern-Portal)
 - Neuer Bildschirmschoner **Schule – Stundenplan & Eltern-Portal**. Die Daten kommen aus den Home-Assistant-Integrationen **WebUntis** und **Eltern-Portal**. Pro Kind gibt es eine Seite, bei mehreren Kindern wird alle 12 Sekunden weitergeblättert.
   - **Stundenplan von heute** mit Uhrzeit, Fach und Raum: Die laufende Stunde ist hervorgehoben, vorbei sind sie abgedunkelt. **Ausfall** ist rot und durchgestrichen, **Vertretung** orange, eine **Raumänderung** gelb. Nach der letzten Stunde zeigt er schon den nächsten Schultag („Morgen“ oder z. B. „Montag“).

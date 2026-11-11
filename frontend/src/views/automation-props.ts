@@ -1,9 +1,9 @@
 import { LitElement, css, html, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import type { StudioApi } from "../api";
-import { PRAYERS, SCHOOL_SOURCES, detectPrayerSensors, detectSchoolChildren, friendlyName } from "../entities";
+import { PRAYERS, detectPrayerSensors, friendlyName } from "../entities";
 import { clone, newId } from "../model";
-import type { Hass, Layout, MixView, NightSettings, PageRule, SchoolChild, ScreensaverSettings } from "../types";
+import type { Hass, Layout, MixView, NightSettings, PageRule, ScreensaverSettings } from "../types";
 import { fireEvent, sharedStyles } from "../ui";
 import "./entity-picker";
 
@@ -18,6 +18,11 @@ const FOOTBALL_LEAGUES = [
   { code: "ita.1", name: "Serie A" },
   { code: "fra.1", name: "Ligue 1" },
   { code: "uefa.champions", name: "Champions League" },
+  { code: "uefa.nations", name: "Nations League" },
+  { code: "uefa.euro", name: "EM" },
+  { code: "uefa.euroq", name: "EM-Qualifikation" },
+  { code: "fifa.world", name: "WM" },
+  { code: "fifa.worldq.uefa", name: "WM-Qualifikation (Europa)" },
 ];
 const DEFAULT_LEAGUES = ["ger.1", "tur.1", "esp.1"];
 
@@ -25,7 +30,6 @@ const DEFAULT_LEAGUES = ["ger.1", "tur.1", "esp.1"];
 const MIX_VIEWS: { key: MixView; label: string }[] = [
   { key: "prayer", label: "Gebetszeiten" },
   { key: "football", label: "Fußball" },
-  { key: "school", label: "Schule" },
 ];
 
 /** Data views the screensaver shows (mix: the chosen ones; old settings: prayer + football). */
@@ -34,7 +38,7 @@ export function screensaverViews(ss: ScreensaverSettings): MixView[] {
     const chosen = ss.mix_views ?? ["prayer", "football"];
     return MIX_VIEWS.map((v) => v.key).filter((k) => chosen.includes(k));
   }
-  return ss.mode === "prayer" || ss.mode === "football" || ss.mode === "school" ? [ss.mode] : [];
+  return ss.mode === "prayer" || ss.mode === "football" ? [ss.mode] : [];
 }
 
 /** Calligraphy backgrounds built into the firmware (keys = PRAYER_BACKGROUNDS in layout.py). */
@@ -196,21 +200,18 @@ export class GsAutomationProps extends LitElement {
                   const mode = (e.target as HTMLSelectElement).value as ScreensaverSettings["mode"];
                   const views = screensaverViews({ ...ss, mode });
                   const prayer = views.includes("prayer") && !Object.values(ss.prayer ?? {}).some(Boolean) ? detectPrayerSensors(this.hass) : ss.prayer;
-                  const school = views.includes("school") && !ss.school?.length ? detectSchoolChildren(this.hass) : ss.school;
-                  this.commit({ screensaver: { ...ss, mode, prayer, school } });
+                  this.commit({ screensaver: { ...ss, mode, prayer } });
                   if (mode === "slideshow" && !this.folders) this.loadFolders();
                 }}>
                   <option value="clock" ?selected=${ss.mode !== "slideshow"}>Uhr, Datum & Werte</option>
                   <option value="slideshow" ?selected=${ss.mode === "slideshow"}>Diashow (Bilder aus Home Assistant)</option>
                   <option value="prayer" ?selected=${ss.mode === "prayer"}>Islamische Gebetszeiten</option>
                   <option value="football" ?selected=${ss.mode === "football"}>Fußball – heutige Spiele</option>
-                  <option value="school" ?selected=${ss.mode === "school"}>Schule – Stundenplan & Eltern-Portal</option>
-                  <option value="mix" ?selected=${ss.mode === "mix"}>Mehrere im Wechsel (Gebetszeiten, Fußball, Schule)</option>
+                  <option value="mix" ?selected=${ss.mode === "mix"}>Gebetszeiten & Fußball im Wechsel</option>
                 </select>
               </label>
               ${ss.mode === "slideshow" ? this.renderSlideshow(ss) : nothing}
               ${ss.mode === "mix" ? this.renderMix(ss) : nothing}
-              ${screensaverViews(ss).includes("school") ? this.renderSchool(ss) : nothing}
               ${screensaverViews(ss).includes("football") ? this.renderFootball(ss) : nothing}
               ${screensaverViews(ss).includes("prayer") ? this.renderPrayer(ss) : nothing}
               ${ss.mode === "clock" || !ss.mode ? [0, 1].map(
@@ -238,7 +239,6 @@ export class GsAutomationProps extends LitElement {
     const toggle = (key: MixView, on: boolean) => {
       const next = MIX_VIEWS.map((v) => v.key).filter((k) => (k === key ? on : views.includes(k)));
       const patch: Partial<ScreensaverSettings> = { mix_views: next };
-      if (key === "school" && on && !ss.school?.length) patch.school = detectSchoolChildren(this.hass);
       if (key === "prayer" && on && !Object.values(ss.prayer ?? {}).some(Boolean)) patch.prayer = detectPrayerSensors(this.hass);
       this.commit({ screensaver: { ...ss, ...patch } });
     };
@@ -274,53 +274,8 @@ export class GsAutomationProps extends LitElement {
       <div class="notice small">
         Home Assistant holt die Spiele von ESPN (öffentlich, ohne Konto) – alle 10 Minuten, während Spiele laufen jede Minute.
         Gezeigt werden die heutigen Spiele mit Anstoß, Live-Spielstand und Minute; an Tagen ohne Spiele die nächsten Spiele mit Wochentag.
+        Nations League, EM, WM und die Qualifikationen erscheinen nur, wenn dort gerade gespielt wird (z. B. in Länderspielpausen) – du kannst sie also dauerhaft angehakt lassen.
         Darstellung wie im Sport-TV: Liga-Balken in Ligafarbe, je Spiel eine Karte mit Vereinslogos und Ergebnis-Box (live rot mit Minute). Passen nicht alle Spiele auf eine Seite, wird alle 8 Sekunden weitergeblättert.
-      </div>`;
-  }
-
-  private renderSchool(ss: ScreensaverSettings) {
-    const children = ss.school ?? [];
-    const set = (next: SchoolChild[]) => this.commit({ screensaver: { ...ss, school: next } });
-    const update = (i: number, patch: Partial<SchoolChild>) => set(children.map((c, j) => (j === i ? { ...c, ...patch } : c)));
-    return html`<div class="notice small">
-        Daten aus den Home-Assistant-Integrationen <b>WebUntis</b> (Stundenplan, Hausaufgaben, Prüfungen) und
-        <b>Eltern-Portal</b> (Elternbriefe, Termine, Vertretungsplan). Pro Kind eine Seite, bei mehreren Kindern wird alle 12 Sekunden weitergeblättert.
-        Oben steht der Stundenplan von heute (nach der letzten Stunde schon der nächste Schultag): laufende Stunde hervorgehoben,
-        Ausfall rot durchgestrichen, Vertretung orange, Raumänderung gelb. Darunter „Demnächst“: neue Elternbriefe, Termine, Hausaufgaben und Prüfungen.
-        Home Assistant aktualisiert alle 5 Minuten.
-      </div>
-      ${children.length === 0
-        ? html`<div class="notice warn small">Keine Kinder gefunden. Bitte WebUntis bzw. Eltern-Portal in Home Assistant einrichten oder unten von Hand ein Kind anlegen.</div>`
-        : nothing}
-      ${children.map(
-        (c, i) => html`<div class="school-child">
-          <div class="school-head">
-            <label class="field"><span>Name auf dem Display</span>
-              <input maxlength="20" .value=${c.name} @change=${(e: Event) => update(i, { name: (e.target as HTMLInputElement).value })} />
-            </label>
-            <button title="Kind entfernen" @click=${() => set(children.filter((_, j) => j !== i))}>✕</button>
-          </div>
-          ${SCHOOL_SOURCES.map(
-            (src) => html`<label class="field"><span>${src.label} <span class="muted">(${src.source}, optional)</span></span>
-              <gs-entity-picker
-                .hass=${this.hass}
-                .value=${c[src.key] ?? null}
-                .domains=${[src.domain]}
-                placeholder="${src.domain === "calendar" ? "Kalender" : "Sensor"} suchen …"
-                @gs-entity=${(e: CustomEvent<string | null>) => {
-                  const next: SchoolChild = { ...c };
-                  if (e.detail) next[src.key] = e.detail;
-                  else delete next[src.key];
-                  set(children.map((x, j) => (j === i ? next : x)));
-                }}
-              ></gs-entity-picker>
-            </label>`
-          )}
-        </div>`
-      )}
-      <div class="row-buttons">
-        ${children.length < 4 ? html`<button @click=${() => set([...children, { name: `Kind ${children.length + 1}` }])}>+ Kind hinzufügen</button>` : nothing}
-        <button @click=${() => set(detectSchoolChildren(this.hass))}>Automatisch erkennen</button>
       </div>`;
   }
 
@@ -417,29 +372,6 @@ export class GsAutomationProps extends LitElement {
   static styles = [
     sharedStyles,
     css`
-      .school-child {
-        border: 1px solid var(--divider-color, #ddd);
-        border-radius: 10px;
-        padding: 8px 10px 2px;
-        margin: 8px 0;
-      }
-      .school-head {
-        display: flex;
-        gap: 8px;
-        align-items: flex-end;
-      }
-      .school-head .field {
-        flex: 1;
-      }
-      .school-head button {
-        margin-bottom: 8px;
-      }
-      .row-buttons {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-        margin: 4px 0 8px;
-      }
       .league-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;

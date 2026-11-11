@@ -177,7 +177,7 @@ export interface ScreensaverSettings {
   enabled: boolean;
   after: number;
   entities: string[];
-  mode?: "clock" | "slideshow" | "prayer" | "football" | "mix";
+  mode?: "clock" | "slideshow" | "prayer" | "football" | "notes" | "mix";
   folder?: string;
   interval?: number;
   order?: "random" | "sequential";
@@ -193,13 +193,15 @@ export interface ScreensaverSettings {
   prayer_bg?: string | boolean;
   /** football: ESPN league codes, e.g. "ger.1" */
   leagues?: string[];
+  /** notes: to-do list (todo.*) whose open items are shown as reminders */
+  notes?: string | null;
   /** mix: views that alternate (default prayer + football) */
   mix_views?: MixView[];
   /** mix: seconds per view */
   mix_interval?: number;
 }
 
-export type MixView = "prayer" | "football";
+export type MixView = "prayer" | "football" | "notes";
 
 
 export type PrayerKey = "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha";

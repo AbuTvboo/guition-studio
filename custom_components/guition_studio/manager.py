@@ -53,6 +53,7 @@ from .automation import (
 from .const import (
     ACTION_FOOTBALL,
     ACTION_LOGO,
+    ACTION_NOTES,
     ACTION_HELLO,
     ACTION_LAYOUT_BEGIN,
     ACTION_LAYOUT_CHUNK,
@@ -85,12 +86,14 @@ from .layout import (
     compile_device_layout,
     find_tile,
     football_settings,
+    notes_settings,
     layout_entities,
     resolve_action,
     resolve_control,
     swipe_item_tile,
     validate_layout,
 )
+from .notes import build_payload as notes_payload
 from .protocol import (
     build_state_messages,
     chunk_payload,
@@ -137,6 +140,8 @@ class StudioManager:
         # football: (league, day) -> (fetched at, matches or None); last document sent per display
         self._fixtures: dict[tuple[str, str], tuple[float, list[dict[str, Any]] | None]] = {}
         self._football_sent: dict[str, tuple[float, str]] = {}
+        # reminders: last document sent per display
+        self._notes_sent: dict[str, str] = {}
         # team logos: id -> base64 RGB565A8 (None = not available); ids already on each display
         self._logos: dict[str, str | None] = {}
         self._logos_sent: dict[str, set[str]] = {}
@@ -291,6 +296,7 @@ class StudioManager:
         if (unsub := self._trackers.pop(display_id, None)) is not None:
             unsub()
         self._track_rules(display_id)
+        self._track_notes(display_id)
         display = self.store.get_display(display_id)
         if not display or not display.get("applied"):
             return
@@ -303,6 +309,22 @@ class StudioManager:
             self._schedule_push(display_id, {event.data["entity_id"]})
 
         self._trackers[display_id] = async_track_state_change_event(self.hass, entities, _changed)
+
+    def _track_notes(self, display_id: str) -> None:
+        """Send the reminders right away when the to-do list changes (item added, ticked off)."""
+        key = f"{display_id}:notes"
+        if (unsub := self._trackers.pop(key, None)) is not None:
+            unsub()
+        display = self.store.get_display(display_id)
+        entity = notes_settings(display["applied"]["layout"]) if display and display.get("applied") else None
+        if entity is None:
+            return
+
+        @callback
+        def _changed(_event: Event) -> None:
+            self.hass.async_create_task(self.async_push_notes(display_id))
+
+        self._trackers[key] = async_track_state_change_event(self.hass, [entity], _changed)
 
     # ------------------------------------------------------------------ smart page switching & night mode
 
@@ -359,6 +381,9 @@ class StudioManager:
                 self.hass.async_create_task(self._apply_rule(display, rule))
             if football_settings(display["applied"]["layout"]):
                 self.hass.async_create_task(self.async_push_football(display["id"]))
+            if notes_settings(display["applied"]["layout"]):
+                # also catches edited texts and due dates ("Morgen" becomes "Heute" at midnight)
+                self.hass.async_create_task(self.async_push_notes(display["id"]))
 
     @callback
     def _evaluate_night(self, display: dict[str, Any], local: datetime, force: bool = False) -> None:
@@ -630,6 +655,52 @@ class StudioManager:
         self.hass.async_create_task(self._push_logos(display, json.loads(doc)))
         return True
 
+    # ------------------------------------------------------------------ reminders (to-do list)
+
+    async def _todo_items(self, entity_id: str) -> list[dict[str, Any]] | None:
+        """Open items of a to-do entity (None = list not available)."""
+        if self.hass.states.get(entity_id) is None:
+            return None
+        try:
+            response = await self.hass.services.async_call(
+                "todo",
+                "get_items",
+                {"entity_id": entity_id, "status": ["needs_action"]},
+                blocking=True,
+                return_response=True,
+            )
+        except (HomeAssistantError, ValueError, KeyError) as err:
+            if self.debug:
+                self.add_log("debug", f"To-do-Liste {entity_id} nicht lesbar: {err}")
+            return None
+        return list(((response or {}).get(entity_id) or {}).get("items") or [])
+
+    async def async_push_notes(self, display_id: str, force: bool = False) -> bool:
+        """Send the open to-do items to a display that shows reminders; only when something changed."""
+        display = self.store.get_display(display_id)
+        if not display or not display.get("applied") or not self.has_actions(display):
+            return False
+        entity = notes_settings(display["applied"]["layout"])
+        if entity is None:
+            return False
+        items = await self._todo_items(entity)
+        if items is None:
+            doc_obj = notes_payload([], dt_util.now())
+            doc_obj["t"] = [doc_obj["t"][0], doc_obj["t"][1], "To-do-Liste nicht gefunden"]
+        else:
+            doc_obj = notes_payload(items, dt_util.now())
+        doc = json.dumps(doc_obj, ensure_ascii=False, separators=(",", ":"))
+        if doc == self._notes_sent.get(display_id) and not force:
+            return False
+        try:
+            await self._call(display, ACTION_NOTES, {"data": doc})
+        except (HomeAssistantError, TransferError) as err:
+            if self.debug:  # firmware < 0.5.27 has no reminders action
+                self.add_log("debug", f"Erinnerungen nicht gesendet: {err}", display_id)
+            return False
+        self._notes_sent[display_id] = doc
+        return True
+
     async def _logo(self, team_id: str) -> str | None:
         """Team logo as base64 RGB565A8 (downloaded once from ESPN, then cached)."""
         if team_id in self._logos:
@@ -764,6 +835,7 @@ class StudioManager:
                         self._evaluate_night(display, dt_util.now(), force=True)
                         self.hass.async_create_task(self.async_refresh_graphs(display_id))
                         self.hass.async_create_task(self.async_push_football(display_id, force=True))
+                        self.hass.async_create_task(self.async_push_notes(display_id, force=True))
                         return {"ok": True, "revision": layout.get("revision"), "size": len(raw), "crc": crc, "attempts": attempt}
                     code = str(ack.get("err") or "")
                     last_error = describe_device_error(code)
@@ -906,6 +978,7 @@ class StudioManager:
         self.hass.async_create_task(self.async_refresh_graphs(display_id))
         self._logos_sent.pop(display_id, None)  # the display forgot its logos when it restarted
         self.hass.async_create_task(self.async_push_football(display_id, force=True))
+        self.hass.async_create_task(self.async_push_notes(display_id, force=True))
 
     async def _safe_resend(self, display_id: str, layout: dict[str, Any]) -> None:
         try:

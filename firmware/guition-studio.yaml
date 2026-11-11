@@ -10,7 +10,7 @@
 substitutions:
   name: guition-studio
   friendly_name: Guition Studio
-  fw_version: "0.5.26"
+  fw_version: "0.5.27"
 
 esphome:
   name: ${name}
@@ -125,6 +125,11 @@ api:
         data: string
       then:
         - lambda: id(studio).set_logo(key, data);
+    - action: gs_notes
+      variables:
+        data: string
+      then:
+        - lambda: id(studio).set_notes(data);
     - action: gs_rollback
       then:
         - lambda: id(studio).rollback();

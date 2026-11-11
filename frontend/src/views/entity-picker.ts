@@ -8,6 +8,9 @@ import { fireEvent, sharedStyles } from "../ui";
 // German search words -> Home Assistant domains (entity ids are always English)
 export const GERMAN_ALIASES: Record<string, string[]> = {
   wetter: ["weather"],
+  notiz: ["todo"],
+  erinnerung: ["todo"],
+  aufgabe: ["todo"],
   licht: ["light"],
   lampe: ["light"],
   leuchte: ["light"],
@@ -40,6 +43,7 @@ export const GERMAN_ALIASES: Record<string, string[]> = {
 
 export const DOMAIN_LABELS: Record<string, string> = {
   weather: "Wetter",
+  todo: "To-do-Liste",
   light: "Licht",
   switch: "Schalter",
   sensor: "Sensor",

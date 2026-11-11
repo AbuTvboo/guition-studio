@@ -115,6 +115,8 @@ def default_screensaver() -> dict[str, Any]:
         "prayer": {}, "prayer_lang": "de", "prayer_bg": "basmala",
         # football: ESPN league codes (see football.LEAGUES)
         "leagues": ["ger.1", "tur.1", "esp.1"], "football_lang": "de",
+        # notes: a Home Assistant to-do list (todo.*), its open items are the reminders
+        "notes": None,
         # mix: the chosen views alternate every n seconds
         "mix_views": ["prayer", "football"], "mix_interval": 20,
     }  # fmt: skip
@@ -136,9 +138,10 @@ PRAYER_NAMES: dict[str, dict[str, str]] = {
     "tr": {"fajr": "İmsak", "sunrise": "Güneş", "dhuhr": "Öğle", "asr": "İkindi", "maghrib": "Akşam", "isha": "Yatsı"},
 }
 # clock: time + 2 values, slideshow: pictures, prayer: prayer times, football: today's matches,
-# mix: several of these alternating ("school" existed in 0.5.23 only and falls back to the clock)
-SCREENSAVER_MODES = ("clock", "slideshow", "prayer", "football", "mix")
-MIX_VIEWS = ("prayer", "football")  # order = device view 0, 1
+# notes: reminders from a to-do list, mix: several of these alternating
+# ("school" existed in 0.5.23 only and falls back to the clock)
+SCREENSAVER_MODES = ("clock", "slideshow", "prayer", "football", "notes", "mix")
+MIX_VIEWS = ("prayer", "football", "notes")  # order = device view 0, 1, 2
 FOOTBALL_LEAGUES = (
     "ger.1", "ger.2", "tur.1", "esp.1", "eng.1", "ita.1", "fra.1", "uefa.champions",
     "uefa.nations", "uefa.euro", "uefa.euroq", "fifa.world", "fifa.worldq.uefa",
@@ -510,12 +513,20 @@ def _validate_screensaver(raw: Any, errors: list[str]) -> dict[str, Any]:
         s["leagues"] = [code for code in FOOTBALL_LEAGUES if code in leagues]  # known codes, fixed order
     if s["enabled"] and "football" in views and not s["leagues"]:
         errors.append("Bildschirmschoner: Bitte mindestens eine Liga auswählen.")
+    notes = raw.get("notes")
+    if notes:
+        if not isinstance(notes, str) or not ENTITY_RE.match(notes) or not notes.startswith("todo."):
+            errors.append("Bildschirmschoner: ungültige To-do-Liste für die Erinnerungen.")
+        else:
+            s["notes"] = notes
+    if s["enabled"] and "notes" in views and not s["notes"]:
+        errors.append("Bildschirmschoner: Bitte eine To-do-Liste für die Erinnerungen auswählen.")
     s["mix_interval"] = _int(raw.get("mix_interval"), 20, 5, 600)
     return s
 
 
 def screensaver_views(ss: dict[str, Any]) -> list[str]:
-    """Data views the screensaver shows: prayer / football (mix: both)."""
+    """Data views the screensaver shows: prayer / football / notes (mix: several)."""
     mode = ss.get("mode")
     if mode == "mix":
         chosen = ss.get("mix_views")
@@ -1002,6 +1013,8 @@ def _screensaver_device(settings: dict[str, Any], layout: dict[str, Any], slide_
         out.update(ssm=1, slu=slide_url, sli=ss.get("interval", 15), slc=int(ss.get("show_clock", True)))
     elif ss.get("mode") == "football":
         out.update(ssm=3)
+    elif ss.get("mode") == "notes":
+        out.update(ssm=6)  # 5 was the school view of 0.5.23
     elif ss.get("mode") == "mix" and "prayer" not in screensaver_views(ss):
         out.update(ssm=4, smi=ss.get("mix_interval", 20), smv=[MIX_VIEWS.index(v) for v in screensaver_views(ss)])
     elif ss.get("mode") in ("prayer", "mix"):
@@ -1069,6 +1082,14 @@ def regenerate_ids(layout: dict[str, Any]) -> dict[str, Any]:
     if settings.get("home_page") in mapping:
         settings["home_page"] = mapping[settings["home_page"]]
     return out
+
+
+def notes_settings(layout: dict[str, Any]) -> str | None:
+    """To-do entity if the display's screensaver shows the reminders, else None."""
+    ss = (layout.get("settings") or {}).get("screensaver") or {}
+    if not ss.get("enabled") or "notes" not in screensaver_views(ss) or not ss.get("notes"):
+        return None
+    return str(ss["notes"])
 
 
 def football_settings(layout: dict[str, Any]) -> tuple[list[str], str] | None:

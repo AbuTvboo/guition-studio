@@ -8,7 +8,7 @@ and frontend/src/geometry.ts.
 from __future__ import annotations
 
 DOMAIN = "guition_studio"
-VERSION = "0.5.26"
+VERSION = "0.5.27"
 PROTOCOL_VERSION = 5
 LAYOUT_SCHEMA = 1
 
@@ -33,6 +33,7 @@ ACTION_OTA = "gs_ota"
 ACTION_MODE = "gs_mode"
 ACTION_FOOTBALL = "gs_football"
 ACTION_LOGO = "gs_logo"
+ACTION_NOTES = "gs_notes"
 
 SIGNAL_DISPLAYS_CHANGED = "guition_studio_displays_changed"
 

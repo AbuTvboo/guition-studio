@@ -339,6 +339,10 @@ void GuitionStudio::loop() {
       this->ss_switch_at_ = now + static_cast<uint32_t>(this->layout_.mix_interval) * 1000u;
       this->build_ss_content_();
       this->update_status_();
+    } else if (this->nt_list_ != nullptr && this->nt_pages_ > 1 && now >= this->nt_page_at_) {
+      this->nt_page_ = (this->nt_page_ + 1) % this->nt_pages_;
+      this->render_notes_();
+      this->update_status_();
     } else if (this->fb_list_ != nullptr && this->fb_dirty_) {
       this->fb_dirty_ = false;
       int page = this->fb_page_;
@@ -552,13 +556,14 @@ bool GuitionStudio::parse_layout_(const char *data, size_t len, LayoutCfg &out, 
   int ssm = set["ssm"] | 0;
   out.prayer = ssm == 2 || ssm == 4;
   out.football = ssm == 3;
+  out.notes = ssm == 6;
   out.mix = ssm == 4;
   out.mix_interval = clampi(set["smi"] | 20, 5, 600);
   out.mix_views.clear();
   if (out.mix) {
     for (JsonVariantConst v : set["smv"].as<JsonArrayConst>()) {
       int view = v | -1;
-      if (view >= 0 && view <= 1 && out.mix_views.size() < 2)
+      if (view >= 0 && view <= 2 && out.mix_views.size() < 3)
         out.mix_views.push_back(static_cast<uint8_t>(view));
     }
     if (out.mix_views.empty())  // HA < 0.5.23: prayer times and football
@@ -2090,7 +2095,7 @@ void GuitionStudio::show_screensaver_() {
   if (l.mix && !l.mix_views.empty())
     this->ss_view_ = l.mix_views[0];
   else
-    this->ss_view_ = l.football ? 1 : 0;
+    this->ss_view_ = l.football ? 1 : (l.notes ? 2 : 0);
   this->ss_switch_at_ = millis() + static_cast<uint32_t>(l.mix_interval) * 1000u;
   this->build_ss_content_();
   if (this->night_obj_ != nullptr)
@@ -2110,6 +2115,10 @@ void GuitionStudio::build_ss_content_() {
   lv_obj_set_style_bg_grad_dir(o, LV_GRAD_DIR_NONE, 0);
   if (this->ss_view_ == 1) {
     this->build_football_(o);
+    return;
+  }
+  if (this->ss_view_ == 2) {
+    this->build_notes_(o);
     return;
   }
   bool slides = false;
@@ -2165,6 +2174,7 @@ void GuitionStudio::reset_ss_refs_() {
     this->ss_prow_[i] = this->ss_pname_[i] = this->ss_ptime_[i] = nullptr;
   this->ss_prayer_sig_.clear();
   this->fb_head_ = this->fb_list_ = this->fb_clock_ = nullptr;
+  this->nt_head_ = this->nt_list_ = this->nt_clock_ = nullptr;
 }
 
 // ---------------------------------------------------------------- football screensaver
@@ -2665,6 +2675,16 @@ void GuitionStudio::update_screensaver_(const std::string &hhmm, const std::stri
     lv_label_set_text(this->fb_head_, head.c_str());
     lv_label_set_text(this->fb_clock_, hhmm.c_str());
   }
+  if (this->nt_head_ != nullptr) {
+    // "ERINNERUNGEN · 5 offen  1/2" on the left, the clock on the right
+    std::string head = this->nt_texts_[0];
+    if (!this->nt_items_.empty())
+      head += "  ·  " + std::to_string(this->nt_items_.size()) + " " + this->nt_texts_[1];
+    if (this->nt_pages_ > 1)
+      head += "   " + std::to_string(this->nt_page_ + 1) + "/" + std::to_string(this->nt_pages_);
+    lv_label_set_text(this->nt_head_, head.c_str());
+    lv_label_set_text(this->nt_clock_, hhmm.c_str());
+  }
   if (this->ss_clock_ == nullptr)
     return;
   lv_label_set_text(this->ss_clock_, hhmm.c_str());
@@ -2683,6 +2703,165 @@ void GuitionStudio::update_screensaver_(const std::string &hhmm, const std::stri
     std::string text = title.empty() ? value : title + "  " + value;
     lv_label_set_text(this->ss_lines_[i], text.c_str());
   }
+}
+
+// ---------------------------------------------------------------- reminders screensaver
+
+void GuitionStudio::set_notes(const std::string &json) {
+  JsonDocument doc(&psram_allocator);
+  if (deserializeJson(doc, json)) {
+    ESP_LOGW(TAG, "Invalid notes payload");
+    return;
+  }
+  this->nt_items_.clear();
+  for (JsonArrayConst r : doc["i"].as<JsonArrayConst>()) {
+    if (this->nt_items_.size() >= 30)
+      break;
+    NoteItem it;
+    it.text = std::string(r[0] | "").substr(0, 160);
+    it.due = std::string(r[1] | "").substr(0, 24);
+    it.level = static_cast<uint8_t>(clampi(r[2] | 0, 0, 4));
+    if (!it.text.empty())
+      this->nt_items_.push_back(std::move(it));
+  }
+  JsonArrayConst texts = doc["t"].as<JsonArrayConst>();
+  for (size_t i = 0; i < 3 && i < texts.size(); i++)
+    this->nt_texts_[i] = std::string(texts[i] | "").substr(0, 48);
+  this->nt_loaded_ = true;
+  if (this->nt_list_ != nullptr) {
+    this->render_notes_();
+    this->update_status_();
+  }
+}
+
+static uint32_t note_color(uint8_t level) {
+  static const uint32_t COLORS[] = {0x64748B, 0x14B8A6, 0x3B82F6, 0xF5A524, 0xE5484D};
+  return COLORS[level > 4 ? 4 : level];
+}
+
+void GuitionStudio::build_notes_(lv_obj_t *parent) {
+  // calm, flat look (large gradients band on the RGB565 panel): dark slate with an amber accent
+  lv_obj_set_style_bg_color(parent, lv_color_hex(0x0B1118), 0);
+  lv_obj_t *bar = make_plain(parent);
+  lv_obj_set_size(bar, SCREEN_W, 42);
+  lv_obj_set_style_bg_color(bar, lv_color_hex(0x16212E), 0);
+  lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, 0);
+  lv_obj_t *line = make_plain(parent);
+  lv_obj_set_size(line, SCREEN_W, 3);
+  lv_obj_set_pos(line, 0, 42);
+  lv_obj_set_style_bg_color(line, lv_color_hex(0xF5A524), 0);
+  lv_obj_set_style_bg_opa(line, LV_OPA_COVER, 0);
+  this->nt_head_ = make_label(bar, font_px(16), 0xFFFFFF, "");
+  lv_obj_set_width(this->nt_head_, SCREEN_W - 110);
+  lv_label_set_long_mode(this->nt_head_, LABEL_LONG_DOTS);
+  lv_obj_align(this->nt_head_, LV_ALIGN_LEFT_MID, 12, 0);
+  this->nt_clock_ = make_label(bar, font_px(28), 0xFFFFFF, "--:--");
+  lv_obj_align(this->nt_clock_, LV_ALIGN_RIGHT_MID, -12, 0);
+  this->nt_list_ = make_plain(parent);
+  lv_obj_set_pos(this->nt_list_, 0, 53);
+  lv_obj_set_size(this->nt_list_, SCREEN_W, SCREEN_H - 53);
+  this->nt_page_ = 0;
+  this->render_notes_();
+}
+
+/// One card per open item: coloured stripe + due chip (overdue red, today amber, tomorrow blue),
+/// the text large and wrapped (up to 3 lines). Items that do not fit go to further pages (10 s each).
+void GuitionStudio::render_notes_() {
+  if (this->nt_list_ == nullptr)
+    return;
+  lv_obj_clean(this->nt_list_);
+  const int avail = SCREEN_H - 53 - 6, card_x = 10, card_w = SCREEN_W - 20, gap = 8, pad = 14, stripe = 7;
+  if (this->nt_items_.empty()) {
+    const char *check = icon_symbol("check");
+    if (this->nt_loaded_ && check != nullptr) {
+      lv_obj_t *ic = make_label(this->nt_list_, icon_font(40), 0x14B8A6, check);
+      lv_obj_align(ic, LV_ALIGN_CENTER, 0, -70);
+    }
+    lv_obj_t *msg = make_label(this->nt_list_, font_px(28), 0x9FB3C8, this->nt_loaded_ ? this->nt_texts_[2].c_str() : "...");
+    lv_obj_set_width(msg, SCREEN_W - 60);
+    lv_obj_set_style_text_align(msg, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(msg, LV_ALIGN_CENTER, 0, -10);
+    this->nt_pages_ = 1;
+    this->nt_page_ = 0;
+    return;
+  }
+  // few items: big letters for reading in passing; many: a bit smaller so more fit
+  const lv_font_t *font = font_px(this->nt_items_.size() <= 4 ? 28 : 20);
+  const lv_font_t *chip_font = font_px(16);
+  const int line_h = static_cast<int>(lv_font_get_line_height(font));
+  const int max_text_h = line_h * 3;
+
+  // builds one card at y and returns its height
+  auto make_card = [&](const NoteItem &it, int y) -> int {
+    uint32_t accent = note_color(it.level);
+    lv_obj_t *card = make_plain(this->nt_list_);
+    lv_obj_set_pos(card, card_x, y);
+    lv_obj_set_width(card, card_w);
+    lv_obj_set_style_radius(card, 12, 0);
+    lv_obj_set_style_bg_color(card, lv_color_hex(it.level >= 3 ? 0x231E1A : 0x18222E), 0);
+    lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(card, lv_color_hex(it.level == 4 ? 0x7A2A2D : 0x2B3A4C), 0);
+    lv_obj_set_style_border_width(card, 1, 0);
+    lv_obj_set_style_clip_corner(card, true, 0);
+    int chip_w = 0, chip_h = 0;
+    lv_obj_t *chip = nullptr;
+    if (!it.due.empty()) {
+      chip = make_label(card, chip_font, it.level == 3 ? 0x1A1205 : 0xFFFFFF, it.due.c_str());
+      lv_obj_set_style_bg_color(chip, lv_color_hex(accent), 0);
+      lv_obj_set_style_bg_opa(chip, LV_OPA_COVER, 0);
+      lv_obj_set_style_radius(chip, 10, 0);
+      lv_obj_set_style_pad_hor(chip, 10, 0);
+      lv_obj_set_style_pad_ver(chip, 4, 0);
+      lv_obj_update_layout(chip);
+      chip_w = lv_obj_get_width(chip);
+      chip_h = lv_obj_get_height(chip);
+    }
+    // LVGL places children inside the border: positions are relative to the content area
+    int text_x = stripe + pad - 1;
+    int text_w = card_w - 2 - text_x - pad - (chip ? chip_w + 10 : 0);
+    lv_obj_t *text = make_label(card, font, 0xF1F5F9, it.text.c_str());
+    lv_obj_set_width(text, text_w);
+    lv_obj_update_layout(text);
+    int text_h = lv_obj_get_height(text);
+    if (text_h > max_text_h) {  // very long note: three lines and dots
+      lv_obj_set_height(text, max_text_h);
+      lv_label_set_long_mode(text, LABEL_LONG_DOTS);
+      text_h = max_text_h;
+    }
+    int h = std::max(text_h, chip_h) + 2 * pad;
+    lv_obj_set_height(card, h);
+    lv_obj_set_pos(text, text_x, pad - 1);
+    if (chip)
+      lv_obj_set_pos(chip, card_w - 2 - pad - chip_w, pad - 1 + std::max(0, (line_h - chip_h) / 2));
+    lv_obj_t *bar = make_plain(card);  // coloured stripe on the left edge
+    lv_obj_set_size(bar, stripe, h);
+    lv_obj_set_pos(bar, -1, -1);
+    lv_obj_set_style_bg_color(bar, lv_color_hex(accent), 0);
+    lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, 0);
+    return h;
+  };
+
+  // measure all cards once to split them into pages, then draw the current page
+  std::vector<size_t> starts{0};
+  int y = 0;
+  for (size_t i = 0; i < this->nt_items_.size(); i++) {
+    int h = make_card(this->nt_items_[i], 0);
+    if (y > 0 && y + h > avail) {
+      starts.push_back(i);
+      y = 0;
+    }
+    y += h + gap;
+  }
+  lv_obj_clean(this->nt_list_);
+  this->nt_pages_ = static_cast<int>(starts.size());
+  if (this->nt_page_ >= this->nt_pages_)
+    this->nt_page_ = 0;
+  this->nt_page_at_ = millis() + 10000;
+  size_t from = starts[this->nt_page_];
+  size_t to = this->nt_page_ + 1 < this->nt_pages_ ? starts[this->nt_page_ + 1] : this->nt_items_.size();
+  y = 0;
+  for (size_t i = from; i < to; i++)
+    y += make_card(this->nt_items_[i], y) + gap;
 }
 
 void GuitionStudio::notify(const std::string &title, const std::string &message, int32_t seconds) {

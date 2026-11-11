@@ -84,6 +84,13 @@ struct FootballGroup {
   uint32_t color{0x1F6FEB};  // competition strip
 };
 
+// Reminders screensaver: one open item of a Home Assistant to-do list (sent via gs_notes).
+struct NoteItem {
+  std::string text;
+  std::string due;    // "Heute 18:00", "Morgen", "Fr", "14.11.", "Überfällig" or empty
+  uint8_t level{0};   // 0 no date, 1 later, 2 tomorrow, 3 today, 4 overdue
+};
+
 // One entity of a swipe tile.
 struct SwipeItem {
   std::string entity;
@@ -151,9 +158,10 @@ struct LayoutCfg {
   // screensaver mode 2: Islamic prayer times (timestamp sensors, shown as HH:MM by HA)
   bool prayer{false};
   bool football{false};    // screensaver mode 3: today's football matches
+  bool notes{false};       // screensaver mode 6: reminders (open to-do items)
   bool mix{false};         // mode 4: several views alternate
   int mix_interval{20};    // seconds per view in mix mode
-  std::vector<uint8_t> mix_views;  // mix: 0 = prayer times, 1 = football
+  std::vector<uint8_t> mix_views;  // mix: 0 = prayer times, 1 = football, 2 = reminders
   std::vector<std::string> prayer_names, prayer_entities;
   std::vector<uint8_t> prayer_kind;  // 1 = prayer, 0 = sunrise (orientation only)
   // countdown line: prefix, separator, hour unit, minute unit, "now" prefix (language from HA)
@@ -255,6 +263,7 @@ class GuitionStudio : public Component {
   void set_mode(int32_t night, int32_t brightness, int32_t dim);
   void set_football(const std::string &json);
   void set_logo(const std::string &key, const std::string &data);
+  void set_notes(const std::string &json);
   /// OTA progress screen: state 0 = running (progress 0..100), 1 = done, 2 = failed
   void ota_status(int state, float progress);
   void on_color_event(int code, lv_event_code_t event, lv_obj_t *target);
@@ -287,6 +296,8 @@ class GuitionStudio : public Component {
   void reset_ss_refs_();
   void build_football_(lv_obj_t *parent);
   void render_football_();
+  void build_notes_(lv_obj_t *parent);
+  void render_notes_();
   void update_prayer_(const std::string &hhmm);
   void apply_night_overlay_();
   void slide_next_();
@@ -411,7 +422,7 @@ class GuitionStudio : public Component {
   std::string fb_title_{"FUSSBALL"}, fb_end_{"ENDE"}, fb_off_{"ABGESAGT"};
   lv_obj_t *fb_clock_{nullptr};
   std::vector<FootballGroup> fb_groups_;
-  int ss_view_{0};               // 0 = clock/prayer, 1 = football
+  int ss_view_{0};               // 0 = clock/prayer, 1 = football, 2 = reminders
   size_t ss_view_idx_{0};        // mix: position in layout_.mix_views
   uint32_t ss_switch_at_{0};     // mix: next view change
   int fb_page_{0}, fb_pages_{1};
@@ -420,6 +431,15 @@ class GuitionStudio : public Component {
   bool fb_dirty_{false};  // logos arrived: redraw the list on the next tick
   lv_obj_t *fb_head_{nullptr};
   lv_obj_t *fb_list_{nullptr};
+  // reminders view: cards of open to-do items, more than fit -> pages (10 s each)
+  std::vector<NoteItem> nt_items_;
+  std::array<std::string, 3> nt_texts_{"ERINNERUNGEN", "offen", "Alles erledigt – nichts zu tun"};
+  bool nt_loaded_{false};
+  int nt_page_{0}, nt_pages_{1};
+  uint32_t nt_page_at_{0};
+  lv_obj_t *nt_head_{nullptr};
+  lv_obj_t *nt_clock_{nullptr};
+  lv_obj_t *nt_list_{nullptr};
 #ifdef USE_GS_PRAYER_BG
   // decoded background (RGB565 in PSRAM), kept while the same picture is selected
   uint16_t *prayer_bg_buf_{nullptr};

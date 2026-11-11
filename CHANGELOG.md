@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.27 – Bildschirmschoner „Erinnerungen“ (Notizen vom Handy)
+- Neuer Bildschirmschoner **Erinnerungen – Notizen aus einer To-do-Liste**. Du schreibst deine Notizen am Handy in der **Home-Assistant-App** (Menü → To-do-Listen), und das Display zeigt alle offenen Punkte gut lesbar als Karten, beim Vorbeigehen auf einen Blick.
+  - Große Schrift (bei vielen Punkten etwas kleiner), lange Notizen umbrechen auf bis zu drei Zeilen.
+  - Hat ein Punkt ein **Fälligkeitsdatum**, steht es farbig auf der Karte: **Überfällig** rot, **Heute** (mit Uhrzeit) orange, **Morgen** blau, danach Wochentag oder Datum. Diese Punkte stehen oben, Punkte ohne Datum folgen in der Reihenfolge der Liste.
+  - Abgehakte Punkte verschwinden sofort, neue erscheinen sofort. Um Mitternacht wird aus „Morgen“ automatisch „Heute“.
+  - Passen nicht alle Punkte auf eine Seite, blättert das Display alle 10 Sekunden weiter. Ist alles erledigt, steht da „Alles erledigt – nichts zu tun“.
+  - Emojis kann das Display nicht darstellen, sie werden weggelassen.
+- **Mehrere im Wechsel** kann jetzt Gebetszeiten, Fußball und Erinnerungen beliebig kombinieren.
+- Eine neue Liste legst du an unter Einstellungen → Geräte & Dienste → Integration hinzufügen → **„Lokale To-do-Liste“**. Dafür muss die **Firmware 0.5.27** aufs Display.
+
 ## 0.5.26 – Wischen zum Seitenwechsel funktioniert
 - **Fehler behoben:** Wischen nach links/rechts hat auf dem Display die Seite nicht gewechselt, obwohl „Wischen zum Seitenwechsel“ eingeschaltet war. LVGL reicht eine Wischgeste so lange an das übergeordnete Objekt weiter, bis eines das nicht mehr erlaubt. Dadurch landete sie beim Bildschirm selbst statt bei Guition Studio. Jetzt fängt die Firmware die Geste ab: Wischen über Kacheln und über den Seitenhintergrund wechselt die Seite. Über dem Helligkeitsregler und über waagerechten Wischkacheln wechselt sie weiterhin nicht, damit Regler und Kachel bedienbar bleiben.
 - Dafür muss die **Firmware 0.5.26** aufs Display.

@@ -30,7 +30,14 @@ const DEFAULT_LEAGUES = ["ger.1", "tur.1", "esp.1"];
 const MIX_VIEWS: { key: MixView; label: string }[] = [
   { key: "prayer", label: "Gebetszeiten" },
   { key: "football", label: "Fußball" },
+  { key: "notes", label: "Erinnerungen" },
 ];
+
+/** First to-do list of Home Assistant (preferring one that is not the shopping list). */
+function detectTodoList(hass: Hass): string | null {
+  const lists = Object.keys(hass.states).filter((id) => id.startsWith("todo.")).sort();
+  return lists.find((id) => !id.includes("shopping") && !id.includes("einkauf")) ?? lists[0] ?? null;
+}
 
 /** Data views the screensaver shows (mix: the chosen ones; old settings: prayer + football). */
 export function screensaverViews(ss: ScreensaverSettings): MixView[] {
@@ -38,7 +45,7 @@ export function screensaverViews(ss: ScreensaverSettings): MixView[] {
     const chosen = ss.mix_views ?? ["prayer", "football"];
     return MIX_VIEWS.map((v) => v.key).filter((k) => chosen.includes(k));
   }
-  return ss.mode === "prayer" || ss.mode === "football" ? [ss.mode] : [];
+  return ss.mode === "prayer" || ss.mode === "football" || ss.mode === "notes" ? [ss.mode] : [];
 }
 
 /** Calligraphy backgrounds built into the firmware (keys = PRAYER_BACKGROUNDS in layout.py). */
@@ -200,18 +207,21 @@ export class GsAutomationProps extends LitElement {
                   const mode = (e.target as HTMLSelectElement).value as ScreensaverSettings["mode"];
                   const views = screensaverViews({ ...ss, mode });
                   const prayer = views.includes("prayer") && !Object.values(ss.prayer ?? {}).some(Boolean) ? detectPrayerSensors(this.hass) : ss.prayer;
-                  this.commit({ screensaver: { ...ss, mode, prayer } });
+                  const notes = views.includes("notes") && !ss.notes ? detectTodoList(this.hass) : ss.notes;
+                  this.commit({ screensaver: { ...ss, mode, prayer, notes } });
                   if (mode === "slideshow" && !this.folders) this.loadFolders();
                 }}>
                   <option value="clock" ?selected=${ss.mode !== "slideshow"}>Uhr, Datum & Werte</option>
                   <option value="slideshow" ?selected=${ss.mode === "slideshow"}>Diashow (Bilder aus Home Assistant)</option>
                   <option value="prayer" ?selected=${ss.mode === "prayer"}>Islamische Gebetszeiten</option>
                   <option value="football" ?selected=${ss.mode === "football"}>Fußball – heutige Spiele</option>
-                  <option value="mix" ?selected=${ss.mode === "mix"}>Gebetszeiten & Fußball im Wechsel</option>
+                  <option value="notes" ?selected=${ss.mode === "notes"}>Erinnerungen – Notizen aus einer To-do-Liste</option>
+                  <option value="mix" ?selected=${ss.mode === "mix"}>Mehrere im Wechsel (Gebetszeiten, Fußball, Erinnerungen)</option>
                 </select>
               </label>
               ${ss.mode === "slideshow" ? this.renderSlideshow(ss) : nothing}
               ${ss.mode === "mix" ? this.renderMix(ss) : nothing}
+              ${screensaverViews(ss).includes("notes") ? this.renderNotes(ss) : nothing}
               ${screensaverViews(ss).includes("football") ? this.renderFootball(ss) : nothing}
               ${screensaverViews(ss).includes("prayer") ? this.renderPrayer(ss) : nothing}
               ${ss.mode === "clock" || !ss.mode ? [0, 1].map(
@@ -240,6 +250,7 @@ export class GsAutomationProps extends LitElement {
       const next = MIX_VIEWS.map((v) => v.key).filter((k) => (k === key ? on : views.includes(k)));
       const patch: Partial<ScreensaverSettings> = { mix_views: next };
       if (key === "prayer" && on && !Object.values(ss.prayer ?? {}).some(Boolean)) patch.prayer = detectPrayerSensors(this.hass);
+      if (key === "notes" && on && !ss.notes) patch.notes = detectTodoList(this.hass);
       this.commit({ screensaver: { ...ss, ...patch } });
     };
     return html`<div class="field"><span class="muted small">Im Wechsel zeigen</span>
@@ -257,6 +268,26 @@ export class GsAutomationProps extends LitElement {
         )}
       </select>
     </label>`;
+  }
+
+  private renderNotes(ss: ScreensaverSettings) {
+    return html`<label class="field"><span>To-do-Liste</span>
+        <gs-entity-picker
+          .hass=${this.hass}
+          .value=${ss.notes ?? null}
+          .domains=${["todo"]}
+          placeholder="To-do-Liste suchen …"
+          @gs-entity=${(e: CustomEvent<string | null>) => this.commit({ screensaver: { ...ss, notes: e.detail } })}
+        ></gs-entity-picker>
+      </label>
+      ${ss.notes ? nothing : html`<div class="notice warn small">Bitte eine To-do-Liste auswählen.</div>`}
+      <div class="notice small">
+        Schreib deine Notizen am Handy in der <b>Home-Assistant-App</b> (Menü → <b>To-do-Listen</b>). Eine neue Liste legst du an unter
+        Einstellungen → Geräte & Dienste → Integration hinzufügen → <b>„Lokale To-do-Liste“</b> (z. B. „Erinnerungen“).
+        Das Display zeigt alle offenen Punkte als große Karten. Hat ein Punkt ein Fälligkeitsdatum, steht es farbig daneben:
+        <b>Überfällig</b> rot, <b>Heute</b> orange, <b>Morgen</b> blau. Diese Punkte stehen oben, Punkte ohne Datum folgen in der Reihenfolge der Liste.
+        Abgehakte Punkte verschwinden sofort vom Display. Passen nicht alle auf eine Seite, wird alle 10 Sekunden weitergeblättert.
+      </div>`;
   }
 
   private renderFootball(ss: ScreensaverSettings) {

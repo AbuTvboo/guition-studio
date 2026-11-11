@@ -47,6 +47,7 @@ class FakeDevice:
         self.pages: list[int] = []
         self.modes: list[dict] = []
         self.notifications: list[dict] = []
+        self.notes: list[dict] = []
         for action, handler in {
             "gs_layout_begin": self._begin,
             "gs_layout_chunk": self._chunk,
@@ -57,6 +58,7 @@ class FakeDevice:
             "gs_notify": self._notify,
             "gs_rollback": self._noop,
             "gs_mode": self._mode,
+            "gs_notes": self._notes,
         }.items():
             hass.services.async_register("esphome", f"{node}_{action}", handler)
 
@@ -114,6 +116,9 @@ class FakeDevice:
 
     async def _mode(self, call: ServiceCall) -> None:
         self.modes.append(dict(call.data))
+
+    async def _notes(self, call: ServiceCall) -> None:
+        self.notes.append(json.loads(call.data["data"]))
 
     async def _notify(self, call: ServiceCall) -> None:
         self.notifications.append(dict(call.data))
@@ -538,3 +543,32 @@ async def test_firmware_versions_can_be_deleted(hass: HomeAssistant, hass_ws_cli
     await ws.send_json({"id": 3, "type": "guition_studio/firmware/delete", "versions": [".."]})
     assert not (await ws.receive_json())["success"]  # never leaves the firmware folder
     assert await hass.async_add_executor_job((base / "0.5.24").is_dir)
+
+
+async def test_reminders_reach_display_and_follow_the_list(hass: HomeAssistant, hass_ws_client, setup_studio) -> None:
+    from homeassistant.core import SupportsResponse
+    from homeassistant.util import dt as dt_util
+
+    device = FakeDevice(hass)
+    tomorrow = (dt_util.now() + timedelta(days=1)).date().isoformat()
+    items = [{"summary": "Blumen gießen", "uid": "1", "status": "needs_action"},
+             {"summary": "Müll raus", "uid": "2", "status": "needs_action", "due": tomorrow}]  # fmt: skip
+    hass.states.async_set("todo.erinnerungen", "2")
+    calls = async_mock_service(
+        hass, "todo", "get_items", response={"todo.erinnerungen": {"items": items}}, supports_response=SupportsResponse.ONLY
+    )
+    ws = await hass_ws_client(hass)
+
+    def mutate(layout):
+        layout["settings"]["screensaver"] = {"enabled": True, "after": 60, "entities": [], "mode": "notes", "notes": "todo.erinnerungen"}
+
+    await _create_with_layout(hass, ws, mutate)
+    await hass.async_block_till_done()
+    assert device.layout["set"]["ssm"] == 6
+    assert calls and calls[0].data["entity_id"] == "todo.erinnerungen"
+    assert device.notes[-1]["i"] == [["Müll raus", "Morgen", 2], ["Blumen gießen", "", 0]]
+    # ticked off on the phone: the list state changes, the display gets the new list right away
+    del items[0]
+    hass.states.async_set("todo.erinnerungen", "1")
+    await hass.async_block_till_done()
+    assert device.notes[-1]["i"] == [["Müll raus", "Morgen", 2]]

@@ -365,6 +365,21 @@ async def ws_fw_download(hass, connection, msg):
     connection.send_result(msg["id"], result)
 
 
+@_cmd({"type": "firmware/delete", vol.Required("versions"): [str]})
+async def ws_fw_delete(hass, connection, msg):
+    d = _d(hass)
+    manager = d["manager"]
+    if any(manager.rt(did)["ota"].get("state") in ("start", "progress") for did in d["store"].displays):
+        connection.send_error(msg["id"], "failed", "Während ein Display aktualisiert wird, kann keine Firmware gelöscht werden.")
+        return
+    try:
+        removed = await d["firmware"].async_delete(msg["versions"])
+    except HomeAssistantError as err:
+        _err(connection, msg, err)
+        return
+    connection.send_result(msg["id"], {"removed": removed})
+
+
 @_cmd({"type": "firmware/ota", vol.Required("display_id"): str, vol.Required("version"): str})
 async def ws_fw_ota(hass, connection, msg):
     d = _d(hass)

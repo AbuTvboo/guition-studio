@@ -114,7 +114,7 @@ def default_screensaver() -> dict[str, Any]:
         # prayer: timestamp sensors of the Islamic Prayer Times integration, key -> entity id
         "prayer": {}, "prayer_lang": "de", "prayer_bg": "basmala",
         # football: ESPN league codes (see football.LEAGUES)
-        "leagues": ["ger.1", "tur.1", "esp.1"],
+        "leagues": ["ger.1", "tur.1", "esp.1"], "football_lang": "de",
         # mix: the chosen views alternate every n seconds
         "mix_views": ["prayer", "football"], "mix_interval": 20,
     }  # fmt: skip
@@ -488,6 +488,8 @@ def _validate_screensaver(raw: Any, errors: list[str]) -> dict[str, Any]:
         else:
             s["prayer"][key] = eid
     s["prayer_lang"] = raw.get("prayer_lang") if raw.get("prayer_lang") in PRAYER_NAMES else "de"
+    # football texts and team names have their own language (before 0.5.25 they followed prayer_lang)
+    s["football_lang"] = raw.get("football_lang") if raw.get("football_lang") in PRAYER_NAMES else "de"
     bg = raw.get("prayer_bg", "basmala")
     if isinstance(bg, bool):  # 0.5.9 stored on/off
         bg = "basmala" if bg else "none"
@@ -1074,5 +1076,5 @@ def football_settings(layout: dict[str, Any]) -> tuple[list[str], str] | None:
     ss = (layout.get("settings") or {}).get("screensaver") or {}
     if not ss.get("enabled") or "football" not in screensaver_views(ss) or not ss.get("leagues"):
         return None
-    return list(ss["leagues"]), ss.get("prayer_lang", "de")
+    return list(ss["leagues"]), ss.get("football_lang", "de")
 

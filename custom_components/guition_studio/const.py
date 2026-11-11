@@ -8,7 +8,7 @@ and frontend/src/geometry.ts.
 from __future__ import annotations
 
 DOMAIN = "guition_studio"
-VERSION = "0.5.24"
+VERSION = "0.5.25"
 PROTOCOL_VERSION = 5
 LAYOUT_SCHEMA = 1
 

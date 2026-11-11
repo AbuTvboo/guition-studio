@@ -93,7 +93,7 @@ def test_football_and_mix_settings():
     assert valid["settings"]["screensaver"]["leagues"] == ["ger.1", "esp.1"]  # known codes, fixed order
     assert json.loads(compile_device_layout(valid)[0])["set"]["ssm"] == 3
     assert football_settings(valid) == (["ger.1", "esp.1"], "de")
-    mix = validate_layout(_layout("mix", mix_interval=30, prayer_lang="tr"))
+    mix = validate_layout(_layout("mix", mix_interval=30, prayer_lang="tr", football_lang="tr"))
     doc = json.loads(compile_device_layout(mix)[0])["set"]
     assert doc["ssm"] == 4 and doc["smi"] == 30 and doc["spe"] == ["sensor.fajr"]
     assert football_settings(mix) == (["ger.1", "tur.1", "esp.1"], "tr")
@@ -141,3 +141,10 @@ def test_school_settings_from_0523_fall_back():
     mixed = validate_layout(_layout("mix", mix_views=["football", "school"]))
     assert mixed["settings"]["screensaver"]["mode"] == "football"
     assert json.loads(compile_device_layout(mixed)[0])["set"]["ssm"] == 3
+
+
+def test_football_language_is_independent_of_prayer_language():
+    layout = validate_layout(_layout("mix", prayer_lang="tr"))
+    assert football_settings(layout)[1] == "de"  # prayer names Turkish, football stays German
+    doc = json.loads(compile_device_layout(layout)[0])["set"]
+    assert doc["spn"] == ["İmsak"]

@@ -23,7 +23,7 @@ var v = class {
 			name: e,
 			description: t,
 			layout: n
-		}), this.deleteTemplate = (e) => this.call("template/delete", { template_id: e }), this.setFavorites = (e) => this.call("favorites", { favorites: e }), this.exportBackup = () => this.call("backup/export"), this.restoreBackup = (e) => this.call("backup/restore", { backup: e }), this.log = () => this.call("log"), this.setDebug = (e) => this.call("debug", { enabled: e }), this.firmwareStatus = () => this.call("firmware/status"), this.firmwareCheck = () => this.call("firmware/check"), this.firmwareDownload = (e) => this.call("firmware/download", { version: e }), this.slideFolders = () => this.call("slideshow/folders"), this.firmwareOta = (e, t) => this.call("firmware/ota", {
+		}), this.deleteTemplate = (e) => this.call("template/delete", { template_id: e }), this.setFavorites = (e) => this.call("favorites", { favorites: e }), this.exportBackup = () => this.call("backup/export"), this.restoreBackup = (e) => this.call("backup/restore", { backup: e }), this.log = () => this.call("log"), this.setDebug = (e) => this.call("debug", { enabled: e }), this.firmwareStatus = () => this.call("firmware/status"), this.firmwareCheck = () => this.call("firmware/check"), this.firmwareDownload = (e) => this.call("firmware/download", { version: e }), this.slideFolders = () => this.call("slideshow/folders"), this.firmwareDelete = (e) => this.call("firmware/delete", { versions: e }), this.firmwareOta = (e, t) => this.call("firmware/ota", {
 			display_id: e,
 			version: t
 		});
@@ -3671,7 +3671,16 @@ var Lt = [
 			...e,
 			leagues: Nt.map((e) => e.code).filter((e) => e === n ? r : t.includes(e))
 		} });
-		return c`<div class="field"><span class="muted small">Ligen</span>
+		return c`<label class="field"><span>Sprache</span>
+        <select @change=${(t) => this.commit({ screensaver: {
+			...e,
+			football_lang: t.target.value
+		} })}>
+          <option value="de" ?selected=${e.football_lang !== "tr"}>Deutsch (HEUTE, ENDE, Deutschland …)</option>
+          <option value="tr" ?selected=${e.football_lang === "tr"}>Türkçe (BUGÜN, BİTTİ, Almanya …)</option>
+        </select>
+      </label>
+      <div class="field"><span class="muted small">Ligen</span>
         <div class="league-grid">
           ${Nt.map((e) => c`<label class="check"><input type="checkbox" .checked=${t.includes(e.code)} @change=${(t) => n(e.code, t.target.checked)} /> ${e.name}</label>`)}
         </div>
@@ -5252,6 +5261,32 @@ var Z = (Vt = class extends L {
 			this.busy = null;
 		}
 	}
+	async deleteVersions(e) {
+		if (!e.length) return;
+		let t = this.displays.filter((t) => t.firmware && e.includes(t.firmware)).map((e) => `${e.name} (${e.firmware})`);
+		if (await M(this, {
+			title: e.length === 1 ? `Firmware ${e[0]} löschen?` : `${e.length} alte Firmware-Versionen löschen?`,
+			text: (e.length === 1 ? "" : `Gelöscht werden: ${e.join(", ")}.
+
+`) + "Die Dateien werden aus Home Assistant entfernt. Die Displays laufen unverändert weiter; eine gelöschte Version lässt sich nur als neueste Veröffentlichung erneut herunterladen." + (t.length ? `
+
+Auf diesen Displays ist eine der Versionen installiert: ${t.join(", ")}.` : ""),
+			confirm: "Löschen",
+			danger: !0
+		})) {
+			this.busy = "delete";
+			try {
+				let t = await this.api.firmwareDelete(e);
+				N(this, t.removed.length === 1 ? `Firmware ${t.removed[0]} gelöscht` : `${t.removed.length} Versionen gelöscht`, "ok");
+				let n = new Set(this.status?.local.map((e) => e.version).filter((e) => !t.removed.includes(e)));
+				this.target = Object.fromEntries(Object.entries(this.target).filter(([, e]) => n.has(e))), await this.load();
+			} catch (e) {
+				N(this, y(e), "error");
+			} finally {
+				this.busy = null;
+			}
+		}
+	}
 	async ota(e, t) {
 		if (await M(this, {
 			title: `Firmware ${t} installieren?`,
@@ -5270,7 +5305,7 @@ var Z = (Vt = class extends L {
 		}
 	}
 	render() {
-		let e = this.status, t = e?.local.filter((e) => e.ota && e.verified !== !1) ?? [], n = e?.latest, r = n && e?.local.some((e) => e.version === n.version);
+		let e = this.status, t = e?.local.filter((e) => e.ota && e.verified !== !1) ?? [], n = e?.latest, r = n && e?.local.some((e) => e.version === n.version), i = e?.local.slice(1).map((e) => e.version) ?? [], o = this.displays.some((e) => e.ota?.state === "start" || e.ota?.state === "progress");
 		return c`
       <div class="page-head"><h1>Firmware-Manager</h1><span class="spacer"></span><button ?disabled=${this.busy === "check"} @click=${() => this.check()}>${this.busy === "check" ? c`<span class="spinner"></span>` : "↻"} Nach Updates suchen</button></div>
       <section class="grid">
@@ -5288,11 +5323,16 @@ var Z = (Vt = class extends L {
           <p class="small muted">Quelle: <code>${e?.repo ?? this.info.firmware_repo}</code></p>
         </div>
         <div class="card">
-          <h2>In Home Assistant verfügbar</h2>
+          <div class="row"><h2 style="margin:0">In Home Assistant verfügbar</h2><span class="spacer"></span>
+            ${i.length ? c`<button ?disabled=${this.busy === "delete" || o} title="Behält nur die neueste Version" @click=${() => this.deleteVersions(i)}>
+                  ${this.busy === "delete" ? c`<span class="spinner"></span>` : "🗑"} Alte Versionen löschen (${i.length})
+                </button>` : a}
+          </div>
           ${e?.local.length ? c`<table class="small">
-                <tr><th>Version</th><th>Quelle</th><th>OTA-Größe</th><th>Prüfung</th></tr>
+                <tr><th>Version</th><th>Quelle</th><th>OTA-Größe</th><th>Prüfung</th><th></th></tr>
                 ${e.local.map((e) => c`<tr><td><b>${e.version}</b></td><td>${e.source === "release" ? "GitHub-Release" : "Lokal"}</td><td>${F(e.ota_size)}</td>
-                    <td>${e.verified ? c`<span class="chip ok">SHA-256 ✓</span>` : e.verified === !1 ? c`<span class="chip error">fehlerhaft</span>` : c`<span class="chip">ohne Prüfsumme</span>`}</td></tr>`)}
+                    <td>${e.verified ? c`<span class="chip ok">SHA-256 ✓</span>` : e.verified === !1 ? c`<span class="chip error">fehlerhaft</span>` : c`<span class="chip">ohne Prüfsumme</span>`}</td>
+                    <td><button class="icon-btn" title="Version ${e.version} löschen" ?disabled=${this.busy === "delete" || o} @click=${() => this.deleteVersions([e.version])}>🗑</button></td></tr>`)}
               </table>` : c`<p class="muted">Keine Firmware vorhanden.</p>`}
           <p class="small muted">Ablageort: <code>${e?.path ?? "…"}</code></p>
         </div>
@@ -5352,6 +5392,10 @@ var Z = (Vt = class extends L {
         font-size: 12px;
         max-height: 200px;
         overflow: auto;
+      }
+      .icon-btn {
+        padding: 2px 8px;
+        min-width: 0;
       }
       td select {
         min-width: 110px;

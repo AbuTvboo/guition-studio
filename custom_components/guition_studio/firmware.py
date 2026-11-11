@@ -128,6 +128,29 @@ class FirmwareManager:
             "builds": [{"chipFamily": profile["chip_family"], "parts": [{"path": FACTORY, "offset": 0}]}],
         }
 
+    async def async_delete(self, versions: list[str]) -> list[str]:
+        """Remove downloaded firmware versions (their folders below self.base); returns the removed ones."""
+        names = [v for v in dict.fromkeys(versions) if VERSION_RE.match(v) and v not in (".", "..")]
+        if len(names) != len(versions):
+            raise HomeAssistantError("Ungültige Versionsnummer.")
+
+        def _remove() -> list[str]:
+            base = self.base.resolve()
+            removed = []
+            for v in names:
+                target = (self.base / v).resolve()
+                if target.parent != base or not target.is_dir():
+                    continue
+                shutil.rmtree(target)
+                removed.append(v)
+            return removed
+
+        removed = await self.hass.async_add_executor_job(_remove)
+        await self.async_list_local()
+        if removed:
+            _LOGGER.info("Guition Studio firmware removed: %s", ", ".join(removed))
+        return removed
+
     # ------------------------------------------------------------------ releases
 
     async def async_check_latest(self) -> dict[str, Any] | None:

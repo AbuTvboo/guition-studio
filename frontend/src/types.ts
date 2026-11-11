@@ -187,6 +187,8 @@ export interface ScreensaverSettings {
   prayer?: Partial<Record<PrayerKey, string>>;
   /** names on the display: "de" (Fajr, Dhuhr …) or "tr" (İmsak, Öğle …) */
   prayer_lang?: "de" | "tr";
+  /** football: language of headings and national team names (independent of prayer_lang) */
+  football_lang?: "de" | "tr";
   /** calligraphy background: "none" or one of PRAYER_BACKGROUNDS (0.5.9 stored a boolean) */
   prayer_bg?: string | boolean;
   /** football: ESPN league codes, e.g. "ger.1" */

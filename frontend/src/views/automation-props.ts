@@ -263,7 +263,13 @@ export class GsAutomationProps extends LitElement {
     const leagues = ss.leagues ?? DEFAULT_LEAGUES;
     const toggle = (code: string, on: boolean) =>
       this.commit({ screensaver: { ...ss, leagues: FOOTBALL_LEAGUES.map((l) => l.code).filter((c) => (c === code ? on : leagues.includes(c))) } });
-    return html`<div class="field"><span class="muted small">Ligen</span>
+    return html`<label class="field"><span>Sprache</span>
+        <select @change=${(e: Event) => this.commit({ screensaver: { ...ss, football_lang: (e.target as HTMLSelectElement).value as "de" | "tr" } })}>
+          <option value="de" ?selected=${ss.football_lang !== "tr"}>Deutsch (HEUTE, ENDE, Deutschland …)</option>
+          <option value="tr" ?selected=${ss.football_lang === "tr"}>Türkçe (BUGÜN, BİTTİ, Almanya …)</option>
+        </select>
+      </label>
+      <div class="field"><span class="muted small">Ligen</span>
         <div class="league-grid">
           ${FOOTBALL_LEAGUES.map(
             (l) => html`<label class="check"><input type="checkbox" .checked=${leagues.includes(l.code)} @change=${(e: Event) => toggle(l.code, (e.target as HTMLInputElement).checked)} /> ${l.name}</label>`

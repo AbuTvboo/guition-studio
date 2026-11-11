@@ -57,6 +57,39 @@ export class GsFirmware extends StudioView {
     }
   }
 
+  /** Delete downloaded versions (one, or all except the newest). Versions installed on a display are named in the question. */
+  private async deleteVersions(versions: string[]) {
+    if (!versions.length) return;
+    const inUse = this.displays.filter((d) => d.firmware && versions.includes(d.firmware)).map((d) => `${d.name} (${d.firmware})`);
+    const ok = await confirmDialog(this, {
+      title: versions.length === 1 ? `Firmware ${versions[0]} löschen?` : `${versions.length} alte Firmware-Versionen löschen?`,
+      text:
+        (versions.length === 1 ? "" : `Gelöscht werden: ${versions.join(", ")}.
+
+`) +
+        "Die Dateien werden aus Home Assistant entfernt. Die Displays laufen unverändert weiter; " +
+        "eine gelöschte Version lässt sich nur als neueste Veröffentlichung erneut herunterladen." +
+        (inUse.length ? `
+
+Auf diesen Displays ist eine der Versionen installiert: ${inUse.join(", ")}.` : ""),
+      confirm: "Löschen",
+      danger: true,
+    });
+    if (!ok) return;
+    this.busy = "delete";
+    try {
+      const res = await this.api.firmwareDelete(versions);
+      toast(this, res.removed.length === 1 ? `Firmware ${res.removed[0]} gelöscht` : `${res.removed.length} Versionen gelöscht`, "ok");
+      const left = new Set(this.status?.local.map((v) => v.version).filter((v) => !res.removed.includes(v)));
+      this.target = Object.fromEntries(Object.entries(this.target).filter(([, v]) => left.has(v)));
+      await this.load();
+    } catch (err) {
+      toast(this, errorText(err), "error");
+    } finally {
+      this.busy = null;
+    }
+  }
+
   private async ota(d: DisplayStatus, version: string) {
     const ok = await confirmDialog(this, {
       title: `Firmware ${version} installieren?`,
@@ -85,6 +118,9 @@ export class GsFirmware extends StudioView {
     const otaVersions = s?.local.filter((v) => v.ota && v.verified !== false) ?? [];
     const latest = s?.latest;
     const haveLatest = latest && s?.local.some((v) => v.version === latest.version);
+    // everything except the newest local version (the list is sorted newest first)
+    const old = s?.local.slice(1).map((v) => v.version) ?? [];
+    const updating = this.displays.some((d) => d.ota?.state === "start" || d.ota?.state === "progress");
     return html`
       <div class="page-head"><h1>Firmware-Manager</h1><span class="spacer"></span><button ?disabled=${this.busy === "check"} @click=${() => this.check()}>${this.busy === "check" ? html`<span class="spinner"></span>` : "↻"} Nach Updates suchen</button></div>
       <section class="grid">
@@ -106,13 +142,20 @@ export class GsFirmware extends StudioView {
           <p class="small muted">Quelle: <code>${s?.repo ?? this.info.firmware_repo}</code></p>
         </div>
         <div class="card">
-          <h2>In Home Assistant verfügbar</h2>
+          <div class="row"><h2 style="margin:0">In Home Assistant verfügbar</h2><span class="spacer"></span>
+            ${old.length
+              ? html`<button ?disabled=${this.busy === "delete" || updating} title="Behält nur die neueste Version" @click=${() => this.deleteVersions(old)}>
+                  ${this.busy === "delete" ? html`<span class="spinner"></span>` : "🗑"} Alte Versionen löschen (${old.length})
+                </button>`
+              : nothing}
+          </div>
           ${s?.local.length
             ? html`<table class="small">
-                <tr><th>Version</th><th>Quelle</th><th>OTA-Größe</th><th>Prüfung</th></tr>
+                <tr><th>Version</th><th>Quelle</th><th>OTA-Größe</th><th>Prüfung</th><th></th></tr>
                 ${s.local.map(
                   (v) => html`<tr><td><b>${v.version}</b></td><td>${v.source === "release" ? "GitHub-Release" : "Lokal"}</td><td>${formatBytes(v.ota_size)}</td>
-                    <td>${v.verified ? html`<span class="chip ok">SHA-256 ✓</span>` : v.verified === false ? html`<span class="chip error">fehlerhaft</span>` : html`<span class="chip">ohne Prüfsumme</span>`}</td></tr>`
+                    <td>${v.verified ? html`<span class="chip ok">SHA-256 ✓</span>` : v.verified === false ? html`<span class="chip error">fehlerhaft</span>` : html`<span class="chip">ohne Prüfsumme</span>`}</td>
+                    <td><button class="icon-btn" title="Version ${v.version} löschen" ?disabled=${this.busy === "delete" || updating} @click=${() => this.deleteVersions([v.version])}>🗑</button></td></tr>`
                 )}
               </table>`
             : html`<p class="muted">Keine Firmware vorhanden.</p>`}
@@ -180,6 +223,10 @@ export class GsFirmware extends StudioView {
         font-size: 12px;
         max-height: 200px;
         overflow: auto;
+      }
+      .icon-btn {
+        padding: 2px 8px;
+        min-width: 0;
       }
       td select {
         min-width: 110px;

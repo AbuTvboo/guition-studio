@@ -516,3 +516,25 @@ async def _wait_for(hass: HomeAssistant, predicate, timeout: float = 3.0) -> Non
         await asyncio.sleep(0.05)
         await hass.async_block_till_done()
     assert predicate(), "condition not reached in time"
+
+
+async def test_firmware_versions_can_be_deleted(hass: HomeAssistant, hass_ws_client, setup_studio) -> None:
+    from pathlib import Path
+
+    base = Path(hass.config.path("guition_studio", "firmware"))
+
+    def _make() -> None:
+        for v in ("0.5.22", "0.5.23", "0.5.24"):
+            (base / v).mkdir(parents=True, exist_ok=True)
+            (base / v / "firmware.ota.bin").write_bytes(b"x")
+
+    await hass.async_add_executor_job(_make)
+    ws = await hass_ws_client(hass)
+    await ws.send_json({"id": 1, "type": "guition_studio/firmware/delete", "versions": ["0.5.22", "0.5.23", "9.9.9"]})
+    res = await ws.receive_json()
+    assert res["success"] and sorted(res["result"]["removed"]) == ["0.5.22", "0.5.23"]  # unknown version ignored
+    await ws.send_json({"id": 2, "type": "guition_studio/firmware/status"})
+    assert [v["version"] for v in (await ws.receive_json())["result"]["local"]] == ["0.5.24"]
+    await ws.send_json({"id": 3, "type": "guition_studio/firmware/delete", "versions": [".."]})
+    assert not (await ws.receive_json())["success"]  # never leaves the firmware folder
+    assert await hass.async_add_executor_job((base / "0.5.24").is_dir)

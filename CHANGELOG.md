@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.25 – Alte Firmware löschen, Fußball-Sprache
+- **Firmware-Manager:** Heruntergeladene Firmware-Versionen lassen sich jetzt löschen, einzeln über 🗑 in der Liste „In Home Assistant verfügbar“ oder alle auf einmal mit **„Alte Versionen löschen“** (behält nur die neueste). Ist eine der Versionen auf einem Display installiert, steht das in der Rückfrage. Das Display läuft trotzdem unverändert weiter. Während eines Updates ist Löschen gesperrt.
+- **Fußball hat eine eigene Sprache:** Bisher übernahm die Fußball-Ansicht die Sprache der Gebetszeiten. Jetzt gibt es unter Fußball eine eigene Auswahl, Standard ist Deutsch. Gebetszeiten auf Türkisch und Fußball auf Deutsch gehen also gleichzeitig.
+
 ## 0.5.24 – Länderspiele: Nations League, EM, WM
 - Der Fußball-Bildschirmschoner kennt jetzt auch **Nations League, EM, EM-Qualifikation, WM und WM-Qualifikation (Europa)**. Diese Wettbewerbe erscheinen nur, wenn dort gerade gespielt wird, z. B. in Länderspielpausen oder während eines Turniers. Du kannst sie also dauerhaft angehakt lassen.
 - Die Ländernamen stehen auf Deutsch (z. B. Deutschland, Türkei) bzw. auf Türkisch (Almanya, Türkiye), passend zur eingestellten Sprache. Statt Vereinslogos zeigt das Display die Wappen der Verbände.

@@ -45,6 +45,7 @@ export class StudioApi {
   firmwareCheck = () => this.call<{ latest: FirmwareStatus["latest"]; error: string | null }>("firmware/check");
   firmwareDownload = (version: string) => this.call<{ version: string; verified: boolean }>("firmware/download", { version });
   slideFolders = () => this.call<{ root: string; folders: { folder: string; count: number }[] }>("slideshow/folders");
+  firmwareDelete = (versions: string[]) => this.call<{ removed: string[] }>("firmware/delete", { versions });
   firmwareOta = (display_id: string, version: string) => this.call<{ url: string }>("firmware/ota", { display_id, version });
 }
 

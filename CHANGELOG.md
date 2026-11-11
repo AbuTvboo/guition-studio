@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.26 – Wischen zum Seitenwechsel funktioniert
+- **Fehler behoben:** Wischen nach links/rechts hat auf dem Display die Seite nicht gewechselt, obwohl „Wischen zum Seitenwechsel“ eingeschaltet war. LVGL reicht eine Wischgeste so lange an das übergeordnete Objekt weiter, bis eines das nicht mehr erlaubt. Dadurch landete sie beim Bildschirm selbst statt bei Guition Studio. Jetzt fängt die Firmware die Geste ab: Wischen über Kacheln und über den Seitenhintergrund wechselt die Seite. Über dem Helligkeitsregler und über waagerechten Wischkacheln wechselt sie weiterhin nicht, damit Regler und Kachel bedienbar bleiben.
+- Dafür muss die **Firmware 0.5.26** aufs Display.
+
 ## 0.5.25 – Alte Firmware löschen, Fußball-Sprache
 - **Firmware-Manager:** Heruntergeladene Firmware-Versionen lassen sich jetzt löschen, einzeln über 🗑 in der Liste „In Home Assistant verfügbar“ oder alle auf einmal mit **„Alte Versionen löschen“** (behält nur die neueste). Ist eine der Versionen auf einem Display installiert, steht das in der Rückfrage. Das Display läuft trotzdem unverändert weiter. Während eines Updates ist Löschen gesperrt.
 - **Fußball hat eine eigene Sprache:** Bisher übernahm die Fußball-Ansicht die Sprache der Gebetszeiten. Jetzt gibt es unter Fußball eine eigene Auswahl, Standard ist Deutsch. Gebetszeiten auf Türkisch und Fußball auf Deutsch gehen also gleichzeitig.

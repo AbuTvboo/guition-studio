@@ -958,6 +958,10 @@ void GuitionStudio::build_ui_() {
   lv_obj_set_style_bg_color(this->root_, lv_color_hex(l.header_bg), 0);
   lv_obj_set_style_bg_opa(this->root_, LV_OPA_COVER, 0);
   lv_obj_add_flag(this->root_, LV_OBJ_FLAG_CLICKABLE);
+  // LVGL hands a gesture to the first object WITHOUT the GESTURE_BUBBLE flag, walking up from
+  // the touched object. Every object with a parent has it by default, so swipes on tiles and on the
+  // page background used to end up at the screen (no handler, no page change). Stop them here.
+  GS_REMOVE_FLAG(this->root_, LV_OBJ_FLAG_GESTURE_BUBBLE);
   lv_obj_add_event_cb(this->root_, root_event_cb, LV_EVENT_ALL, this);
 
   int page_count = static_cast<int>(l.pages.size());

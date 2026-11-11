@@ -64,7 +64,7 @@ def async_register(hass: HomeAssistant) -> None:
         ws_info, ws_displays, ws_display_create, ws_display_update, ws_display_delete, ws_candidates,
         ws_layout_get, ws_layout_save, ws_layout_validate, ws_layout_apply, ws_layout_copy, ws_command,
         ws_template_save, ws_template_delete, ws_favorites, ws_backup_export, ws_backup_restore, ws_log,
-        ws_fw_status, ws_fw_check, ws_fw_download, ws_fw_ota, ws_debug, ws_slide_folders,
+        ws_fw_status, ws_fw_check, ws_fw_download, ws_fw_delete, ws_fw_ota, ws_debug, ws_slide_folders,
     ):  # fmt: skip
         websocket_api.async_register_command(hass, handler)
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.28 – Acht neue Design-Vorlagen
+- Unter **Vorlagen** gibt es acht neue Designs für das 4-Zoll-Display, nachgebaut nach Design-Entwürfen: **Glas Nacht**, **Hell & klar**, **Neon Dimmer**, **Raumkarten bunt**, **Abendgold**, **Hell kompakt**, **Cyan Glow** und **Bunt verspielt**.
+  - Die Startseiten nutzen die **Freie Anordnung**, damit Größen und Positionen den Entwürfen entsprechen. „Hell & klar“, „Neon Dimmer“ und „Raumkarten bunt“ bringen zusätzlich Unterseiten mit Zurück-Button mit.
+  - Der Look entsteht aus Kachelfarben, farbigen Rahmen, Icon-Umrandungen und „Nur Icon leuchtet“. Fotos und weiche Farbverläufe der Entwürfe kann das Display nicht darstellen (Verläufe würden auf dem Panel Streifen bilden).
+  - Wie bei allen Vorlagen sind noch keine Entitäten zugeordnet: nach dem Übernehmen die markierten Kacheln per Drag & Drop belegen.
+- Die Firmware hat sich nicht geändert. Ein Update auf **Firmware 0.5.28** ist optional.
+
 ## 0.5.27 – Bildschirmschoner „Erinnerungen“ (Notizen vom Handy)
 - Neuer Bildschirmschoner **Erinnerungen – Notizen aus einer To-do-Liste**. Du schreibst deine Notizen am Handy in der **Home-Assistant-App** (Menü → To-do-Listen), und das Display zeigt alle offenen Punkte gut lesbar als Karten, beim Vorbeigehen auf einen Blick.
   - Große Schrift (bei vielen Punkten etwas kleiner), lange Notizen umbrechen auf bis zu drei Zeilen.

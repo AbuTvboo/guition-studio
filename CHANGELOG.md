@@ -1,12 +1,16 @@
-# 0.5.29
+# Changelog
 
+## 0.5.30 – Raumbilder ohne Streifen
+- **Fehler behoben:** Die Raumbilder der Designvorlagen (Glas Nacht, Raumkarten bunt, Bunt verspielt, Abendgold) waren auf dem Display von farbigen Streifen durchzogen und kaum zu erkennen. Ursache: Die Bilder sind sehr dunkle Nachtszenen, und das Display hat nur 16 Bit Farbtiefe (RGB565). In den dunklen Flächen blieben nur 5–10 Helligkeitsstufen pro Farbe übrig, und Rot, Grün und Blau springen an unterschiedlichen Stellen, das ergab farbige Streifen. Jetzt werden die Bilder etwas aufgehellt und mit einem feinen Punktraster (Dithering) umgewandelt, statt harter Stufen gibt es weiche Übergänge.
+- Die Bilder werden auf der Kachel nicht mehr verzerrt (vorher wurde das quadratische Bild auf flache Kacheln zusammengedrückt), sondern mittig zugeschnitten, im Editor genauso wie auf dem Display.
+- Dafür muss die **Firmware 0.5.30** aufs Display.
+
+## 0.5.29 – Raumhintergründe und bedienbare Designvorlagen
 - Raumhintergründe für die Designvorlagen, identisch im Editor und auf dem Display.
 - Bedienbarer Helligkeitsring für Neon Dimmer und Cyan Glow.
 - Raumkarten mit bis zu vier separat bedienbaren Gerätezeilen.
 - Hintergrund und Reglerdarstellung im Designer auswählbar.
 - Wettertemperatur in der Editor-Vorschau korrigiert.
-
-# Changelog
 
 ## 0.5.28 – Acht neue Design-Vorlagen
 - Unter **Vorlagen** gibt es acht neue Designs für das 4-Zoll-Display, nachgebaut nach Design-Entwürfen: **Glas Nacht**, **Hell & klar**, **Neon Dimmer**, **Raumkarten bunt**, **Abendgold**, **Hell kompakt**, **Cyan Glow** und **Bunt verspielt**.

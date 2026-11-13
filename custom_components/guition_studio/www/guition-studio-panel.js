@@ -972,7 +972,8 @@ function ye(e, t, n, r, a, s = /* @__PURE__ */ new Date(), c = 0) {
     style=${_({
 		backgroundColor: f.bg,
 		backgroundImage: b.texture && b.texture !== "none" ? `url(${import.meta.url.includes("/src/") ? "" : "/guition_studio_static"}/room-textures/${b.texture}.png)` : "none",
-		backgroundSize: "100% 100%",
+		backgroundSize: "cover",
+		backgroundPosition: "center",
 		color: f.fg,
 		borderRadius: `${e.style.radius}px`,
 		border: e.style.border_width ? `${e.style.border_width}px solid ${e.style.border_color ?? t.accent}` : "none",

@@ -610,7 +610,8 @@ export function renderTileContent(tile: Tile, theme: Theme, hass: Hass | undefin
     style=${styleMap({
       backgroundColor: c.bg,
       backgroundImage: st.texture && st.texture !== "none" ? `url(${import.meta.url.includes("/src/") ? "" : "/guition_studio_static"}/room-textures/${st.texture}.png)` : "none",
-      backgroundSize: "100% 100%",
+      backgroundSize: "cover",
+      backgroundPosition: "center",
       color: c.fg,
       borderRadius: `${tile.style.radius}px`,
       border: tile.style.border_width ? `${tile.style.border_width}px solid ${tile.style.border_color ?? theme.accent}` : "none",

@@ -1111,12 +1111,16 @@ void GuitionStudio::build_tile_(int page_index, lv_obj_t *parent, const TileCfg 
       dsc.data_size = 232 * 232 * 2;
       dsc.data = GS_ROOM_DATA[t.texture - 1];
     }
+    // Fill the tile without distortion ("cover"): one scale for both axes, centred, the tile
+    // clips the overflow. Stretching the square picture onto a flat tile made it unrecognisable.
+    int iw = pw - 2 * t.border, ih = ph - 2 * t.border;
+    int scale = (std::max(iw, ih) * 256 + 231) / 232;
+    int drawn = 232 * scale / 256;
     lv_obj_t *image = lv_image_create(o);
     lv_image_set_src(image, &dsc);
     lv_image_set_pivot(image, 0, 0);
-    lv_image_set_scale_x(image, (pw - 2 * t.border) * 256 / 232);
-    lv_image_set_scale_y(image, (ph - 2 * t.border) * 256 / 232);
-    lv_obj_set_pos(image, 0, 0);
+    lv_image_set_scale(image, scale);
+    lv_obj_set_pos(image, (iw - drawn) / 2, (ih - drawn) / 2);
     GS_REMOVE_FLAG(image, LV_OBJ_FLAG_CLICKABLE);
   }
 

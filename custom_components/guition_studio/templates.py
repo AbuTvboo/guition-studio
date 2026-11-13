@@ -590,4 +590,57 @@ def _design_templates() -> list[dict[str, Any]]:
     )
     out.append({"id": "design_playful", "name": "Design: Bunt verspielt", "description": "Vier farbige Räume mit Geräten und großem Schalter, Szenen-Leiste",
                 "layout": _design([play], "modern_dark")})  # fmt: skip
+    # Real room textures and controls shared by the editor and the display.
+    for tile, texture in zip(glass["tiles"][:4], ("living", "kitchen", "bedroom", "bathroom")):
+        tile["style"].update(texture=texture, font_size="l", icon_size="m", icon_frame="none")
+    for page in (neon_home, teal):
+        for tile in page["tiles"]:
+            if tile["type"] == "dimmer":
+                tile["style"].update(control="ring", radius=60, font_size="l", icon_frame="none")
+    # Room cards use the existing multi-entity binding and action routing. Each
+    # row can be tapped independently; no entity IDs or made-up states ship.
+    def room_card(x: int, y: int, name: str, icon: str, texture: str, accent: str) -> dict:
+        return _ft("swipe", x, y, 228, 152, name, icon,
+                   _st(texture=texture, control="room", color="#FFFFFF", icon_color="#FFFFFF",
+                       on_effect="icon", on_color=accent, font_size="l", radius=16,
+                       border_width=1, border_color=accent), items=[])
+
+    rooms["tiles"] = [
+        room_card(0, 0, "Wohnzimmer", "sofa", "living", "#0A84FF"),
+        room_card(236, 0, "Küche", "silverware-fork-knife", "kitchen", "#FF7A1A"),
+        room_card(0, 160, "Schlafzimmer", "bed", "bedroom", "#8B3DFF"),
+        room_card(236, 160, "Büro", "desk-lamp", "office", "#22B14C"),
+        *rooms["tiles"][-4:],
+    ]
+    for i, tile in enumerate(rooms["tiles"][-4:]):
+        tile.update(y=80, h=19)
+    # Preserve access to detailed dimmer/cover/temperature controls via hold.
+    for tile in rooms["tiles"][:4]:
+        if tile["title"] in sub4:
+            tile["hold_action"] = _go(sub4[tile["title"]])
+    play["tiles"] = [
+        room_card(0, 0, "Wohnzimmer", "sofa", "lounge", "#FFB547"),
+        room_card(236, 0, "Küche", "silverware-fork-knife", "kitchen", "#4ADE80"),
+        room_card(0, 160, "Flur", "door", "hall", "#60A5FA"),
+        room_card(236, 160, "Bad", "shower", "bathroom", "#A855F7"),
+        *play["tiles"][-4:],
+    ]
+    for tile in play["tiles"][-4:]:
+        tile.update(y=80, h=25)
+    evening["tiles"][0].update(type="text", title="Guten Abend", format="", tap_action={"action": "none"})
+    evening["tiles"][0]["style"].update(texture="evening", font_size="xl", color="#FFF0CE")
+    bright["tiles"][1].update(show_title=False, weather={"condition": True, "hilo": False, "humidity": False, "wind": False, "pressure": False, "forecast": False})
+    for tile in evening["tiles"][1:10]:
+        tile["style"].update(font_size="s", state_size="s", icon_size="m", on_effect="icon")
+    for tile in airy["tiles"][:8]:
+        tile["style"].update(font_size="s", state_size="s", on_effect="icon")
+    teal["tiles"][3]["style"].update(on_effect="icon")
+    for tile in bright["tiles"][-4:]:
+        tile["style"].update(font_size="s")
+    for page in (neon_home, teal):
+        for tile in page["tiles"]:
+            if tile["type"] != "dimmer":
+                tile["style"].update(font_size="m")
+            if tile["type"] == "sensor":
+                tile["style"].update(align="center", icon_size="m")
     return out

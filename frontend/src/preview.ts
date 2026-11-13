@@ -95,7 +95,7 @@ export function previewExtras(
     if (hum) details.push(`Feuchte ${hum} %`);
     const wind = num(a.wind_speed);
     if (wind) details.push(`Wind ${wind} ${a.wind_speed_unit ?? "km/h"}`);
-    return { num: -1, sub: text, icon, detail: details.join(" · "), parts: { humidity: hum ? `Feuchte ${hum} %` : "", wind: wind ? `Wind ${wind} ${a.wind_speed_unit ?? "km/h"}` : "", pressure: num(a.pressure) ? `${num(a.pressure)} ${a.pressure_unit ?? "hPa"}` : "" } };
+    return { num: -1, text: num(a.temperature) !== null ? `${num(a.temperature)} ${a.temperature_unit ?? "°C"}` : "–", sub: text, icon, detail: details.join(" · "), parts: { humidity: hum ? `Feuchte ${hum} %` : "", wind: wind ? `Wind ${wind} ${a.wind_speed_unit ?? "km/h"}` : "", pressure: num(a.pressure) ? `${num(a.pressure)} ${a.pressure_unit ?? "hPa"}` : "" } };
   }
   return { num: -1, sub: "", icon: null };
 }

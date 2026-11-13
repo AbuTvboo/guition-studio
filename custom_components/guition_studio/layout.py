@@ -58,6 +58,7 @@ FOLDER_RE = re.compile(r"^[\w\-. /]{0,120}$")
 ENTITY_RE = re.compile(r"^[a-z0-9_]+\.[a-z0-9_]+$")
 SERVICE_RE = re.compile(r"^[a-z0-9_]+\.[a-z0-9_]+$")
 COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
+ROOM_TEXTURES = ("living", "kitchen", "bedroom", "bathroom", "office", "hall", "evening", "lounge")
 
 # Domains whose default tap action is a toggle
 TOGGLE_DOMAINS = {
@@ -174,6 +175,8 @@ def default_style() -> dict[str, Any]:
         "icon_frame": "none",
         # what lights up when switched on: the whole card or only the icon (on colour + glow)
         "on_effect": "card",
+        "control": "default",
+        "texture": "none",
     }
 
 
@@ -669,6 +672,12 @@ def _validate_tile(
             style[key] = style_in[key]
     if style_in.get("on_effect") in ("card", "icon"):
         style["on_effect"] = style_in["on_effect"]
+    if style_in.get("control") in ("default", "ring") and tile.get("type") == "dimmer":
+        style["control"] = style_in["control"]
+    if style_in.get("control") == "room" and tile.get("type") == "swipe":
+        style["control"] = "room"
+    if style_in.get("texture") in ROOM_TEXTURES:
+        style["texture"] = style_in["texture"]
     if style_in.get("state_size") in FONT_SIZES:
         style["state_size"] = style_in["state_size"]
 
@@ -928,6 +937,12 @@ def compile_device_layout(layout: dict[str, Any], slide_url: str | None = None) 
                 dev["if"] = ICON_FRAMES[s["icon_frame"]]
             if s["on_effect"] == "icon":
                 dev["og"] = 1
+            if s["control"] == "ring":
+                dev["ring"] = 1
+            if s["control"] == "room":
+                dev["room"] = 1
+            if s["texture"] != "none":
+                dev["tex"] = ROOM_TEXTURES.index(s["texture"]) + 1
             if s["opacity"] != 100:
                 dev["op"] = s["opacity"]
             if not t["show_title"]:

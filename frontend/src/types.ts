@@ -80,6 +80,8 @@ export interface TileStyle {
   icon_frame?: IconFrame;
   /** what lights up when switched on: the whole card (default) or only the icon */
   on_effect?: "card" | "icon";
+  control?: "default" | "ring" | "room";
+  texture?: "none" | "living" | "kitchen" | "bedroom" | "bathroom" | "office" | "hall" | "evening" | "lounge";
 }
 
 export type TileAlign = "auto" | "left" | "center" | "right";

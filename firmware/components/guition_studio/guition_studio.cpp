@@ -1,6 +1,8 @@
 #include "guition_studio.h"
 #include "gs_icons.h"
 
+extern "C" { extern const uint8_t *const GS_ROOM_DATA[]; }
+
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
@@ -691,6 +693,9 @@ bool GuitionStudio::parse_layout_(const char *data, size_t len, LayoutCfg &out, 
       }
       tile.value_font = t["vs"].is<int>() ? static_cast<uint8_t>(clampi(t["vs"].as<int>(), 0, 4)) : 255;
       tile.icon_frame = static_cast<uint8_t>(clampi(t["if"] | 0, 0, 4));
+      tile.ring = tile.kind == "dimmer" && (t["ring"] | 0) == 1;
+      tile.room = tile.kind == "swipe" && (t["room"] | 0) == 1;
+      tile.texture = static_cast<uint8_t>(clampi(t["tex"] | 0, 0, 8));
       tile.icon_glow = (t["og"] | 0) != 0;
       tile.tap = clampi(t["ta"] | 0, 0, 8);
       tile.hold = clampi(t["ha"] | 0, 0, 8);
@@ -1094,6 +1099,27 @@ void GuitionStudio::build_tile_(int page_index, lv_obj_t *parent, const TileCfg 
   lv_obj_set_style_opa(o, static_cast<lv_opa_t>(t.opacity * 255 / 100), 0);
   lv_obj_set_style_clip_corner(o, true, 0);
 
+  if (t.texture > 0) {
+    // Descriptors and flash-backed pixel data outlive all page objects.
+    static lv_image_dsc_t textures[8]{};
+    auto &dsc = textures[t.texture - 1];
+    if (dsc.data == nullptr) {
+      dsc.header.magic = LV_IMAGE_HEADER_MAGIC;
+      dsc.header.cf = LV_COLOR_FORMAT_RGB565;
+      dsc.header.w = dsc.header.h = 232;
+      dsc.header.stride = 232 * 2;
+      dsc.data_size = 232 * 232 * 2;
+      dsc.data = GS_ROOM_DATA[t.texture - 1];
+    }
+    lv_obj_t *image = lv_image_create(o);
+    lv_image_set_src(image, &dsc);
+    lv_image_set_pivot(image, 0, 0);
+    lv_image_set_scale_x(image, (pw - 2 * t.border) * 256 / 232);
+    lv_image_set_scale_y(image, (ph - 2 * t.border) * 256 / 232);
+    lv_obj_set_pos(image, 0, 0);
+    GS_REMOVE_FLAG(image, LV_OBJ_FLAG_CLICKABLE);
+  }
+
   int index = static_cast<int>(this->views_.size());
   lv_obj_set_user_data(o, reinterpret_cast<void *>(static_cast<intptr_t>(index)));
   lv_obj_add_flag(o, LV_OBJ_FLAG_CLICKABLE);
@@ -1345,6 +1371,42 @@ void GuitionStudio::build_tile_(int page_index, lv_obj_t *parent, const TileCfg 
     view.graph_area = make_plain(o);
     lv_obj_set_pos(view.graph_area, pad, top);
     lv_obj_set_size(view.graph_area, inner_w, ph - top - bottom);
+  } else if (t.room) {
+    if (with_icon) {
+      make_icon(o, 28, sym);
+      lv_obj_set_pos(view.icon, 12, 10);
+    }
+    if (t.show_title) title_label(LV_ALIGN_TOP_LEFT, with_icon ? 48 : 12, 10, inner_w - (with_icon ? 36 : 0));
+    int row_h = t.items.empty() ? 32 : std::min(32, (ph - 54) / static_cast<int>(t.items.size()));
+    for (int i = 0; i < static_cast<int>(t.items.size()); i++) {
+      lv_obj_t *row = make_plain(o);
+      lv_obj_set_pos(row, 10, 48 + i * row_h);
+      lv_obj_set_size(row, pw - 20, row_h - 3);
+      lv_obj_set_style_bg_color(row, lv_color_hex(0x000000), 0);
+      lv_obj_set_style_bg_opa(row, LV_OPA_50, 0);
+      lv_obj_set_style_radius(row, 9, 0);
+      const auto &item = t.items[i];
+      const char *ic = icon_symbol(item.icon.empty() ? t.icon : item.icon);
+      view.room_icon[i] = make_label(row, icon_font(20), t.fg, ic ? ic : "");
+      lv_obj_align(view.room_icon[i], LV_ALIGN_LEFT_MID, 8, 0);
+      lv_obj_t *label = make_label(row, font_px(12), t.fg, item.title.c_str());
+      lv_obj_set_width(label, std::max(20, pw - 116));
+      lv_label_set_long_mode(label, LABEL_LONG_DOTS);
+      lv_obj_align(label, LV_ALIGN_LEFT_MID, 35, 0);
+      view.room_value[i] = make_label(row, font_px(12), t.fg, "…");
+      lv_obj_set_width(view.room_value[i], 60);
+      lv_label_set_long_mode(view.room_value[i], LABEL_LONG_DOTS);
+      lv_obj_set_style_text_align(view.room_value[i], LV_TEXT_ALIGN_RIGHT, 0);
+      lv_obj_align(view.room_value[i], LV_ALIGN_RIGHT_MID, -8, 0);
+      lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
+      GS_REMOVE_FLAG(row, LV_OBJ_FLAG_GESTURE_BUBBLE);
+      lv_obj_set_user_data(row, reinterpret_cast<void *>(static_cast<intptr_t>(index * MAX_SWIPE_ITEMS + i)));
+      lv_obj_add_event_cb(row, [](lv_event_t *e) {
+        auto *self = static_cast<GuitionStudio *>(lv_event_get_user_data(e));
+        int packed = static_cast<int>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(static_cast<lv_obj_t *>(lv_event_get_target(e)))));
+        self->on_room_event(packed / MAX_SWIPE_ITEMS, packed % MAX_SWIPE_ITEMS, lv_event_get_code(e));
+      }, LV_EVENT_ALL, this);
+    }
   } else if (t.kind == "swipe") {
     // Several entities in one tile: the labels live in a container that slides when the
     // item changes (horizontal swipe on the tile), dots in the top right show the position.
@@ -1383,6 +1445,38 @@ void GuitionStudio::build_tile_(int page_index, lv_obj_t *parent, const TileCfg 
       // touch while the finger leaves the tile during a drag
       GS_REMOVE_FLAG(o, LV_OBJ_FLAG_GESTURE_BUBBLE);
       lv_obj_add_flag(o, LV_OBJ_FLAG_PRESS_LOCK);
+    }
+  } else if (t.ring) {
+    int diameter = std::min(pw - 12, ph - 60);
+    lv_obj_t *s = lv_arc_create(o);
+    view.slider = s;
+    lv_obj_set_size(s, diameter, diameter);
+    lv_obj_align(s, LV_ALIGN_CENTER, 0, -12);
+    lv_arc_set_rotation(s, 135);
+    lv_arc_set_bg_angles(s, 0, 270);
+    lv_arc_set_range(s, 0, 100);
+    lv_arc_set_value(s, 0);
+    lv_obj_set_style_arc_width(s, 10, LV_PART_MAIN);
+    lv_obj_set_style_arc_width(s, 10, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_color(s, lv_color_hex(0x303A48), LV_PART_MAIN);
+    lv_obj_set_style_arc_color(s, lv_color_hex(t.on_bg), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(s, lv_color_hex(0xFFFFFF), LV_PART_KNOB);
+    lv_obj_set_style_pad_all(s, 3, LV_PART_KNOB);
+    lv_obj_add_flag(s, LV_OBJ_FLAG_ADV_HITTEST);
+    GS_REMOVE_FLAG(s, LV_OBJ_FLAG_GESTURE_BUBBLE);
+    lv_obj_set_user_data(s, reinterpret_cast<void *>(static_cast<intptr_t>(index)));
+    lv_obj_add_event_cb(s, slider_event_cb, LV_EVENT_ALL, this);
+    if (with_icon) {
+      make_icon(o, 28, sym);
+      lv_obj_align(view.icon, LV_ALIGN_CENTER, 0, -48);
+    }
+    if (t.show_state) {
+      view.value = make_label(o, font_px(28), t.fg, "–");
+      lv_obj_align(view.value, LV_ALIGN_CENTER, 0, -8);
+    }
+    if (t.show_title) {
+      title_label(LV_ALIGN_BOTTOM_MID, 0, -16, inner_w);
+      lv_obj_set_style_text_align(view.title, LV_TEXT_ALIGN_CENTER, 0);
     }
   } else {  // light, dimmer, rgb, switch and generic entity tiles
     bool rgb = t.kind == "rgb";
@@ -1597,6 +1691,16 @@ void GuitionStudio::update_graph_(TileView &view, const EntityState *st) {
 
 void GuitionStudio::update_tile_(TileView &view) {
   const TileCfg &t = *view.cfg;
+  if (t.room) {
+    for (int i = 0; i < static_cast<int>(t.items.size()); i++) {
+      auto it = this->states_.find(t.items[i].entity);
+      bool known = it != this->states_.end() && it->second.known;
+      bool available = known && it->second.available;
+      if (view.room_value[i]) lv_label_set_text(view.room_value[i], !known ? "…" : available ? it->second.display.c_str() : "–");
+      if (view.room_icon[i]) lv_obj_set_style_text_color(view.room_icon[i], lv_color_hex(available && it->second.on ? t.on_bg : t.fg), 0);
+    }
+    return;
+  }
   if (t.kind == "clock" || t.kind == "text" || t.kind == "nav" || t.kind == "status" || t.kind == "settings")
     return;  // updated by update_status_ or static
   bool swipe = t.kind == "swipe" && !t.items.empty();
@@ -1652,8 +1756,18 @@ void GuitionStudio::update_tile_(TileView &view) {
     if (view.sub != nullptr)
       lv_label_set_text(view.sub, st->display.c_str());
   } else {
-    if (view.value != nullptr)
-      lv_label_set_text(view.value, main_text);
+    if (view.value != nullptr) {
+      if (t.ring) {
+        char level[16];
+        if (available && st != nullptr)
+          snprintf(level, sizeof(level), "%d %%", on ? std::max(0, st->num) : 0);
+        else
+          snprintf(level, sizeof(level), "–");
+        lv_label_set_text(view.value, level);
+      } else {
+        lv_label_set_text(view.value, main_text);
+      }
+    }
     if (view.sub != nullptr)
       lv_label_set_text(view.sub, available && st != nullptr ? st->sub.c_str() : "");
   }
@@ -1697,7 +1811,8 @@ void GuitionStudio::update_tile_(TileView &view) {
   }
   if (view.slider != nullptr && !view.dragging) {
     int n = (st && st->num >= 0) ? st->num : (on ? 100 : 0);
-    lv_slider_set_value(view.slider, on ? n : 0, LV_ANIM_OFF);
+    if (t.ring) lv_arc_set_value(view.slider, on ? n : 0);
+    else lv_slider_set_value(view.slider, on ? n : 0, LV_ANIM_OFF);
     if (available)
       lv_obj_add_flag(view.slider, LV_OBJ_FLAG_CLICKABLE);
     else
@@ -1950,6 +2065,30 @@ void GuitionStudio::on_button_event(int index, uint8_t button, lv_event_code_t c
   }
 }
 
+void GuitionStudio::on_room_event(int index, int item, lv_event_code_t code) {
+  if (index < 0 || index >= static_cast<int>(this->views_.size())) return;
+  auto &view = this->views_[index];
+  if (!view.cfg->room || item < 0 || item >= static_cast<int>(view.cfg->items.size())) return;
+  lv_indev_t *indev = GS_INDEV_ACTIVE();
+  if (code == LV_EVENT_PRESSED) {
+    this->begin_press_();
+    this->press_moved_ = false;
+    if (indev) lv_indev_get_point(indev, &this->press_start_);
+  }
+  if (code == LV_EVENT_PRESSING && indev) {
+    lv_point_t pos;
+    lv_indev_get_point(indev, &pos);
+    int dx = pos.x - this->press_start_.x, dy = pos.y - this->press_start_.y;
+    if (dx * dx + dy * dy > 14 * 14) this->press_moved_ = true;
+  }
+  if (code != LV_EVENT_SHORT_CLICKED || this->swallow_ || this->press_moved_) return;
+  auto state = this->states_.find(view.cfg->items[item].entity);
+  if (state == this->states_.end() || !state->second.known || !state->second.available) return;
+  view.item = item;
+  this->do_action_(view, view.cfg->tap, view.cfg->tap_page, false);
+  view.item = 0;
+}
+
 void GuitionStudio::on_slider_event(int index, lv_event_code_t code) {
   if (index < 0 || index >= static_cast<int>(this->views_.size()))
     return;
@@ -1964,7 +2103,7 @@ void GuitionStudio::on_slider_event(int index, lv_event_code_t code) {
     case LV_EVENT_VALUE_CHANGED:
       if (view.value != nullptr && !this->swallow_) {
         char text[16];
-        snprintf(text, sizeof(text), "%d %%", static_cast<int>(lv_slider_get_value(view.slider)));
+        snprintf(text, sizeof(text), "%d %%", static_cast<int>(view.cfg->ring ? lv_arc_get_value(view.slider) : lv_slider_get_value(view.slider)));
         lv_label_set_text(view.value, text);
       }
       break;
@@ -1977,7 +2116,7 @@ void GuitionStudio::on_slider_event(int index, lv_event_code_t code) {
       }
       char payload[112];
       snprintf(payload, sizeof(payload), "{\"t\":\"%s\",\"p\":\"%s\",\"v\":%d}", view.cfg->id.c_str(),
-               this->layout_.pages[view.page].id.c_str(), static_cast<int>(lv_slider_get_value(view.slider)));
+               this->layout_.pages[view.page].id.c_str(), static_cast<int>(view.cfg->ring ? lv_arc_get_value(view.slider) : lv_slider_get_value(view.slider)));
       this->emit("set", payload);
       break;
     }

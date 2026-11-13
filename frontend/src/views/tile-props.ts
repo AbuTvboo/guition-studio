@@ -106,7 +106,7 @@ export class GsTileProps extends LitElement {
   }
 
   /** dropdown for one of the layout options (missing value = "auto" / "none") */
-  private styleSelect(label: string, key: "align" | "icon_size" | "state_size" | "icon_frame" | "on_effect", options: Record<string, string>) {
+  private styleSelect(label: string, key: "align" | "icon_size" | "state_size" | "icon_frame" | "on_effect" | "texture" | "control", options: Record<string, string>) {
     const value = this.tile.style[key] ?? Object.keys(options)[0];
     return html`<label class="field"><span>${label}</span>
       <select @change=${(e: Event) => this.patchStyle({ [key]: (e.target as HTMLSelectElement).value } as Partial<TileStyle>)}>
@@ -214,7 +214,9 @@ export class GsTileProps extends LitElement {
           <option value="v" ?selected=${this.tile.swipe_dir === "v"}>⇅ Hoch / runter</option>
         </select>
       </label>
-      <span class="muted small">Entitäten (bis ${MAX_SWIPE_ITEMS}). Auf dem Display über die Kachel wischen, um zur nächsten zu wechseln – der Inhalt folgt dem Finger. Tippen bedient die gerade angezeigte Entität; beim Wischen wird nichts ausgelöst.</span>
+      <span class="muted small">${this.tile.style.control === "room"
+        ? `Bis zu ${MAX_SWIPE_ITEMS} Geräte. Jede Zeile zeigt ihren eigenen Zustand und bedient beim Antippen genau dieses Gerät.`
+        : `Entitäten (bis ${MAX_SWIPE_ITEMS}). Auf dem Display über die Kachel wischen, um zur nächsten zu wechseln. Tippen bedient die angezeigte Entität.`}</span>
       ${items.map(
         (it, i) => html`<div class="swipe-item">
           <span class="swipe-no">${i + 1}</span>
@@ -390,6 +392,9 @@ export class GsTileProps extends LitElement {
           ? html`${this.styleSelect("Icongröße", "icon_size", ICON_SIZE_LABELS)} ${this.styleSelect("Icon-Umrandung", "icon_frame", ICON_FRAME_LABELS)}`
           : nothing}
         ${this.colorField("Hintergrund", "background", theme.tile_bg)} ${this.colorField("Textfarbe", "color", theme.text)}
+        ${this.styleSelect("Raumhintergrund", "texture", { none: "Keiner", living: "Wohnzimmer", kitchen: "Küche", bedroom: "Schlafzimmer", bathroom: "Bad", office: "Büro", hall: "Flur", evening: "Abend", lounge: "Lounge" })}
+        ${t.type === "dimmer" ? this.styleSelect("Helligkeitsregler", "control", { default: "Schieberegler", ring: "Leuchtring" }) : nothing}
+        ${t.type === "swipe" ? this.styleSelect("Gerätedarstellung", "control", { default: "Wisch-Kachel", room: "Raumkarte mit Gerätezeilen" }) : nothing}
         ${this.colorField("Iconfarbe", "icon_color", theme.icon)}
         ${["light", "dimmer", "rgb", "switch", "swipe"].includes(t.type)
           ? this.styleSelect("Beim Einschalten", "on_effect", { card: "Ganze Karte einfärben", icon: "Nur Icon leuchtet" })

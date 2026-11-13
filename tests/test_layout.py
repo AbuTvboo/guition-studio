@@ -145,6 +145,8 @@ def test_templates_are_structurally_valid_after_assigning_entities():
             for tile in page["tiles"]:
                 if tile["type"] in DEMO_DOMAIN:
                     tile["entity"] = f"{DEMO_DOMAIN[tile['type']]}.demo"
+                if tile["type"] == "swipe":
+                    tile["items"] = [{"entity": "light.demo", "title": "Licht", "icon": "lightbulb"}]
         compile_device_layout(validate_layout(layout))
 
 

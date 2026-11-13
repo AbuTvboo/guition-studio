@@ -10,7 +10,7 @@
 substitutions:
   name: guition-studio
   friendly_name: Guition Studio
-  fw_version: "0.5.30"
+  fw_version: "0.5.31"
 
 esphome:
   name: ${name}
@@ -244,6 +244,9 @@ lvgl:
         - arc: { id: gs_arc_probe, hidden: true, min_value: 0, max_value: 100 }
         # Enables LV_USE_IMAGE for the screensaver slideshow.
         - image: { id: gs_image_probe, hidden: true, src: gs_slide }
+        # Enables LV_DRAW_SW_SUPPORT_RGB565A8: LVGL needs it to scale RGB565 pictures (room
+        # textures on tiles). Without it the scaled picture is drawn from uninitialised memory.
+        - image: { id: gs_alpha_probe_img, hidden: true, src: gs_alpha_probe }
 
 image:
   # Screensaver slideshow: pictures are streamed one at a time from Home Assistant
@@ -256,6 +259,12 @@ image:
     type: RGB565
     resize: 480x480
     update_interval: never
+  # 2x2 placeholder with alpha, only used by the hidden probe widget above
+  - platform: file
+    file: images/alpha-probe.png
+    id: gs_alpha_probe
+    type: RGB565
+    transparency: alpha_channel
 
 guition_studio:
   id: studio

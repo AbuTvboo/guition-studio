@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.31 – Raumbilder werden richtig gezeichnet
+- **Fehler behoben:** Die Raumbilder der Designvorlagen (z. B. „Glas Nacht“) erschienen auf dem Display als buntes Punktmuster, das Bild war nicht zu erkennen. Die eigentliche Ursache: Um ein Bild auf Kachelgröße zu skalieren, braucht LVGL eine Bildformat-Unterstützung (RGB565 mit Alphakanal), die ESPHome nur einbaut, wenn die Firmware selbst ein solches Bild verwendet. Ohne sie zeichnete LVGL das skalierte Bild aus nicht initialisiertem Speicher. Die Firmware enthält jetzt ein unsichtbares Mini-Bild, das diese Unterstützung einschaltet. In einer Nachbildung mit exakt der Display-Konfiguration ist das Bild damit sauber.
+- Die Erklärung bei 0.5.30 (dunkle Farbverläufe) war nicht die Ursache. Das feinere Umrechnen der Bilder und der Zuschnitt aus 0.5.30 bleiben trotzdem drin.
+- Dafür muss die **Firmware 0.5.31** aufs Display.
+
 ## 0.5.30 – Raumbilder ohne Streifen
 - **Fehler behoben:** Die Raumbilder der Designvorlagen (Glas Nacht, Raumkarten bunt, Bunt verspielt, Abendgold) waren auf dem Display von farbigen Streifen durchzogen und kaum zu erkennen. Ursache: Die Bilder sind sehr dunkle Nachtszenen, und das Display hat nur 16 Bit Farbtiefe (RGB565). In den dunklen Flächen blieben nur 5–10 Helligkeitsstufen pro Farbe übrig, und Rot, Grün und Blau springen an unterschiedlichen Stellen, das ergab farbige Streifen. Jetzt werden die Bilder etwas aufgehellt und mit einem feinen Punktraster (Dithering) umgewandelt, statt harter Stufen gibt es weiche Übergänge.
 - Die Bilder werden auf der Kachel nicht mehr verzerrt (vorher wurde das quadratische Bild auf flache Kacheln zusammengedrückt), sondern mittig zugeschnitten, im Editor genauso wie auf dem Display.

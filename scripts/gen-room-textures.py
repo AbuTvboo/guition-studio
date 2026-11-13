@@ -1,10 +1,11 @@
 """Prepare the room textures for the editor and the RGB565 display (Pillow + numpy required).
 
 The pictures are dark, smooth night scenes. Truncated to RGB565 their dark areas keep only
-5-10 steps per channel, and R/B (5 bit) and G (6 bit) step at different places, so the panel
-shows them as coloured contour stripes. Therefore the pictures are lifted a little (gamma) and
+5-10 steps per channel (R/B 5 bit and G 6 bit step at different places, which can show as
+coloured contours on the panel). Therefore the pictures are lifted a little (gamma) and
 converted with an ordered (Bayer) dither: the steps become a fine, regular pattern instead of
-bands. The editor gets exactly the dithered pixels, so the preview matches the display.
+bands. (Scaling these pictures on the device needs LV_DRAW_SW_SUPPORT_RGB565A8, see the
+alpha probe image in firmware/guition-studio.yaml.) The editor gets exactly the dithered pixels, so the preview matches the display.
 """
 
 from pathlib import Path

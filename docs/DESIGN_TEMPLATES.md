@@ -1,6 +1,6 @@
 # Designvorlagen
 
-Ab Version 0.5.29 unterstützen Editor und Display Raumhintergründe, Helligkeitsringe und Raumkarten mit mehreren Gerätezeilen. Dafür die Integration **und die Display-Firmware** auf mindestens 0.5.29 aktualisieren (ab 0.5.30 ohne Streifen in den Raumbildern).
+Ab Version 0.5.29 unterstützen Editor und Display Raumhintergründe, Helligkeitsringe und Raumkarten mit mehreren Gerätezeilen. Dafür die Integration **und die Display-Firmware** auf mindestens 0.5.29 aktualisieren (Raumbilder werden erst ab Firmware 0.5.31 richtig gezeichnet).
 
 1. Unter **Vorlagen** eines der acht Designs übernehmen.
 2. Im Designer die gewünschten Home-Assistant-Entitäten zuordnen. Vorlagen enthalten bewusst keine fremden Entity-IDs oder fest eingebrannten Zustände.

@@ -1455,6 +1455,7 @@ void GuitionStudio::build_tile_(int page_index, lv_obj_t *parent, const TileCfg 
     lv_arc_set_rotation(s, 135);
     lv_arc_set_bg_angles(s, 0, 270);
     lv_arc_set_range(s, 0, 100);
+    lv_arc_set_value(s, 0);
     lv_obj_set_style_arc_width(s, 10, LV_PART_MAIN);
     lv_obj_set_style_arc_width(s, 10, LV_PART_INDICATOR);
     lv_obj_set_style_arc_color(s, lv_color_hex(0x303A48), LV_PART_MAIN);
@@ -1755,8 +1756,18 @@ void GuitionStudio::update_tile_(TileView &view) {
     if (view.sub != nullptr)
       lv_label_set_text(view.sub, st->display.c_str());
   } else {
-    if (view.value != nullptr)
-      lv_label_set_text(view.value, main_text);
+    if (view.value != nullptr) {
+      if (t.ring) {
+        char level[16];
+        if (available && st != nullptr)
+          snprintf(level, sizeof(level), "%d %%", on ? std::max(0, st->num) : 0);
+        else
+          snprintf(level, sizeof(level), "–");
+        lv_label_set_text(view.value, level);
+      } else {
+        lv_label_set_text(view.value, main_text);
+      }
+    }
     if (view.sub != nullptr)
       lv_label_set_text(view.sub, available && st != nullptr ? st->sub.c_str() : "");
   }

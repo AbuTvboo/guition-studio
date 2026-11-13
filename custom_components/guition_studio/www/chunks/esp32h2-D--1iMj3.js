@@ -1,4 +1,4 @@
-import { ESP32C6ROM as e } from "./esp32c6-C3Z6buPP.js";
+import { ESP32C6ROM as e } from "./esp32c6-DiZPy7Ep.js";
 // node_modules/esptool-js/lib/targets/esp32h2.js
 var t = class extends e {
 	constructor() {

@@ -2069,8 +2069,19 @@ void GuitionStudio::on_room_event(int index, int item, lv_event_code_t code) {
   if (index < 0 || index >= static_cast<int>(this->views_.size())) return;
   auto &view = this->views_[index];
   if (!view.cfg->room || item < 0 || item >= static_cast<int>(view.cfg->items.size())) return;
-  if (code == LV_EVENT_PRESSED) this->begin_press_();
-  if (code != LV_EVENT_SHORT_CLICKED || this->swallow_) return;
+  lv_indev_t *indev = GS_INDEV_ACTIVE();
+  if (code == LV_EVENT_PRESSED) {
+    this->begin_press_();
+    this->press_moved_ = false;
+    if (indev) lv_indev_get_point(indev, &this->press_start_);
+  }
+  if (code == LV_EVENT_PRESSING && indev) {
+    lv_point_t pos;
+    lv_indev_get_point(indev, &pos);
+    int dx = pos.x - this->press_start_.x, dy = pos.y - this->press_start_.y;
+    if (dx * dx + dy * dy > 14 * 14) this->press_moved_ = true;
+  }
+  if (code != LV_EVENT_SHORT_CLICKED || this->swallow_ || this->press_moved_) return;
   auto state = this->states_.find(view.cfg->items[item].entity);
   if (state == this->states_.end() || !state->second.known || !state->second.available) return;
   view.item = item;

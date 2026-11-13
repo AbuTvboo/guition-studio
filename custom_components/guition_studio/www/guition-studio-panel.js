@@ -1309,7 +1309,7 @@ var De = {
 		try {
 			this.status = await this.api.firmwareStatus();
 			let e = this.status.local.filter((e) => e.factory);
-			!this.version && e.length && (this.version = e[0].version), Ee().ok && !this.ewtLoaded && (await import("./chunks/install-button-xhJ19lHs.js"), this.ewtLoaded = !0);
+			!this.version && e.length && (this.version = e[0].version), Ee().ok && !this.ewtLoaded && (await import("./chunks/install-button-ekHFp8KY.js"), this.ewtLoaded = !0);
 		} catch (e) {
 			this.error = b(e);
 		}

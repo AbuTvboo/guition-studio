@@ -1,5 +1,5 @@
-import { n as e } from "./install-dialog-k73k4mbc.js";
-import { t } from "./esp32-bcdvHgJG.js";
+import { n as e } from "./install-dialog-1b8UbcO9.js";
+import { t } from "./esp32-CzEAlFt3.js";
 // node_modules/esptool-js/lib/targets/esp32c3.js
 var n = /* @__PURE__ */ e({ ESP32C3ROM: () => r }), r = class extends t {
 	constructor() {

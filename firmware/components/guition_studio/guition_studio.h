@@ -115,6 +115,9 @@ struct TileCfg {
   // icon_frame 0 none/1 filled circle/2 circle ring/3 filled rounded square/4 rounded square ring
   uint8_t align{0}, icon_px{0}, value_font{255}, icon_frame{0};
   bool icon_glow{false};  // "on" lights up only the icon (on colour + glow), the card keeps its colours
+  bool ring{false};
+  bool room{false};
+  uint8_t texture{0};
   uint8_t tap{ACTION_NONE}, hold{ACTION_NONE};
   int tap_page{-1}, hold_page{-1};
   uint8_t wopts{0x2F};  // weather: 1 condition, 2 high/low, 4 humidity, 8 wind, 16 pressure, 32 forecast
@@ -212,6 +215,8 @@ struct TileView {
   lv_obj_t *value{nullptr};
   lv_obj_t *sub{nullptr};
   lv_obj_t *slider{nullptr};
+  lv_obj_t *room_value[MAX_SWIPE_ITEMS]{};
+  lv_obj_t *room_icon[MAX_SWIPE_ITEMS]{};
   lv_obj_t *graph_area{nullptr};
   lv_obj_t *detail{nullptr};
   lv_obj_t *fc_day[3]{nullptr, nullptr, nullptr}, *fc_icon[3]{nullptr, nullptr, nullptr}, *fc_temp[3]{nullptr, nullptr, nullptr};
@@ -274,6 +279,7 @@ class GuitionStudio : public Component {
   void on_root_event(lv_event_code_t code);
   void on_button_event(int index, uint8_t button, lv_event_code_t code);
   void on_slider_event(int index, lv_event_code_t code);
+  void on_room_event(int index, int item, lv_event_code_t code);
   void on_menu_event(int code, lv_event_code_t event, lv_obj_t *target);
   void on_header_event(lv_event_code_t code);
 

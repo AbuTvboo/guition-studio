@@ -1,5 +1,5 @@
 // Design system, shared helpers and the static screen renderer.
-import { css, html, nothing, type TemplateResult } from "lit";
+import { css, html, svg, nothing, type TemplateResult } from "lit";
 import { styleMap } from "lit/directives/style-map.js";
 import { cellRect, pageGeometry, SCREEN } from "./geometry";
 import { iconFallback, iconMdi } from "./icons";
@@ -364,7 +364,7 @@ const ICON_PX: Record<string, number> = { s: 20, m: 28, l: 40 };
 /** Inner content of a tile, laid out like the firmware does. */
 export function renderTileContent(tile: Tile, theme: Theme, hass: Hass | undefined, pw: number, ph: number, now = new Date(), item = 0): TemplateResult {
   const items = tile.type === "swipe" ? tile.items ?? [] : [];
-  if (items.length) {
+  if (items.length && tile.style.control !== "room") {
     // swipe tile: shown like an entity tile for the current item
     const it = items[Math.min(item, items.length - 1)];
     tile = { ...tile, entity: it.entity, title: it.title, icon: it.icon ?? tile.icon };
@@ -547,6 +547,23 @@ export function renderTileContent(tile: Tile, theme: Theme, hass: Hass | undefin
       const swatchH = rgb ? (ph >= 140 ? 28 : 20) : 0;
       const bottom = dimmer ? pad + sliderH + 10 + (rgb ? swatchH + 8 : 0) : pad;
       const level = ps.on ? (ps.num >= 0 ? ps.num : 100) : 0;
+      if (tile.type === "dimmer" && st.control === "ring") {
+        const diameter = Math.min(pw - 12, ph - 60);
+        const radius = (diameter - 16) / 2;
+        const arcLength = 1.5 * Math.PI * radius;
+        const angle = (135 + level * 2.7) * Math.PI / 180;
+        const center = diameter / 2;
+        body = html`<div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);margin-top:-12px;width:${diameter}px;height:${diameter}px">
+          ${svg`<svg viewBox="0 0 ${diameter} ${diameter}" width="${diameter}" height="${diameter}">
+            <circle cx="${center}" cy="${center}" r="${radius}" fill="none" stroke="#303A48" stroke-width="10" stroke-linecap="round" stroke-dasharray="${arcLength} ${arcLength / 3}" transform="rotate(135 ${center} ${center})"/>
+            <circle cx="${center}" cy="${center}" r="${radius}" fill="none" stroke="${st.on_color ?? theme.on_bg}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${arcLength * level / 100} ${2 * Math.PI * radius}" transform="rotate(135 ${center} ${center})"/>
+            <circle cx="${center + radius * Math.cos(angle)}" cy="${center + radius * Math.sin(angle)}" r="8" fill="white"/>
+          </svg>`}</div>
+          ${tile.show_icon ? html`<div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);margin-top:-48px;color:${c.icon}">${iconEl(iconKey, 28)}</div>` : nothing}
+          ${tile.show_state ? html`<div class="t-value" style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);margin-top:-8px;text-align:center;font-size:28px">${ps.known && ps.available ? `${level} %` : "–"}</div>` : nothing}
+          ${title({position: "absolute", left: `${pad}px`, right: `${pad}px`, bottom: "16px", textAlign: "center"})}`;
+        break;
+      }
       const autoValue = items.length ? (big ? 28 : tile.style.font_size === "s" ? 12 : 16) : tile.style.font_size === "s" ? 12 : 16;
       body = html`${entityLayout(
           bottom,
@@ -573,10 +590,27 @@ export function renderTileContent(tile: Tile, theme: Theme, hass: Hass | undefin
           : nothing}`;
     }
   }
+  if (tile.type === "swipe" && st.control === "room") {
+    body = html`<div style="position:absolute;left:12px;right:12px;top:10px;display:flex;align-items:center;gap:8px;color:${c.icon}">
+      ${tile.show_icon ? deviceIcon(tile.icon, 28) : nothing}
+      ${tile.show_title ? html`<span class="t-title" style="font-size:${titlePx}px;color:${c.fg}">${tile.title}</span>` : nothing}
+    </div>
+    ${items.length ? items.map((it, i) => {
+      const state = previewState(hass, { ...tile, entity: it.entity });
+      const rowH = Math.min(32, Math.floor((ph - 54) / items.length));
+      return html`<div style="position:absolute;left:10px;right:10px;top:${48 + i * rowH}px;height:${rowH - 3}px;border-radius:9px;background:#0008;display:flex;align-items:center;padding:0 8px;gap:7px;font-size:12px">
+        <span style="color:${state.on ? st.on_color ?? theme.on_bg : c.fg}">${deviceIcon(it.icon ?? tile.icon, 20)}</span>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${it.title || it.entity}</span>
+        <span>${state.known ? state.available ? state.text : "–" : "…"}</span>
+      </div>`;
+    }) : html`<div style="position:absolute;left:12px;right:12px;bottom:16px;font-size:12px">Geräte zuordnen …</div>`}`;
+  }
   return html`<div
     class="t-inner ${ps.known && !ps.available ? "unavailable" : ""}"
     style=${styleMap({
-      background: c.bg,
+      backgroundColor: c.bg,
+      backgroundImage: st.texture && st.texture !== "none" ? `url(${import.meta.url.includes("/src/") ? "" : "/guition_studio_static"}/room-textures/${st.texture}.png)` : "none",
+      backgroundSize: "100% 100%",
       color: c.fg,
       borderRadius: `${tile.style.radius}px`,
       border: tile.style.border_width ? `${tile.style.border_width}px solid ${tile.style.border_color ?? theme.accent}` : "none",

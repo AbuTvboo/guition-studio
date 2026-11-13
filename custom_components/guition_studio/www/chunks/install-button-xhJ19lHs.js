@@ -1,12 +1,12 @@
 // node_modules/esp-web-tools/dist/connect.js
 var e = async (t) => {
-	import("./install-dialog-1b8UbcO9.js");
+	import("./install-dialog-k73k4mbc.js");
 	let n;
 	try {
 		n = await navigator.serial.requestPort();
 	} catch (n) {
 		if (n.name === "NotFoundError") {
-			import("./no-port-picked-DY2VCTWw.js").then((n) => n.openNoPortPickedDialog(() => e(t)));
+			import("./no-port-picked-BhA_USeT.js").then((n) => n.openNoPortPickedDialog(() => e(t)));
 			return;
 		}
 		alert(`Error: ${n.message}`);

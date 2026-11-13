@@ -1,4 +1,4 @@
-import { t as e } from "./esp32c3-DtJNtsZg.js";
+import { t as e } from "./esp32c3-DD8w-Tc8.js";
 // node_modules/esptool-js/lib/targets/esp32c6.js
 var t = class extends e {
 	constructor() {

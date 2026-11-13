@@ -31,6 +31,8 @@ export function defaultStyle(): TileStyle {
     state_size: "auto",
     icon_frame: "none",
     on_effect: "card",
+    control: "default",
+    texture: "none",
   };
 }
 

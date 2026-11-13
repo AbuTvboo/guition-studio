@@ -10,7 +10,7 @@
 substitutions:
   name: guition-studio
   friendly_name: Guition Studio
-  fw_version: "0.5.28"
+  fw_version: "0.5.29"
 
 esphome:
   name: ${name}
@@ -241,6 +241,7 @@ lvgl:
       widgets:
         # Enables LV_USE_SLIDER for the runtime dimmer tile.
         - slider: { id: gs_slider_probe, hidden: true, min_value: 0, max_value: 100 }
+        - arc: { id: gs_arc_probe, hidden: true, min_value: 0, max_value: 100 }
         # Enables LV_USE_IMAGE for the screensaver slideshow.
         - image: { id: gs_image_probe, hidden: true, src: gs_slide }
 

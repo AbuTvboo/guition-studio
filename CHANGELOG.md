@@ -1,3 +1,11 @@
+# 0.5.29
+
+- Raumhintergründe für die Designvorlagen, identisch im Editor und auf dem Display.
+- Bedienbarer Helligkeitsring für Neon Dimmer und Cyan Glow.
+- Raumkarten mit bis zu vier separat bedienbaren Gerätezeilen.
+- Hintergrund und Reglerdarstellung im Designer auswählbar.
+- Wettertemperatur in der Editor-Vorschau korrigiert.
+
 # Changelog
 
 ## 0.5.28 – Acht neue Design-Vorlagen

@@ -30,6 +30,10 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-bundle
+          path: custom_components/guition_studio/www
       - name: Committed bundle must match the sources
         run: git diff --exit-code -- ../custom_components/guition_studio/www
 
